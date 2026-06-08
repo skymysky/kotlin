@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.types.KotlinType;
+import org.jetbrains.kotlin.types.typeUtil.TypeUtilsKt;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -49,7 +50,7 @@ public abstract class VariableDescriptorImpl extends DeclarationDescriptorNonRoo
     }
 
     public void setOutType(KotlinType outType) {
-        assert this.outType == null;
+        assert this.outType == null || TypeUtilsKt.shouldBeUpdated(this.outType);
         this.outType = outType;
     }
 
@@ -84,6 +85,12 @@ public abstract class VariableDescriptorImpl extends DeclarationDescriptorNonRoo
     @NotNull
     @Override
     public List<TypeParameterDescriptor> getTypeParameters() {
+        return Collections.emptyList();
+    }
+
+    @NotNull
+    @Override
+    public List<ReceiverParameterDescriptor> getContextReceiverParameters() {
         return Collections.emptyList();
     }
 

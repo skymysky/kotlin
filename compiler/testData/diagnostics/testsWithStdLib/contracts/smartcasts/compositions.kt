@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -13,7 +13,7 @@ fun isString(x: Any?): Boolean {
 
 fun testEqualsWithConstant(x: Any?) {
     if (isString(x) == true) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
@@ -25,7 +25,7 @@ fun testNotEqualsWithConstant(x: Any?) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
 }
 
@@ -68,3 +68,6 @@ fun testNotEqualsWithVariable(x: Any?, b: Boolean) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, equalityExpression, functionDeclaration, ifExpression,
+integerLiteral, isExpression, lambdaLiteral, nullableType, smartcast */

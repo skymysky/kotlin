@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun <T> ofType(x: T): T = x
 
@@ -8,4 +8,7 @@ fun foo(s: String) {}
 
 val x1 = ofType<() -> Unit>(::foo)
 val x2 = ofType<(String) -> Unit>(::foo)
-val x3 = ofType<(Int) -> Unit>(::<!NI;DEBUG_INFO_MISSING_UNRESOLVED, OI;NONE_APPLICABLE!>foo<!>)
+val x3 = ofType<(Int) -> Unit>(::<!NONE_APPLICABLE!>foo<!>)
+
+/* GENERATED_FIR_TAGS: callableReference, functionDeclaration, functionalType, nullableType, propertyDeclaration,
+typeParameter */

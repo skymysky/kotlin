@@ -1,5 +1,5 @@
-// !LANGUAGE: +NewInference
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 import kotlin.reflect.KProperty
 
@@ -17,3 +17,6 @@ operator fun Baz.getValue(nothing: Any?, property: KProperty<*>): Any = TODO()
 fun test() {
     val bar by Baz
 }
+
+/* GENERATED_FIR_TAGS: funWithExtensionReceiver, functionDeclaration, localProperty, nullableType, objectDeclaration,
+operator, propertyDeclaration, propertyDelegate, starProjection, thisExpression */

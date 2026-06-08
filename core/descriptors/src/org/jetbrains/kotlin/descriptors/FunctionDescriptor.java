@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.descriptors;
@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.descriptors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
+import org.jetbrains.kotlin.mpp.FunctionSymbolMarker;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.TypeSubstitution;
@@ -16,7 +17,7 @@ import org.jetbrains.kotlin.types.TypeSubstitutor;
 import java.util.Collection;
 import java.util.List;
 
-public interface FunctionDescriptor extends CallableMemberDescriptor {
+public interface FunctionDescriptor extends CallableMemberDescriptor, FunctionSymbolMarker {
     @Override
     @NotNull
     DeclarationDescriptor getContainingDeclaration();
@@ -54,7 +55,7 @@ public interface FunctionDescriptor extends CallableMemberDescriptor {
 
     @NotNull
     @Override
-    FunctionDescriptor copy(DeclarationDescriptor newOwner, Modality modality, Visibility visibility, Kind kind, boolean copyOverrides);
+    FunctionDescriptor copy(DeclarationDescriptor newOwner, Modality modality, DescriptorVisibility visibility, Kind kind, boolean copyOverrides);
 
     boolean isOperator();
 
@@ -83,7 +84,7 @@ public interface FunctionDescriptor extends CallableMemberDescriptor {
 
         @NotNull
         @Override
-        CopyBuilder<D> setVisibility(@NotNull Visibility visibility);
+        CopyBuilder<D> setVisibility(@NotNull DescriptorVisibility visibility);
 
         @NotNull
         @Override
@@ -105,7 +106,11 @@ public interface FunctionDescriptor extends CallableMemberDescriptor {
         CopyBuilder<D> setTypeParameters(@NotNull List<TypeParameterDescriptor> parameters);
 
         @NotNull
+        @Override
         CopyBuilder<D> setReturnType(@NotNull KotlinType type);
+
+        @NotNull
+        CopyBuilder<D> setContextReceiverParameters(@NotNull List<ReceiverParameterDescriptor> contextReceiverParameters);
 
         @NotNull
         CopyBuilder<D> setExtensionReceiverParameter(@Nullable ReceiverParameterDescriptor extensionReceiverParameter);
@@ -122,6 +127,7 @@ public interface FunctionDescriptor extends CallableMemberDescriptor {
         CopyBuilder<D> setSignatureChange();
 
         @NotNull
+        @Override
         CopyBuilder<D> setPreserveSourceElement();
 
         @NotNull

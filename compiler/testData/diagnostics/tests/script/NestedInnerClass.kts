@@ -1,20 +1,22 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// WITH_NEW_INFERENCE
 // documents inconsistency between scripts and classes, see DeclarationScopeProviderImpl
+// DUMP_CFG: LEVELS
 
 fun function() = 42
 val property = ""
 
 class Nested {
-    fun f() = <!OI;INACCESSIBLE_OUTER_CLASS_EXPRESSION!>function()<!>
-    fun g() = <!OI;INACCESSIBLE_OUTER_CLASS_EXPRESSION!>property<!>
+    fun f() = function()
+    fun g() = property
 }
 
 
-inner class Inner {
+<!INNER_ON_TOP_LEVEL_SCRIPT_CLASS_WARNING!>inner<!> class Inner {
     fun innerFun() = function()
     val innerProp = property
-    fun innerThisFun() = this@NestedInnerClass.function()
-    val innerThisProp = this@NestedInnerClass.property
+    fun innerThisFun() = this<!UNRESOLVED_LABEL!>@NestedInnerClass<!>.function()
+    val innerThisProp = this<!UNRESOLVED_LABEL!>@NestedInnerClass<!>.property
 
     inner class InnerInner {
         fun f() = innerFun()
@@ -23,3 +25,6 @@ inner class Inner {
         fun i() = this@Inner.innerProp
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, inner, integerLiteral, localProperty, propertyDeclaration,
+stringLiteral, thisExpression */

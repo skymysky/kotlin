@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
 // NO_CHECK_LAMBDA_INLINING
-// WITH_RUNTIME
+// WITH_STDLIB
 // FILE: 1.kt
 package test
 
@@ -14,7 +13,7 @@ inline fun inlineFun(p: () -> Unit) {
 
 import test.*
 
-public fun box(): String {
+fun box(): String {
     var z = "fail"
     inlineFun {
         val obj = object  {

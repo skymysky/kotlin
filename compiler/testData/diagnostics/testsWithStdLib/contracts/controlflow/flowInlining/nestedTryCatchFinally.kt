@@ -1,6 +1,6 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -INVISIBLE_MEMBER -INVISIBLE_REFERENCE
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -INVISIBLE_MEMBER -INVISIBLE_REFERENCE
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 import kotlin.contracts.*
 
@@ -33,15 +33,15 @@ fun outerFinallyInitializes() {
 
         // Definite reassignment here, cause can get here only if myRun finished
         // Not reported because of repeating diagnostic
-        x = outerComputation()
+        <!VAL_REASSIGNMENT!>x<!> = outerComputation()
     } catch (e: java.lang.Exception) {
-        // can catch exception thrown by the inner, so x can be not initalized
+        // can catch exception thrown by the inner, so x can be not initialized
         <!UNINITIALIZED_VARIABLE!>x<!>.inc()
         log()
     } finally {
         // Possible reassignment (e.g. if everything finished)
         // Not reported because of repeating diagnostic
-        x = 42
+        <!VAL_REASSIGNMENT!>x<!> = 42
     }
 
     // Properly initialized
@@ -96,3 +96,6 @@ fun innerFinallyInitializesOuterRethrows() {
     // Guaranteed to be initialized because all catch-clauses are rethrowing
     x.inc()
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, functionDeclaration, functionalType, inline,
+integerLiteral, lambdaLiteral, localProperty, nullableType, propertyDeclaration, tryExpression, typeParameter */

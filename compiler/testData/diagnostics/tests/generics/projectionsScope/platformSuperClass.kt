@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
 // FILE: Clazz.java
 public class Clazz<T> {
@@ -10,10 +10,10 @@ public class Clazz<T> {
 // FILE: main.kt
 fun test(clazz: Clazz<*>) {
     clazz.t checkType { _<Any?>() }
-    clazz.getSuperClass() checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Clazz<*>?>() }
+    clazz.getSuperClass() checkType { _<Clazz<*>?>() }
     clazz.getSuperClass().t checkType { _<Any?>() }
 
-    clazz.superClass checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Clazz<*>?>() }
+    clazz.superClass checkType { _<Clazz<*>?>() }
     clazz.superClass.t checkType { _<Any?>() }
 
     // See KT-9294
@@ -21,3 +21,7 @@ fun test(clazz: Clazz<*>) {
         throw NullPointerException()
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, equalityExpression, flexibleType, funWithExtensionReceiver, functionDeclaration,
+functionalType, ifExpression, inProjection, infix, javaProperty, javaType, lambdaLiteral, nullableType, outProjection,
+starProjection, typeParameter, typeWithExtension */

@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.codegen;
 
 import com.intellij.openapi.util.Ref;
+import kotlin.collections.CollectionsKt;
 import kotlin.io.FilesKt;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
@@ -25,126 +26,97 @@ import org.jetbrains.kotlin.backend.common.output.OutputFile;
 import org.jetbrains.kotlin.backend.common.output.OutputFileCollection;
 import org.jetbrains.kotlin.name.SpecialNames;
 import org.jetbrains.kotlin.test.ConfigurationKind;
-import org.jetbrains.kotlin.test.KotlinTestUtils;
+import org.jetbrains.kotlin.test.FirParser;
+import org.jetbrains.kotlin.test.JvmCompilationUtils;
+import org.jetbrains.kotlin.test.util.KtTestUtil;
+import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
 import org.jetbrains.kotlin.utils.StringsKt;
 import org.jetbrains.org.objectweb.asm.ClassReader;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 public class OuterClassGenTest extends CodegenTestCase {
+    @Override
+    public boolean getUseFir() {
+        return true;
+    }
+
+    @Override
+    public @NotNull FirParser getFirParser() {
+        return FirParser.LightTree;
+    }
+
     @NotNull
     @Override
     protected String getPrefix() {
         return "outerClassInfo";
     }
 
-    public void testClass() throws Exception {
+    public void testClass() {
         doTest("foo.Foo", "outerClassInfo");
     }
 
-    public void testClassObject() throws Exception {
+    public void testClassObject() {
         doTest("foo.Foo$" + SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT.asString(), "outerClassInfo");
     }
 
-    public void testInnerClass() throws Exception {
+    public void testInnerClass() {
         doTest("foo.Foo$InnerClass", "outerClassInfo");
     }
 
-    public void testInnerObject() throws Exception {
+    public void testInnerObject() {
         doTest("foo.Foo$InnerObject", "outerClassInfo");
     }
 
-    public void testLocalClassInFunction() throws Exception {
+    public void testLocalClassInFunction() {
         doTest("foo.Foo$foo$LocalClass", "foo.Foo$1LocalClass", "outerClassInfo");
     }
 
-    public void testLocalObjectInFunction() throws Exception {
+    public void testLocalObjectInFunction() {
         doTest("foo.Foo$foo$LocalObject", "foo.Foo$1LocalObject", "outerClassInfo");
     }
 
-    public void testObjectInPackageClass() throws Exception {
+    public void testObjectInPackageClass() {
         doTest("foo.PackageInnerObject", "outerClassInfo");
     }
 
-    public void testLambdaInNoInlineFun() throws Exception {
-        doTest("foo.Foo$foo$1", "foo.Foo$1Lambda", "outerClassInfo");
-    }
-
-    public void testLambdaInConstructor() throws Exception {
-        doTest("foo.Foo$s$1", "foo.Foo$1LambdaInConstructor", "outerClassInfo");
-    }
-
-    public void testObjectLiteralInPackageClass() throws Exception {
+    public void testObjectLiteralInPackageClass() {
         OuterClassInfo expectedInfo = new OuterClassInfo("foo/OuterClassInfo", null, null);
         doCustomTest("foo/OuterClassInfoKt\\$packageObjectLiteral\\$1", expectedInfo, "outerClassInfo");
     }
 
-    public void testLocalClassInTopLevelFunction() throws Exception {
+    public void testLocalClassInTopLevelFunction() {
         OuterClassInfo expectedInfo = new OuterClassInfo("foo/OuterClassInfo", "packageMethod", "(Lfoo/Foo;)V");
         doCustomTest("foo/OuterClassInfoKt\\$packageMethod\\$PackageLocalClass", expectedInfo, "outerClassInfo");
     }
 
-    public void testLocalObjectInTopLevelFunction() throws Exception {
+    public void testLocalObjectInTopLevelFunction() {
         OuterClassInfo expectedInfo = new OuterClassInfo("foo/OuterClassInfo", "packageMethod", "(Lfoo/Foo;)V");
         doCustomTest("foo/OuterClassInfoKt\\$packageMethod\\$PackageLocalObject", expectedInfo, "outerClassInfo");
     }
 
-    public void testLocalObjectInInlineFunction() throws Exception {
+    public void testLocalObjectInInlineFunction() {
         OuterClassInfo expectedInfo = new OuterClassInfo("foo/Foo", "inlineFoo", "(Lkotlin/jvm/functions/Function0;)V");
         doCustomTest("foo/Foo\\$inlineFoo\\$localObject\\$1", expectedInfo, "inlineObject");
     }
 
-    public void testLocalObjectInlined() throws Exception {
+    public void testLocalObjectInlined() {
         OuterClassInfo expectedInfo = new OuterClassInfo("foo/Bar", "callToInline", "()V");
         doCustomTest("foo/Bar\\$callToInline\\$\\$inlined\\$inlineFoo\\$1", expectedInfo, "inlineObject");
     }
 
-    public void testLocalObjectInInlineLambda() throws Exception {
-        OuterClassInfo expectedInfo = new OuterClassInfo("foo/Bar", "objectInInlineLambda", "()V");
-        doCustomTest("foo/Bar\\$objectInInlineLambda\\$\\$inlined\\$simpleFoo\\$lambda\\$1", expectedInfo, "inlineObject");
-    }
-
-    public void testLocalObjectInLambdaInlinedIntoObject() throws Exception {
+    public void testLocalObjectInLambdaInlinedIntoObject() {
         OuterClassInfo intoObjectInfo = new OuterClassInfo("foo/Bar", "objectInLambdaInlinedIntoObject", "()V");
         doCustomTest("foo/Bar\\$objectInLambdaInlinedIntoObject\\$\\$inlined\\$inlineFoo\\$1", intoObjectInfo, "inlineObject");
     }
 
-    public void testLocalObjectInLambdaInlinedIntoObject2() throws Exception {
-        OuterClassInfo objectInLambda = new OuterClassInfo("foo/Bar$objectInLambdaInlinedIntoObject$$inlined$inlineFoo$1", "run", "()V");
-        doCustomTest("foo/Bar\\$objectInLambdaInlinedIntoObject\\$\\$inlined\\$inlineFoo\\$1\\$lambda\\$1",
-                     objectInLambda, "inlineObject");
-    }
-
-    public void testLambdaInInlineFunction() throws Exception {
-        OuterClassInfo expectedInfo = new OuterClassInfo("foo/Foo", "inlineFoo", "(Lkotlin/jvm/functions/Function0;)V");
-        doCustomTest("foo/Foo\\$inlineFoo\\$1", expectedInfo, "inlineLambda");
-    }
-
-    public void testLambdaInlined() throws Exception {
-        OuterClassInfo expectedInfo = new OuterClassInfo("foo/Bar", "callToInline", "()V");
-        doCustomTest("foo/Bar\\$callToInline\\$\\$inlined\\$inlineFoo\\$1", expectedInfo, "inlineLambda");
-    }
-
-    public void testLambdaInInlineLambda() throws Exception {
-        OuterClassInfo expectedInfo = new OuterClassInfo("foo/Bar", "objectInInlineLambda", "()V");
-        doCustomTest("foo/Bar\\$objectInInlineLambda\\$\\$inlined\\$simpleFoo\\$lambda\\$1", expectedInfo, "inlineLambda");
-    }
-
-    public void testLambdaInLambdaInlinedIntoObject() throws Exception {
-        OuterClassInfo intoObjectInfo = new OuterClassInfo("foo/Bar", "objectInLambdaInlinedIntoObject", "()V");
-        doCustomTest("foo/Bar\\$objectInLambdaInlinedIntoObject\\$\\$inlined\\$inlineFoo\\$1", intoObjectInfo, "inlineLambda");
-    }
-
-    public void testLambdaInLambdaInlinedIntoObject2() throws Exception {
-        OuterClassInfo objectInLambda = new OuterClassInfo("foo/Bar$objectInLambdaInlinedIntoObject$$inlined$inlineFoo$1", "invoke", "()V");
-        doCustomTest("foo/Bar\\$objectInLambdaInlinedIntoObject\\$\\$inlined\\$inlineFoo\\$1\\$lambda\\$1",
-                     objectInLambda, "inlineLambda");
-    }
-
-    private void doTest(@NotNull String classFqName, @NotNull String testDataFile) throws Exception {
+    private void doTest(@NotNull String classFqName, @NotNull String testDataFile) {
         doTest(classFqName, classFqName, testDataFile);
     }
 
@@ -154,11 +126,9 @@ public class OuterClassGenTest extends CodegenTestCase {
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.JDK_ONLY);
     }
 
-    private void doTest(@NotNull String classFqName, @NotNull String javaClassName, @NotNull String testDataFile) throws Exception {
-        File javaOut = CodegenTestUtil.compileJava(
-                Collections.singletonList(KotlinTestUtils.getTestDataPathBase() + "/codegen/" + getPrefix() + "/" + testDataFile + ".java"),
-                Collections.emptyList(),
-                Collections.emptyList()
+    private void doTest(@NotNull String classFqName, @NotNull String javaClassName, @NotNull String testDataFile) {
+        File javaOut = compileJava(
+                Collections.singletonList(KtTestUtil.getTestDataFileLocatedInCompilerTestData("codegen/" + getPrefix() + "/" + testDataFile + ".java").getAbsolutePath())
         );
 
         String javaClassPath = javaClassName.replace('.', File.separatorChar) + ".class";
@@ -176,16 +146,27 @@ public class OuterClassGenTest extends CodegenTestCase {
     ) {
         ClassReader kotlinReader = getKotlinClassReader(internalNameRegexp, testDataFile);
         OuterClassInfo kotlinInfo = readOuterClassInfo(kotlinReader);
+        assertNotNull(kotlinInfo);
         String message = "Error in enclosingMethodInfo info for class: " + kotlinReader.getClassName();
-        if (kotlinInfo == null) {
-            assertNull(expectedInfo.getOwner());
-        }
-        else {
-            assertTrue(message + "\n" + kotlinInfo.getOwner() + " doesn't start with " + expectedInfo.getOwner(),
-                       kotlinInfo.getOwner().startsWith(expectedInfo.getOwner()));
-        }
+        assertTrue(message + "\n" + kotlinInfo.getOwner() + " doesn't start with " + expectedInfo.getOwner(),
+                   kotlinInfo.getOwner().startsWith(expectedInfo.getOwner()));
         assertEquals(message, expectedInfo.getMethodName(), kotlinInfo.getMethodName());
         assertEquals(message, expectedInfo.getMethodDesc(), kotlinInfo.getMethodDesc());
+    }
+
+    @NotNull
+    private static File compileJava(@NotNull List<String> fileNames) {
+        try {
+            File directory = KtTestUtil.tmpDir("java-classes");
+            JvmCompilationUtils.compileJavaFiles(
+                    CollectionsKt.map(fileNames, File::new),
+                    Arrays.asList("-d", directory.getPath())
+            ).assertSuccessful();
+            return directory;
+        }
+        catch (IOException e) {
+            throw ExceptionUtilsKt.rethrow(e);
+        }
     }
 
     @NotNull
@@ -219,7 +200,7 @@ public class OuterClassGenTest extends CodegenTestCase {
     @Nullable
     private static OuterClassInfo readOuterClassInfo(@NotNull ClassReader reader) {
         Ref<OuterClassInfo> info = Ref.create();
-        reader.accept(new ClassVisitor(Opcodes.ASM5) {
+        reader.accept(new ClassVisitor(Opcodes.API_VERSION) {
             @Override
             public void visitOuterClass(@NotNull String owner, @Nullable String name, @Nullable String desc) {
                 info.set(new OuterClassInfo(owner, name, desc));

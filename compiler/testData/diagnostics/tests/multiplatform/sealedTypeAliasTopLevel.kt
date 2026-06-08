@@ -1,4 +1,4 @@
-// !LANGUAGE: +MultiPlatformProjects
+// RUN_PIPELINE_TILL: BACKEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -7,10 +7,12 @@ expect object Online: Presence
 expect object Offline: Presence
 
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual typealias Presence = P
 sealed class P
 actual object Online : P()
 actual object Offline : P()
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, expect, objectDeclaration, sealed, typeAliasDeclaration */

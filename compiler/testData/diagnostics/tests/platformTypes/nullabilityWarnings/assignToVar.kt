@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: J.java
 
 import org.jetbrains.annotations.*;
@@ -18,10 +18,13 @@ var n: J? = J()
 
 fun test() {
     v = J.staticNN
-    v = <!TYPE_MISMATCH!>J.<!NI;TYPE_MISMATCH!>staticN<!><!>
+    v <!ASSIGNMENT_TYPE_MISMATCH!>=<!> J.staticN
     v = J.staticJ
 
     n = J.staticNN
     n = J.staticN
     n = J.staticJ
 }
+
+/* GENERATED_FIR_TAGS: assignment, flexibleType, functionDeclaration, javaFunction, javaProperty, javaType, nullableType,
+propertyDeclaration */

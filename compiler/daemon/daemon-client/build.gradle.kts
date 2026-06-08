@@ -1,61 +1,33 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 description = "Kotlin Daemon Client"
 
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("project-tests-convention")
 }
-
-jvmTarget = "1.6"
-
-val nativePlatformVariants = listOf(
-    "windows-amd64",
-    "windows-i386",
-    "osx-amd64",
-    "osx-i386",
-    "linux-amd64",
-    "linux-i386",
-    "freebsd-amd64-libcpp",
-    "freebsd-amd64-libstdcpp",
-    "freebsd-i386-libcpp",
-    "freebsd-i386-libstdcpp"
-)
 
 dependencies {
-    compileOnly(project(":compiler:util"))
-    compileOnly(project(":compiler:cli-common"))
-    compileOnly(project(":compiler:daemon-common"))
-    compileOnly(project(":kotlin-reflect-api"))
-    compileOnly(project(":js:js.frontend"))
-    compileOnly(commonDep("net.rubygrapefruit", "native-platform"))
-    compileOnly(intellijDep()) { includeIntellijCoreJarDependencies(project) }
+    val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
+    api(kotlin("stdlib", coreDepsVersion))
+    compileOnly(project(":daemon-common")) { exclude("org.jetbrains.kotlin", "kotlin-stdlib") }
+    compileOnly(project(":js:js.config")) { exclude("org.jetbrains.kotlin", "kotlin-stdlib") }
 
-    embeddedComponents(project(":compiler:daemon-common")) { isTransitive = false }
-    embeddedComponents(commonDep("net.rubygrapefruit", "native-platform"))
-    nativePlatformVariants.forEach {
-        embeddedComponents(commonDep("net.rubygrapefruit", "native-platform", "-$it"))
-    }
+    embedded(project(":daemon-common")) { isTransitive = false }
+    testCompileOnly(project(":daemon-common"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(kotlin("stdlib", coreDepsVersion))
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-sourceSets {
-    "main" { projectDefault() }
-    "test" {}
+projectTests {
+    testTask(jUnitMode = JUnitMode.JUnit5)
 }
 
-noDefaultJar()
-
-runtimeJar(task<ShadowJar>("shadowJar")) {
-    from(mainSourceSet.output)
-    fromEmbeddedComponents()
-}
-
-sourcesJar()
-
-javadocJar()
-
-dist()
-
-ideaPlugin()
+configureKotlinCompileTasksGradleCompatibility()
 
 publish()
+
+runtimeJar()
+sourcesJar()
+javadocJar()

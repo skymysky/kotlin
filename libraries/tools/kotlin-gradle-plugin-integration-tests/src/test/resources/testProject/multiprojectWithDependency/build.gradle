@@ -8,9 +8,6 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        mavenLocal()
-        jcenter()
-    }
+plugins {
+    id "org.jetbrains.kotlin.jvm" apply false
 }

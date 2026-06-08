@@ -1,5 +1,4 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: BACKEND
 
 interface Ref<T> {
     var x: T
@@ -32,10 +31,15 @@ val r3 = LateInitNumRef(1)
 val r3a = LateNR(1)
 
 fun test() {
-    r1.x = <!OI;TYPE_MISMATCH!>r1.x<!>
-    r1a.x = <!OI;TYPE_MISMATCH!>r1a.x<!>
+    r1.x = r1.x
+    r1a.x = r1a.x
     r2.x = r2.x
     r2a.x = r2a.x
     r3.x = r3.x
     r3a.x = r3a.x
 }
+
+/* GENERATED_FIR_TAGS: assignment, checkNotNullCall, classDeclaration, functionDeclaration, getter, inProjection,
+integerLiteral, interfaceDeclaration, nullableType, override, primaryConstructor, propertyDeclaration,
+secondaryConstructor, setter, thisExpression, typeAliasDeclaration, typeAliasDeclarationWithTypeParameter,
+typeConstraint, typeParameter */

@@ -16,61 +16,104 @@
 
 package org.jetbrains.kotlin.psi2ir
 
+import org.jetbrains.kotlin.backend.common.linkage.IrDeserializer
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrProvider
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.util.patchDeclarationParents
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi2ir.generators.AnnotationGenerator
+import org.jetbrains.kotlin.psi2ir.descriptors.IrBuiltInsOverDescriptors
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
+import org.jetbrains.kotlin.psi2ir.generators.GeneratorExtensions
 import org.jetbrains.kotlin.psi2ir.generators.ModuleGenerator
-import org.jetbrains.kotlin.psi2ir.transformations.insertImplicitCasts
+import org.jetbrains.kotlin.psi2ir.generators.TypeTranslatorImpl
+import org.jetbrains.kotlin.psi2ir.generators.fragments.EvaluatorFragmentInfo
+import org.jetbrains.kotlin.psi2ir.generators.fragments.FragmentContext
+import org.jetbrains.kotlin.psi2ir.generators.fragments.FragmentModuleGenerator
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.utils.SmartList
 
+fun interface Psi2IrPostprocessingStep {
+    fun invoke(irModuleFragment: IrModuleFragment)
+}
+
+/**
+ * @property checkNoUnboundSymbols The checks that need to be performed to make sure that all symbols are bound.
+ *  Note: Some backends (like KLIB-based backends) actually support partial linkage. So, for such backends the value
+ *  of [checkNoUnboundSymbols] is `null`, which effectively means that the checks are postponed to the partial linkage phase.
+ */
 class Psi2IrTranslator(
     val languageVersionSettings: LanguageVersionSettings,
-    val configuration: Psi2IrConfiguration = Psi2IrConfiguration()
+    val configuration: Psi2IrConfiguration,
+    private val checkNoUnboundSymbols: ((SymbolTable, String) -> Unit)? = null,
 ) {
-    interface PostprocessingStep {
-        fun postprocess(context: GeneratorContext, irElement: IrElement)
-    }
+    private val postprocessingSteps = SmartList<Psi2IrPostprocessingStep>()
 
-    private val postprocessingSteps = SmartList<PostprocessingStep>()
-
-    fun add(step: PostprocessingStep) {
+    fun addPostprocessingStep(step: Psi2IrPostprocessingStep) {
         postprocessingSteps.add(step)
     }
 
-    fun generateModule(moduleDescriptor: ModuleDescriptor, ktFiles: Collection<KtFile>, bindingContext: BindingContext): IrModuleFragment {
-        val context = createGeneratorContext(moduleDescriptor, bindingContext)
-        return generateModuleFragment(context, ktFiles)
+    fun createGeneratorContext(
+        moduleDescriptor: ModuleDescriptor,
+        bindingContext: BindingContext,
+        compilerConfiguration: CompilerConfiguration,
+        symbolTable: SymbolTable,
+        extensions: GeneratorExtensions = GeneratorExtensions(),
+        fragmentContext: FragmentContext? = null
+    ): GeneratorContext {
+        val typeTranslator = TypeTranslatorImpl(
+            symbolTable, languageVersionSettings, moduleDescriptor, extensions = extensions,
+            allowErrorTypeInAnnotations = configuration.skipBodies,
+        )
+        return GeneratorContext(
+            configuration,
+            compilerConfiguration,
+            moduleDescriptor,
+            bindingContext,
+            languageVersionSettings,
+            symbolTable,
+            extensions,
+            typeTranslator,
+            IrBuiltInsOverDescriptors(moduleDescriptor.builtIns, typeTranslator, symbolTable),
+            fragmentContext
+        )
     }
 
-    fun createGeneratorContext(moduleDescriptor: ModuleDescriptor, bindingContext: BindingContext) =
-        GeneratorContext(configuration, moduleDescriptor, bindingContext, languageVersionSettings)
+    fun generateModuleFragment(
+        context: GeneratorContext,
+        ktFiles: Collection<KtFile>,
+        irProviders: List<IrProvider>,
+        fragmentInfo: EvaluatorFragmentInfo? = null
+    ): IrModuleFragment {
 
-    fun generateModuleFragment(context: GeneratorContext, ktFiles: Collection<KtFile>): IrModuleFragment {
-        val moduleGenerator = ModuleGenerator(context)
-        val irModule = moduleGenerator.generateModuleFragmentWithoutDependencies(ktFiles)
-        postprocess(context, irModule)
-        moduleGenerator.generateUnboundSymbolsAsDependencies(irModule)
+        val moduleGenerator = fragmentInfo?.let {
+            FragmentModuleGenerator(context, it)
+        } ?: ModuleGenerator(context)
+
+        val irModule = moduleGenerator.generateModuleFragment(ktFiles)
+
+        val deserializers = irProviders.filterIsInstance<IrDeserializer>()
+        deserializers.forEach { it.init(irModule) }
+
+        moduleGenerator.generateUnboundSymbolsAsDependencies(irProviders)
+
+        deserializers.forEach { it.postProcess(context.irBuiltIns, inOrAfterLinkageStep = true) }
+        context.checkNoUnboundSymbols { "after generation of IR module ${irModule.name.asString()}" }
+
+        postprocessingSteps.forEach { it.invoke(irModule) }
+//        assert(context.symbolTable.allUnbound.isEmpty()) // TODO: fix IrPluginContext to make it not produce additional external reference
+
+        // TODO: remove it once plugin API improved
+        moduleGenerator.generateUnboundSymbolsAsDependencies(irProviders)
+        deserializers.forEach { it.postProcess(context.irBuiltIns, inOrAfterLinkageStep = true) }
+        context.checkNoUnboundSymbols { "after applying all post-processing steps for the generated IR module ${irModule.name.asString()}" }
+
         return irModule
     }
 
-    private fun postprocess(context: GeneratorContext, irElement: IrElement) {
-        insertImplicitCasts(irElement, context)
-        generateAnnotationsForDeclarations(context, irElement)
-
-        postprocessingSteps.forEach { it.postprocess(context, irElement) }
-
-        irElement.patchDeclarationParents()
-    }
-
-    private fun generateAnnotationsForDeclarations(context: GeneratorContext, irElement: IrElement) {
-        val annotationGenerator = AnnotationGenerator(context)
-        irElement.acceptVoid(annotationGenerator)
+    private inline fun GeneratorContext.checkNoUnboundSymbols(whenDetected: () -> String) {
+        checkNoUnboundSymbols?.invoke(symbolTable, whenDetected())
     }
 }

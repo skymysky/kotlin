@@ -1,9 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// WITH_RUNTIME
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo(val arg: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val arg: String)
 
 fun box(): String {
     val ls = listOf(Foo("abc"), Foo("def"))

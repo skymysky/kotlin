@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.numbers
@@ -62,6 +62,38 @@ class BigNumbersTest {
         assertEquals(BigInteger("2"), c)
     }
 
+    @Test
+    fun testUIntToBigInteger() {
+        assertEquals(BigInteger.ZERO, 0u.toBigInteger())
+        assertEquals(BigInteger.ONE, 1u.toBigInteger())
+        assertEquals(BigInteger("42"), 42u.toBigInteger())
+        assertEquals(BigInteger("2147483647"), Int.MAX_VALUE.toUInt().toBigInteger())
+        assertEquals(BigInteger("2147483648"), (Int.MAX_VALUE.toUInt() + 1u).toBigInteger())
+        assertEquals(BigInteger("4294967295"), UInt.MAX_VALUE.toBigInteger())
+    }
+
+    @Test
+    fun testULongToBigInteger() {
+        assertEquals(BigInteger.ZERO, 0uL.toBigInteger())
+        assertEquals(BigInteger.ONE, 1uL.toBigInteger())
+        assertEquals(BigInteger("42"), 42uL.toBigInteger())
+        assertEquals(BigInteger("9223372036854775807"), Long.MAX_VALUE.toULong().toBigInteger())
+        assertEquals(BigInteger("9223372036854775808"), (Long.MAX_VALUE.toULong() + 1uL).toBigInteger())
+        assertEquals(BigInteger("18446744073709551615"), ULong.MAX_VALUE.toBigInteger())
+    }
+
+    @Test fun sumOfBigInteger() {
+        val numbers = (1..10).map { it.toBigInteger() }
+        val i55 = 55.toBigInteger()
+        assertEquals(i55, numbers.sumOf { it })
+        assertEquals(i55, numbers.asSequence().sumOf { it })
+        assertEquals(i55, numbers.toTypedArray().sumOf { it })
+
+        val chars = ('0'..'9').joinToString("")
+        assertEquals(i55, chars.sumOf { it.toString().toBigInteger().inc() })
+        assertEquals(i55, chars.toCharArray().sumOf { it.toString().toBigInteger().inc() })
+    }
+
     @Test fun testBigDecimal() {
         val a = BigDecimal("2")
         val b = BigDecimal("3")
@@ -72,7 +104,6 @@ class BigNumbersTest {
         assertEquals(BigDecimal("2"), BigDecimal("4") / a)
         assertEquals(BigDecimal("-2"), -a)
         assertEquals(BigDecimal("-2"), -a % b)
-        assertEquals(BigDecimal("-2"), @Suppress("DEPRECATION_ERROR") (-a).mod(b))
         assertEquals(BigDecimal("-2"), (-a).rem(b))
 
         assertEquals(BigDecimal("3"), a.inc())
@@ -95,7 +126,7 @@ class BigNumbersTest {
     }
 
     @Test fun bigDecimalDivRounding() {
-        val (d1, d2, d3, d4, d5) = (1..5).map { BigDecimal(it.toString()) }
+        val [d1, d2, d3, d4, d5] = (1..5).map { BigDecimal(it.toString()) }
         val d7 = BigDecimal("7")
 
         assertEquals(d1, d2 / d3)
@@ -103,6 +134,18 @@ class BigNumbersTest {
         assertEquals(d2, d5 / d2)
         assertEquals(d4, d7 / d2)
         assertEquals(d1, d7 / d5)
+    }
+
+    @Test fun sumOfBigDecimal() {
+        val numbers = (1..10).map { it.toBigDecimal() }
+        val d55 = 55.toBigDecimal()
+        assertEquals(d55, numbers.sumOf { it })
+        assertEquals(d55, numbers.asSequence().sumOf { it })
+        assertEquals(d55, numbers.toTypedArray().sumOf { it })
+
+        val chars = ('0'..'9').joinToString("")
+        assertEquals(d55, chars.sumOf { it.toString().toBigDecimal().inc() })
+        assertEquals(d55, chars.toCharArray().sumOf { it.toString().toBigDecimal().inc() })
     }
 }
 

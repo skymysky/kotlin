@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.ir.builders
 
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.IrBuiltIns
+import org.jetbrains.kotlin.ir.declarations.IrFactory
 
 interface IrGenerator {
     val context: IrGeneratorContext
@@ -27,10 +27,12 @@ interface IrGeneratorWithScope : IrGenerator {
     val scope: Scope
 }
 
-abstract class IrGeneratorContext {
-    abstract val irBuiltIns: IrBuiltIns
-
-    val builtIns: KotlinBuiltIns get() = irBuiltIns.builtIns
+interface IrGeneratorContextInterface {
+    val irBuiltIns: IrBuiltIns
 }
 
-open class IrGeneratorContextBase(override val irBuiltIns: IrBuiltIns) : IrGeneratorContext()
+interface IrGeneratorContext : IrGeneratorContextInterface {
+    val irFactory: IrFactory get() = irBuiltIns.irFactory
+}
+
+open class IrGeneratorContextBase(override val irBuiltIns: IrBuiltIns) : IrGeneratorContext

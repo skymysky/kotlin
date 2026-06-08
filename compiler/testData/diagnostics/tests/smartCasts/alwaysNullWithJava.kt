@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: My.java
 
 public class My {
@@ -11,7 +11,9 @@ public class My {
 fun test() {
     val my = My.create()
     if (my == null) {
-        <!OI;DEBUG_INFO_CONSTANT!>my<!><!OI;UNSAFE_CALL!>.<!>foo()
+        my<!UNSAFE_CALL!>.<!>foo()
     }
 }
 
+/* GENERATED_FIR_TAGS: equalityExpression, flexibleType, functionDeclaration, ifExpression, javaFunction, localProperty,
+nullableType, propertyDeclaration, smartcast */

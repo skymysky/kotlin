@@ -1,5 +1,5 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// KJS_WITH_FULL_RUNTIME
+// WITH_STDLIB
 
 import kotlin.test.*
 

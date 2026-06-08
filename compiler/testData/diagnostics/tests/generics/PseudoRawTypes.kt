@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // JAVAC_EXPECTED_FILE
 // FILE: java/util/Collection.java
 package java.util;
@@ -23,3 +24,5 @@ package test
 fun foo(u: Usage) {
   u.foo(null)
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaFunction, javaType, nullableType */

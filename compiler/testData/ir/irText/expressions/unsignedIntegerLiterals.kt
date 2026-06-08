@@ -1,4 +1,4 @@
-// WITH_UNSIGNED
+// WITH_STDLIB
 
 val testSimpleUIntLiteral = 1u
 

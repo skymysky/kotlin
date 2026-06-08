@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Id(val id: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Id(val id: String)
 
 fun test(id: Id) {
     if (id.id != "OK") throw AssertionError()

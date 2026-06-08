@@ -1,10 +1,18 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
+
+inline fun foo(x: (Int) -> Unit) {
+    for (i in 1..2) {
+        x(i)
+    }
+}
+
+// FILE: main.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     suspend fun suspendHere(v: Int): Int = suspendCoroutineUninterceptedOrReturn { x ->
@@ -17,24 +25,17 @@ fun builder(c: suspend Controller.() -> Unit) {
     c.startCoroutine(Controller(), EmptyContinuation)
 }
 
-inline fun foo(x: (Int) -> Unit) {
-    for (i in 1..2) {
-        x(i)
-    }
-}
-
 fun box(): String {
     var result = ""
 
     builder {
         result += "-"
-        foo {
-            result += suspendHere(it).toString()
-        }
+        foo { result += suspendHere(it).toString() }
+        foo(fun(it: Int) { result += suspendHere(it).toString() })
         result += "+"
     }
 
-    if (result != "-24+") return "fail: $result"
+    if (result != "-2424+") return "fail: $result"
 
     return "OK"
 }

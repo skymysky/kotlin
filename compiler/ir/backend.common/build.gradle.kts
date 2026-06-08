@@ -1,20 +1,30 @@
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("java-test-fixtures")
+    id("test-inputs-check")
 }
-
-jvmTarget = "1.6"
 
 dependencies {
-    compile(project(":compiler:util"))
-    compile(project(":compiler:frontend"))
-    compile(project(":compiler:backend-common"))
-    compile(project(":compiler:ir.tree"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
+    api(project(":compiler:util"))
+    api(project(":compiler:ir.tree"))
+    api(project(":compiler:ir.interpreter"))
+    api(project(":compiler:ir.serialization.common"))
+    api(project(":compiler:ir.validation"))
+    implementation(project(":core:compiler.common.native"))
+    implementation(project(":compiler:frontend.common-psi")) // required for error reporting
+    compileOnly(intellijCore())
+
+    testImplementation(kotlinTest("junit"))
+    testImplementation(testFixtures(project(":compiler:tests-common-new")))
+
+    testFixturesImplementation(kotlinTest("junit"))
 }
+
+optInToUnsafeDuringIrConstructionAPI()
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {}
+    "test" { projectDefault() }
+    "testFixtures" { projectDefault() }
 }
 

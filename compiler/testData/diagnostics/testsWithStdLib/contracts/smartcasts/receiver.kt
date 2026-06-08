@@ -1,7 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -17,7 +16,7 @@ fun smartcastOnReceiver(x: Int?) {
         x<!UNSAFE_CALL!>.<!>inc()
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.dec()
+        x.dec()
     }
 }
 
@@ -34,3 +33,6 @@ class UnstableReceiver {
     }
 }
 
+/* GENERATED_FIR_TAGS: classDeclaration, contractConditionalEffect, contracts, equalityExpression,
+funWithExtensionReceiver, functionDeclaration, ifExpression, integerLiteral, lambdaLiteral, nullableType,
+propertyDeclaration, smartcast, thisExpression */

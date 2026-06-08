@@ -1,3 +1,5 @@
+// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +AllowSuperCallToJavaInterface
 // FILE: JavaInterface.java
 
 public interface JavaInterface {
@@ -19,23 +21,23 @@ import JavaInterface.testStatic
 
 interface KotlinInterface : JavaInterface {
     fun fooo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+        testStatic()
+        super.test()
 
         object  {
             fun run () {
-                super@KotlinInterface.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+                super@KotlinInterface.test()
             }
         }
     }
 
     val propertyy: String
         get() {
-            super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+            super.test()
 
             object  {
                 fun run () {
-                    super@KotlinInterface.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+                    super@KotlinInterface.test()
                 }
             }
             return ""
@@ -48,23 +50,23 @@ interface KotlinInterface : JavaInterface {
 
 interface KotlinInterfaceIndirectInheritance : KotlinInterface {
     fun foooo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+        testStatic()
+        super.test()
 
         object  {
             fun run () {
-                super@KotlinInterfaceIndirectInheritance.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+                super@KotlinInterfaceIndirectInheritance.test()
             }
         }
     }
 
     val propertyyy: String
         get() {
-            super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+            super.test()
 
             object  {
                 fun run () {
-                    super@KotlinInterfaceIndirectInheritance.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+                    super@KotlinInterfaceIndirectInheritance.test()
                 }
             }
             return ""
@@ -73,25 +75,25 @@ interface KotlinInterfaceIndirectInheritance : KotlinInterface {
 
 open class KotlinClass : JavaInterface {
     fun foo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testOverride<!>()
+        testStatic()
+        super.test()
+        super.testOverride()
 
         object  {
             fun run () {
-                super@KotlinClass.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+                super@KotlinClass.test()
             }
         }
     }
 
     val property: String
         get() {
-            super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
-            super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testOverride<!>()
+            super.test()
+            super.testOverride()
 
             object  {
                 fun run () {
-                    super@KotlinClass.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+                    super@KotlinClass.test()
                 }
             }
             return ""
@@ -100,7 +102,7 @@ open class KotlinClass : JavaInterface {
 
 class KotlinClassIndirectInheritance : KotlinClass() {
     fun foo2(){
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
+        testStatic()
         super.test()
         super.testOverride()
 
@@ -127,25 +129,25 @@ class KotlinClassIndirectInheritance : KotlinClass() {
 
 class KotlinClassIndirectInheritance2 : KotlinInterfaceIndirectInheritance {
     fun foo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+        testStatic()
+        super.test()
         super.testOverride()
 
         object  {
             fun run () {
-                super@KotlinClassIndirectInheritance2.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+                super@KotlinClassIndirectInheritance2.test()
             }
         }
     }
 
     val property: String
         get() {
-            super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+            super.test()
             super.testOverride()
 
             object  {
                 fun run () {
-                    super@KotlinClassIndirectInheritance2.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+                    super@KotlinClassIndirectInheritance2.test()
                 }
             }
             return ""
@@ -153,7 +155,7 @@ class KotlinClassIndirectInheritance2 : KotlinInterfaceIndirectInheritance {
 }
 
 fun test() {
-    JavaInterface.<!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
+    JavaInterface.testStatic()
     KotlinClass().foo()
     KotlinClass().property
     KotlinClassIndirectInheritance2().foo()
@@ -164,3 +166,6 @@ fun test() {
     KotlinClass().testOverride()
     KotlinClassIndirectInheritance().testOverride()
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, classDeclaration, flexibleType, functionDeclaration, getter,
+interfaceDeclaration, javaFunction, javaType, override, propertyDeclaration, stringLiteral, superExpression */

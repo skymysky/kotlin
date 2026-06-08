@@ -1,6 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FULL_JDK
 
 import java.util.stream.Collectors
@@ -12,3 +11,5 @@ fun test(a: Stream<String>) {
     a.collect(Collectors.toList()) checkType { _<List<String?>>() }
 }
 
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, javaFunction, lambdaLiteral, nullableType, starProjection, typeParameter, typeWithExtension */

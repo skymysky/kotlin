@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1289
 package foo
 
 class CC(val s: CharSequence) : CharSequence by s, MyCharSequence {}

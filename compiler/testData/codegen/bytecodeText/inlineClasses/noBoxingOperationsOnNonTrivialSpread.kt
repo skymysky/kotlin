@@ -1,5 +1,3 @@
-// WITH_UNSIGNED
-
 fun uint(vararg us: UInt): UIntArray = us
 
 // FILE: NoBoxing.kt

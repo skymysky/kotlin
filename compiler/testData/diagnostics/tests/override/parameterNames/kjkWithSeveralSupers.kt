@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: KSuper.kt
 
 interface KSuper {
@@ -49,3 +50,5 @@ class SubSub2 : Sub2 {
 class SubSub3 : Sub3 {
     override fun foo(ksuperName: Int) {}
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, interfaceDeclaration, javaType, override */

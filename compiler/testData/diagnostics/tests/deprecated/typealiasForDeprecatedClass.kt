@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 @Deprecated("")
 class Foo
 
@@ -19,3 +20,5 @@ fun use3(b: <!TYPEALIAS_EXPANSION_DEPRECATION!>Test3<!>) = b
 fun useErr1(b: <!TYPEALIAS_EXPANSION_DEPRECATION_ERROR!>TestErr1<!>) = b
 fun useErr2(b: <!TYPEALIAS_EXPANSION_DEPRECATION_ERROR!>TestErr2<!>) = b
 fun useErr3(b: <!TYPEALIAS_EXPANSION_DEPRECATION_ERROR!>TestErr3<!>) = b
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, stringLiteral, typeAliasDeclaration */

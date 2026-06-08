@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// FILE: lib.kt
 fun returnNullable(): String? = null
 
 inline fun Array<String>.matchAll(fn: (String) -> Unit) {
@@ -16,6 +15,7 @@ inline fun Array<String>.matchAll3(crossinline fn: (String) -> Unit) {
     matchAll2 { fn(it) }
 }
 
+// FILE: main.kt
 fun test(a: Array<String>) {
     a.matchAll {}
     a.matchAll2 {}

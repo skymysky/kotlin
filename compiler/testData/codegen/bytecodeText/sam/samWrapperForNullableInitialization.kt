@@ -1,4 +1,4 @@
-// WITH_RUNTIME
+// SAM_CONVERSIONS: INDY
 // FILE: JFoo.java
 
 import org.jetbrains.annotations.Nullable;
@@ -17,8 +17,8 @@ fun test() {
     JFoo.foo2({}, runnable())
 }
 
-// @TestKt.class:
-// 2 NEW
+// @TestKt.class
+// 0 NEW
 // 0 IFNONNULL
 // 1 IFNULL
-// 1 ACONST_NULL
+// 2 ACONST_NULL

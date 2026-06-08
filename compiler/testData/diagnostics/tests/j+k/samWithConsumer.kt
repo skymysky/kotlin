@@ -1,4 +1,5 @@
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FULL_JDK
 // FILE: A.java
 import java.util.function.Consumer;
@@ -21,3 +22,7 @@ fun test(a: A<out Number>) {
         it.toInt()
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+inProjection, infix, javaType, lambdaLiteral, nullableType, outProjection, samConversion, typeParameter,
+typeWithExtension */

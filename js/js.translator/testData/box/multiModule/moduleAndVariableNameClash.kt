@@ -1,5 +1,9 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1283
+// KJS_WITH_FULL_RUNTIME
+// MODULE: module1
+// FILE: module1.kt
+
+fun bar() = "bar"
+
 // MODULE: main(module1)
 // FILE: main.kt
 
@@ -9,8 +13,3 @@ fun box(): String {
 
     return "OK"
 }
-
-// MODULE: module1
-// FILE: module1.kt
-
-fun bar() = "bar"

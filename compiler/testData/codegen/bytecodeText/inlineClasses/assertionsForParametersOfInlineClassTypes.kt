@@ -1,8 +1,7 @@
-// !LANGUAGE: +InlineClasses
+
 
 inline class AsNonNullPrimitive(val i: Int)
-inline class AsNonNullReference(val s: String)
-// ^ 5 assertions (constructor, box method, erased constructor, 2 assertions in equals--impl)
+inline class AsNonNullReference(val s: String) // assertion (erased constructor)
 
 fun nonNullPrimitive(a: AsNonNullPrimitive) {}
 
@@ -12,4 +11,5 @@ fun AsNonNullReference.nonNullReferenceExtension(b1: AsNonNullReference) {} // 2
 fun asNullablePrimitive(c: AsNonNullPrimitive?) {}
 fun asNullableReference(c: AsNonNullReference?) {}
 
-// 8 checkParameterIsNotNull
+// 0 checkParameterIsNotNull
+// 4 checkNotNullParameter

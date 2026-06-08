@@ -1,20 +1,12 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// IGNORE_BACKEND: JS, JS_IR, NATIVE
-// IGNORE_BACKEND: JVM_IR
-
 // WITH_REFLECT
-// WITH_RUNTIME
 // WITH_COROUTINES
+// NO_CHECK_LAMBDA_INLINING
 
+// FILE: lib.kt
 import kotlin.test.assertEquals
 
 import helpers.*
 import kotlin.coroutines.*
-
-fun builder(c: suspend () -> Unit) {
-    c.startCoroutine(EmptyContinuation)
-}
 
 suspend fun <T, R> foo(x: T): R = TODO()
 
@@ -25,6 +17,14 @@ suspend inline fun <reified T, reified R> bar(x: T, y: R, f: suspend (T) -> R, t
 }
 
 data class Pair<A, B>(val a: A, val b: B)
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+
+fun builder(c: suspend () -> Unit) {
+    c.startCoroutine(EmptyContinuation)
+}
 
 fun box(): String {
     builder {

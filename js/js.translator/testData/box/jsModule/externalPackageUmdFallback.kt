@@ -1,8 +1,6 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1290
-// FILE: a.kt
-// MODULE_KIND: UMD
+// JS_MODULE_KIND: UMD
 // NO_JS_MODULE_SYSTEM
+// FILE: a.kt
 @file:JsModule("lib")
 @file:JsNonModule
 package foo

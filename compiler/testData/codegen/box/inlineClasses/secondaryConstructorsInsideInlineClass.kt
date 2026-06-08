@@ -1,11 +1,11 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
-
-@file:Suppress("SECONDARY_CONSTRUCTOR_WITH_BODY_INSIDE_INLINE_CLASS")
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
 var global = "wrong"
 
-inline class Foo(val x: String) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val x: String) {
     constructor(y: Int) : this(y.toString())
     constructor(z: Long) : this(z.toInt() + 1)
     constructor(other: Char) : this(other.toInt().toString()) {

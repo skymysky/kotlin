@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 infix fun Any?.foo(a: Any) {}
 operator fun Any?.contains(a: Any): Boolean = true
@@ -35,6 +36,9 @@ fun test(a: Any) {
     if(<!USELESS_IS_CHECK!>"s"<!UNSUPPORTED!>is<!> Any<!>) {}
     test("s"<!UNSUPPORTED!>as<!> Any)
 
-    a <!UNSUPPORTED!>foo<!>""<!UNSUPPORTED, SYNTAX!>1<!>
-    a <!UNSUPPORTED!>foo<!>""<!UNSUPPORTED, SYNTAX!>1.0<!>
+    a <!UNSUPPORTED!>foo<!>""<!SYNTAX, UNSUPPORTED!>1<!>
+    a <!UNSUPPORTED!>foo<!>""<!SYNTAX, UNSUPPORTED!>1.0<!>
 }
+
+/* GENERATED_FIR_TAGS: asExpression, funWithExtensionReceiver, functionDeclaration, ifExpression, infix, isExpression,
+nullableType, operator, stringLiteral */

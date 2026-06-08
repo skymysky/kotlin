@@ -1,17 +1,19 @@
-// LANGUAGE_VERSION: 1.3
+// IGNORE_BACKEND: WASM_JS, WASM_WASI
+// WASM_MUTE_REASON: IGNORED_IN_JS
 // IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// IGNORE_BACKEND: JS_IR_ES6
+// WITH_STDLIB
 // WITH_COROUTINES
+import helpers.*
 import kotlin.coroutines.*
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.*
 
 fun runCustomLambdaAsCoroutine(e: Throwable? = null, x: (Continuation<String>) -> Any?): String {
     var result = "fail"
     var wasIntercepted = false
-    val c = (x as suspend () -> String).createCoroutine(object: helpers.ContinuationAdapter<String>() {
-        override fun resumeWithException(exception: Throwable) {
-            throw exception
+    val c = (x as suspend () -> String).createCoroutine(object: Continuation<String> {
+        override fun resumeWith(value: Result<String>) {
+            result = value.getOrThrow()
         }
 
         override val context: CoroutineContext
@@ -27,18 +29,13 @@ fun runCustomLambdaAsCoroutine(e: Throwable? = null, x: (Continuation<String>) -
                     return null
                 }
 
-                override fun <T> interceptContinuation(continuation: Continuation<T>) = object : helpers.ContinuationAdapter<T>() {
+                override fun <T> interceptContinuation(continuation: Continuation<T>) = object : Continuation<T> {
                     override val context: CoroutineContext
                         get() = continuation.context
 
-                    override fun resume(value: T) {
+                    override fun resumeWith(value: Result<T>) {
                         wasIntercepted = true
-                        continuation.resume(value)
-                    }
-
-                    override fun resumeWithException(exception: Throwable) {
-                        wasIntercepted = true
-                        continuation.resumeWithException(exception)
+                        continuation.resumeWith(value)
                     }
                 }
 
@@ -53,10 +50,6 @@ fun runCustomLambdaAsCoroutine(e: Throwable? = null, x: (Continuation<String>) -
                 override val key: CoroutineContext.Key<*>
                     get() = ContinuationInterceptor.Key
             }
-
-        override fun resume(value: String) {
-            result = value
-        }
     })
 
     if (e != null)

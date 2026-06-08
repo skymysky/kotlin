@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: OnSubscribe.java
 public interface OnSubscribe<T> {
     void f();
@@ -16,3 +17,6 @@ typealias ObservableIntAlias = Observable<Int>
 
 class A : ObservableAlias<String>({})
 class B : ObservableIntAlias({})
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, javaType, lambdaLiteral, nullableType, samConversion,
+typeAliasDeclaration, typeAliasDeclarationWithTypeParameter, typeParameter */

@@ -1,48 +1,69 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.resolve
 
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
-import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.resolve.descriptorUtil.inlineClassRepresentation
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.TypeSubstitutor
 import org.jetbrains.kotlin.types.TypeUtils
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
+import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.isNullableType
 
-fun ClassDescriptor.underlyingRepresentation(): ValueParameterDescriptor? {
-    if (!isInline) return null
-    return unsubstitutedPrimaryConstructor?.valueParameters?.singleOrNull()
+val JVM_INLINE_ANNOTATION_FQ_NAME = FqName("kotlin.jvm.JvmInline")
+val JVM_INLINE_ANNOTATION_CLASS_ID = ClassId.topLevel(JVM_INLINE_ANNOTATION_FQ_NAME)
+
+val JVM_NAME_ANNOTATION_FQ_NAME = FqName("kotlin.jvm.JvmName")
+
+// FIXME: DeserializedClassDescriptor in reflection do not have @JvmInline annotation, that we
+// FIXME: would like to check as well.
+fun DeclarationDescriptor.isInlineClass(): Boolean = this is ClassDescriptor && this.valueClassRepresentation is InlineClassRepresentation
+
+fun DeclarationDescriptor.isMultiFieldValueClass(): Boolean =
+    this is ClassDescriptor && this.valueClassRepresentation is JvmInlineMultiFieldValueClassRepresentation
+
+fun DeclarationDescriptor.isValueClass(): Boolean = isInlineClass() || isMultiFieldValueClass()
+
+fun KotlinType.unsubstitutedUnderlyingType(): KotlinType? =
+    (constructor.declarationDescriptor as? ClassDescriptor)?.inlineClassRepresentation?.underlyingType
+
+fun KotlinType.unsubstitutedUnderlyingTypes(): List<KotlinType> {
+    val declarationDescriptor = constructor.declarationDescriptor as? ClassDescriptor ?: return emptyList()
+    return when {
+        declarationDescriptor.isInlineClass() -> listOfNotNull(unsubstitutedUnderlyingType())
+        declarationDescriptor.isMultiFieldValueClass() ->
+            declarationDescriptor.unsubstitutedPrimaryConstructor?.valueParameters?.map { it.type } ?: emptyList()
+        else -> emptyList()
+    }
 }
 
-fun DeclarationDescriptor.isInlineClass() = this is ClassDescriptor && this.isInline
-
-fun KotlinType.unsubstitutedUnderlyingParameter(): ValueParameterDescriptor? {
-    return constructor.declarationDescriptor.safeAs<ClassDescriptor>()?.underlyingRepresentation()
-}
-
-fun KotlinType.unsubstitutedUnderlyingType(): KotlinType? = unsubstitutedUnderlyingParameter()?.type
 
 fun KotlinType.isInlineClassType(): Boolean = constructor.declarationDescriptor?.isInlineClass() ?: false
 
-fun KotlinType.substitutedUnderlyingType(): KotlinType? {
-    val parameter = unsubstitutedUnderlyingParameter() ?: return null
-    return memberScope.getContributedVariables(parameter.name, NoLookupLocation.FOR_ALREADY_TRACKED).singleOrNull()?.type
-}
+fun KotlinType.needsMfvcFlattening(): Boolean =
+    constructor.declarationDescriptor?.run { isMultiFieldValueClass() && !isNullableType() } == true
 
-fun KotlinType.isRecursiveInlineClassType() =
-    isRecursiveInlineClassTypeInner(hashSetOf())
+fun KotlinType.substitutedUnderlyingTypes(): List<KotlinType?> =
+    unsubstitutedUnderlyingTypes().map { TypeSubstitutor.create(this).substitute(it, Variance.INVARIANT) }
 
-private fun KotlinType.isRecursiveInlineClassTypeInner(visited: HashSet<ClassDescriptor>): Boolean {
-    val descriptor = constructor.declarationDescriptor as? ClassDescriptor ?: return false
-    if (visited.contains(descriptor)) return true
-    if (!descriptor.isInlineClass()) return false
-    visited.add(descriptor)
-    return unsubstitutedUnderlyingType()?.isRecursiveInlineClassTypeInner(visited) ?: false
+fun KotlinType.isRecursiveInlineOrValueClassType(): Boolean =
+    isRecursiveInlineOrValueClassTypeInner(hashSetOf())
+
+private fun KotlinType.isRecursiveInlineOrValueClassTypeInner(visited: HashSet<ClassifierDescriptor>): Boolean {
+    val types = when (val descriptor = constructor.declarationDescriptor?.original?.takeIf { it.isValueClass() }) {
+        is ClassDescriptor -> if (descriptor.isValueClass()) unsubstitutedUnderlyingTypes() else emptyList()
+        is TypeParameterDescriptor -> descriptor.upperBounds
+        else -> emptyList()
+    }
+    return types.any {
+        val classifier = it.constructor.declarationDescriptor?.original ?: return@any false
+        !visited.add(classifier) || it.isRecursiveInlineOrValueClassTypeInner(visited).also { visited.remove(classifier) }
+    }
 }
 
 fun KotlinType.isNullableUnderlyingType(): Boolean {
@@ -52,9 +73,6 @@ fun KotlinType.isNullableUnderlyingType(): Boolean {
     return TypeUtils.isNullableType(underlyingType)
 }
 
-fun PropertyDescriptor.isUnderlyingPropertyOfInlineClass(): Boolean {
-    val containingDeclaration = this.containingDeclaration
-    if (!containingDeclaration.isInlineClass()) return false
-
-    return (containingDeclaration as ClassDescriptor).underlyingRepresentation()?.name == this.name
-}
+fun VariableDescriptor.isUnderlyingPropertyOfInlineClass(): Boolean =
+    extensionReceiverParameter == null && contextReceiverParameters.isEmpty() &&
+            (containingDeclaration as? ClassDescriptor)?.inlineClassRepresentation?.underlyingPropertyName == this.name

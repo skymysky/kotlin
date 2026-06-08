@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:JvmMultifileClass
@@ -8,24 +8,40 @@
 
 package kotlin.io
 
-import java.io.*
-import java.util.*
-import kotlin.*
-import kotlin.text.*
-import kotlin.comparisons.*
+import java.io.File
+import java.io.IOException
 
 /**
  * Creates an empty directory in the specified [directory], using the given [prefix] and [suffix] to generate its name.
  *
- * If [prefix] is not specified then some unspecified name will be used.
+ * If [prefix] is not specified then some unspecified string will be used.
  * If [suffix] is not specified then ".tmp" will be used.
  * If [directory] is not specified then the default temporary-file directory will be used.
+ *
+ * The [prefix] argument, if specified, must be at least three characters long.
+ * It is recommended that the prefix be a short, meaningful string such as "job" or "mail".
+ *
+ * To create the new file, the [prefix] and the [suffix] may first be adjusted to fit the limitations of the underlying platform.
+ *
+ * **Note:** if the new directory is created in a directory that is shared with all users,
+ * it may get permissions allowing everyone to read it or its content, thus creating a risk of leaking
+ * sensitive information stored in this directory.
+ * To avoid this, it's recommended either to specify an explicit parent [directory] that is not shared widely,
+ * or to use alternative ways of creating temporary files,
+ * such as [java.nio.file.Files.createTempDirectory](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Files.html#createTempDirectory-java.lang.String-java.nio.file.attribute.FileAttribute...-)
+ * or the experimental `createTempDirectory` function in the `kotlin.io.path` package.
  *
  * @return a file object corresponding to a newly-created directory.
  *
  * @throws IOException in case of input/output error.
  * @throws IllegalArgumentException if [prefix] is shorter than three symbols.
  */
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "2.3")
+@Deprecated(
+    "Avoid creating temporary directories in the default temp location with this function " +
+    "due to too wide permissions on the newly created directory. " +
+    "Use kotlin.io.path.createTempDirectory instead."
+)
 public fun createTempDir(prefix: String = "tmp", suffix: String? = null, directory: File? = null): File {
     val dir = File.createTempFile(prefix, suffix, directory)
     dir.delete()
@@ -39,15 +55,34 @@ public fun createTempDir(prefix: String = "tmp", suffix: String? = null, directo
 /**
  * Creates a new empty file in the specified [directory], using the given [prefix] and [suffix] to generate its name.
  *
- * If [prefix] is not specified then some unspecified name will be used.
+ * If [prefix] is not specified then some unspecified string will be used.
  * If [suffix] is not specified then ".tmp" will be used.
  * If [directory] is not specified then the default temporary-file directory will be used.
+ *
+ * The [prefix] argument, if specified, must be at least three characters long.
+ * It is recommended that the prefix be a short, meaningful string such as "job" or "mail".
+ *
+ * To create the new file, the [prefix] and the [suffix] may first be adjusted to fit the limitations of the underlying platform.
+ *
+ * **Note:** if the new file is created in a directory that is shared with all users,
+ * it may get permissions allowing everyone to read it, thus creating a risk of leaking
+ * sensitive information stored in this file.
+ * To avoid this, it's recommended either to specify an explicit parent [directory] that is not shared widely,
+ * or to use alternative ways of creating temporary files,
+ * such as [java.nio.file.Files.createTempFile](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Files.html#createTempFile-java.lang.String-java.lang.String-java.nio.file.attribute.FileAttribute...-)
+ * or the experimental `createTempFile` function in the `kotlin.io.path` package.
  *
  * @return a file object corresponding to a newly-created file.
  *
  * @throws IOException in case of input/output error.
  * @throws IllegalArgumentException if [prefix] is shorter than three symbols.
  */
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "2.3")
+@Deprecated(
+    "Avoid creating temporary files in the default temp location with this function " +
+    "due to too wide permissions on the newly created file. " +
+    "Use kotlin.io.path.createTempFile instead or resort to java.io.File.createTempFile."
+)
 public fun createTempFile(prefix: String = "tmp", suffix: String? = null, directory: File? = null): File {
     return File.createTempFile(prefix, suffix, directory)
 }
@@ -181,21 +216,17 @@ private fun File.toRelativeStringOrNull(base: File): String? {
  * @throws FileAlreadyExistsException if the destination file already exists and [overwrite] argument is set to `false`.
  * @throws IOException if any errors occur while copying.
  */
+@IgnorableReturnValue
 public fun File.copyTo(target: File, overwrite: Boolean = false, bufferSize: Int = DEFAULT_BUFFER_SIZE): File {
     if (!this.exists()) {
         throw NoSuchFileException(file = this, reason = "The source file doesn't exist.")
     }
 
     if (target.exists()) {
-        val stillExists = if (!overwrite) true else !target.delete()
-
-        if (stillExists) {
-            throw FileAlreadyExistsException(
-                file = this,
-                other = target,
-                reason = "The destination file already exists."
-            )
-        }
+        if (!overwrite)
+            throw FileAlreadyExistsException(file = this, other = target, reason = "The destination file already exists.")
+        else if (!target.delete())
+            throw FileAlreadyExistsException(file = this, other = target, reason = "Tried to overwrite the destination, but failed to delete it.")
     }
 
     if (this.isDirectory) {
@@ -206,7 +237,7 @@ public fun File.copyTo(target: File, overwrite: Boolean = false, bufferSize: Int
 
         this.inputStream().use { input ->
             target.outputStream().use { output ->
-                input.copyTo(output, bufferSize)
+                val _ = input.copyTo(output, bufferSize)
             }
         }
     }
@@ -257,6 +288,7 @@ private class TerminateException(file: File) : FileSystemException(file) {}
  * @param overwrite `true` if it is allowed to overwrite existing destination files and directories.
  * @return `false` if the copying was terminated, `true` otherwise.
  */
+@IgnorableReturnValue
 public fun File.copyRecursively(
     target: File,
     overwrite: Boolean = false,
@@ -316,6 +348,7 @@ public fun File.copyRecursively(
  *
  * @return `true` if the file or directory is successfully deleted, `false` otherwise.
  */
+@IgnorableReturnValue
 public fun File.deleteRecursively(): Boolean = walkBottomUp().fold(true, { res, it -> (it.delete() || !it.exists()) && res })
 
 /**

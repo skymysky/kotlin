@@ -5,7 +5,7 @@ inline fun <T> runAfterLoop(fn: () -> T): T {
 
 fun bar() : Boolean = true
 
-fun foobar(x: Boolean, y: String, z: String) = x.toString() + y + z
+fun foobar(x: Boolean, y: String, z: String) {}
 
 inline fun foo() = runAfterLoop { "-" }
 
@@ -13,10 +13,10 @@ fun test() {
     val result = foobar(if (1 == 1) true else bar(), foo(), "OK")
 }
 
-// 7 ISTORE
-// 8 ILOAD
 // 2 ASTORE
-// 7 ALOAD
-// 1 MAXLOCALS = 3
-// 1 MAXLOCALS = 4
+// 5 ALOAD
 // 0 InlineMarker
+// 2 MAXLOCALS = 3
+// 1 MAXLOCALS = 4
+// 11 ISTORE
+// 4 ILOAD

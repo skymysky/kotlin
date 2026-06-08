@@ -60,9 +60,105 @@ class Arrays {
             val sameArray = nonEmptyArray.ifEmpty { arrayOf(2) }
             assertTrue(nonEmptyArray === sameArray)
         }
+
+        @Sample
+        fun getOrElse() {
+            val emptyArray: Array<Any> = emptyArray()
+            assertPrints(emptyArray.getOrElse(0) { "default" }, "default")
+
+            val array = arrayOf(1)
+            assertPrints(array.getOrElse(0) { 0 }, "1")
+            assertPrints(array.getOrElse(-1) { 0 }, "0")
+            assertPrints(array.getOrElse(0) { "default" }, "1")
+            assertPrints(array.getOrElse(-1) { "default" }, "default")
+
+            // arrays of primitive types
+            val intArray = intArrayOf(1, 2, 3)
+            assertPrints(intArray.getOrElse(0) { 0 }, "1")
+            assertPrints(intArray.getOrElse(-1) { 0 }, "0")
+
+            val booleanArray = booleanArrayOf(true, false)
+            assertPrints(booleanArray.getOrElse(0) { false }, "true")
+            assertPrints(booleanArray.getOrElse(-1) { false }, "false")
+
+            val charArray = charArrayOf('a', 'b', 'c')
+            assertPrints(charArray.getOrElse(0) { 'z' }, "a")
+            assertPrints(charArray.getOrElse(-1) { 'z' }, "z")
+
+            // arrays of unsigned types
+            val uIntArray = uintArrayOf(1u, 2u, 3u)
+            assertPrints(uIntArray.getOrElse(0) { 10u }, "1")
+            assertPrints(uIntArray.getOrElse(-1) { 10u }, "10")
+        }
     }
 
     class Transformations {
+
+        @Sample
+        fun associateArrayOfPrimitives() {
+            val charCodes = intArrayOf(72, 69, 76, 76, 79)
+
+            val byCharCode = charCodes.associate { it to Char(it) }
+
+            // 76=L only occurs once because only the last pair with the same key gets added
+            assertPrints(byCharCode, "{72=H, 69=E, 76=L, 79=O}")
+        }
+
+
+        @Sample
+        fun associateArrayOfPrimitivesBy() {
+            val charCodes = intArrayOf(72, 69, 76, 76, 79)
+
+            val byChar = charCodes.associateBy { Char(it) }
+
+            // L=76 only occurs once because only the last pair with the same key gets added
+            assertPrints(byChar, "{H=72, E=69, L=76, O=79}")
+        }
+
+        @Sample
+        fun associateArrayOfPrimitivesByWithValueTransform() {
+            val charCodes = intArrayOf(65, 65, 66, 67, 68, 69)
+
+            val byUpperCase = charCodes.associateBy({ Char(it) }, { Char(it + 32) })
+
+            // A=a only occurs once because only the last pair with the same key gets added
+            assertPrints(byUpperCase, "{A=a, B=b, C=c, D=d, E=e}")
+        }
+
+        @Sample
+        fun associateArrayOfPrimitivesByTo() {
+            val charCodes = intArrayOf(72, 69, 76, 76, 79)
+            val byChar = mutableMapOf<Char, Int>()
+
+            assertTrue(byChar.isEmpty())
+            charCodes.associateByTo(byChar) { Char(it) }
+
+            assertTrue(byChar.isNotEmpty())
+            // L=76 only occurs once because only the last pair with the same key gets added
+            assertPrints(byChar, "{H=72, E=69, L=76, O=79}")
+        }
+
+        @Sample
+        fun associateArrayOfPrimitivesByToWithValueTransform() {
+            val charCodes = intArrayOf(65, 65, 66, 67, 68, 69)
+
+            val byUpperCase = mutableMapOf<Char, Char>()
+            charCodes.associateByTo(byUpperCase, { Char(it) }, { Char(it + 32) })
+
+            // A=a only occurs once because only the last pair with the same key gets added
+            assertPrints(byUpperCase, "{A=a, B=b, C=c, D=d, E=e}")
+        }
+
+        @Sample
+        fun associateArrayOfPrimitivesTo() {
+            val charCodes = intArrayOf(72, 69, 76, 76, 79)
+
+            val byChar = mutableMapOf<Int, Char>()
+            charCodes.associateTo(byChar) { it to Char(it) }
+
+            // 76=L only occurs once because only the last pair with the same key gets added
+            assertPrints(byChar, "{72=H, 69=E, 76=L, 79=O}")
+        }
 
         @Sample
         fun flattenArray() {
@@ -79,6 +175,14 @@ class Arrays {
         fun unzipArray() {
             val array = arrayOf(1 to 'a', 2 to 'b', 3 to 'c')
             assertPrints(array.unzip(), "([1, 2, 3], [a, b, c])")
+        }
+
+        @Sample
+        fun partitionArrayOfPrimitives() {
+            val array = intArrayOf(1, 2, 3, 4, 5)
+            val [even, odd] = array.partition { it % 2 == 0 }
+            assertPrints(even, "[2, 4]")
+            assertPrints(odd, "[1, 3, 5]")
         }
     }
 
@@ -100,6 +204,97 @@ class Arrays {
             )
 
             assertPrints(matrix.contentDeepToString(), "[[3, 7, 9], [0, 1, 0], [2, 4, 8]]")
+        }
+
+        @Sample
+        fun arrayContentEquals() {
+            val array = arrayOf("apples", "oranges", "lime")
+
+            // the same size and equal elements
+            assertPrints(array.contentEquals(arrayOf("apples", "oranges", "lime")), "true")
+
+            // different size
+            assertPrints(array.contentEquals(arrayOf("apples", "oranges")), "false")
+
+            // the elements at index 1 are not equal
+            assertPrints(array.contentEquals(arrayOf("apples", "lime", "oranges")), "false")
+        }
+
+        @Sample
+        fun charArrayContentEquals() {
+            val array = charArrayOf('a', 'b', 'c')
+
+            // the same size and equal elements
+            assertPrints(array.contentEquals(charArrayOf('a', 'b', 'c')), "true")
+
+            // different size
+            assertPrints(array.contentEquals(charArrayOf('a', 'b')), "false")
+
+            // the elements at index 1 are not equal
+            assertPrints(array.contentEquals(charArrayOf('a', 'c', 'b')), "false")
+        }
+
+        @Sample
+        fun booleanArrayContentEquals() {
+            val array = booleanArrayOf(true, false, true)
+
+            // the same size and equal elements
+            assertPrints(array.contentEquals(booleanArrayOf(true, false, true)), "true")
+
+            // different size
+            assertPrints(array.contentEquals(booleanArrayOf(true, false)), "false")
+
+            // the elements at index 1 are not equal
+            assertPrints(array.contentEquals(booleanArrayOf(true, true, false)), "false")
+        }
+
+        @Sample
+        fun intArrayContentEquals() {
+            val array = intArrayOf(1, 2, 3)
+
+            // the same size and equal elements
+            assertPrints(array.contentEquals(intArrayOf(1, 2, 3)), "true")
+
+            // different size
+            assertPrints(array.contentEquals(intArrayOf(1, 2)), "false")
+
+            // the elements at index 1 are not equal
+            assertPrints(array.contentEquals(intArrayOf(1, 3, 2)), "false")
+        }
+
+        @Sample
+        fun doubleArrayContentEquals() {
+            val array = doubleArrayOf(1.0, Double.NaN, 0.0)
+
+            // the same size and equal elements, NaN is equal to NaN
+            assertPrints(array.contentEquals(doubleArrayOf(1.0, Double.NaN, 0.0)), "true")
+
+            // different size
+            assertPrints(array.contentEquals(doubleArrayOf(1.0, Double.NaN)), "false")
+
+            // the elements at index 2 are not equal, 0.0 is not equal to -0.0
+            assertPrints(array.contentEquals(doubleArrayOf(1.0, Double.NaN, -0.0)), "false")
+
+            // the elements at index 1 are not equal
+            assertPrints(array.contentEquals(doubleArrayOf(1.0, 0.0, Double.NaN)), "false")
+        }
+
+        @Sample
+        fun contentDeepEquals() {
+            val identityMatrix = arrayOf(
+                intArrayOf(1, 0),
+                intArrayOf(0, 1)
+            )
+            val reflectionMatrix = arrayOf(
+                intArrayOf(1, 0),
+                intArrayOf(0, -1)
+            )
+
+            // the elements at index [1][1] are not equal
+            assertPrints(identityMatrix.contentDeepEquals(reflectionMatrix), "false")
+
+            reflectionMatrix[1][1] = 1
+            assertPrints(identityMatrix.contentDeepEquals(reflectionMatrix), "true")
         }
     }
 
@@ -128,6 +323,300 @@ class Arrays {
             assertPrints(arrayCopyPadded.contentToString(), "[1, 2, 3, 0, 0]")
             val arrayCopyTruncated = array.copyOf(2)
             assertPrints(arrayCopyTruncated.contentToString(), "[1, 2]")
+        }
+
+        @Sample
+        fun copyOfBooleanArrayWithInitializer() {
+            val array = booleanArrayOf(true, false, true)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[true, false]")
+            val paddedCopy = array.copyOf(5) { it % 2 == 0 }
+            assertPrints(paddedCopy.contentToString(), "[true, false, true, false, true]")
+        }
+
+        @Sample
+        fun copyOfCharArrayWithInitializer() {
+            val array = charArrayOf('a', 'b', 'c')
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[a, b]")
+            val paddedCopy = array.copyOf(5) { '?' }
+            assertPrints(paddedCopy.contentToString(), "[a, b, c, ?, ?]")
+        }
+
+        @Sample
+        fun copyOfByteArrayWithInitializer() {
+            val array = byteArrayOf(1, 2, 3)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { -1 }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, -1, -1]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toByte() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfShortArrayWithInitializer() {
+            val array = shortArrayOf(1, 2, 3)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { -1 }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, -1, -1]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toShort() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfIntArrayWithInitializer() {
+            val array = intArrayOf(1, 2, 3)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { -1 }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, -1, -1]")
+            val paddedCopyWithIndex = array.copyOf(6) { it }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfLongArrayWithInitializer() {
+            val array = longArrayOf(1, 2, 3)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { -1 }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, -1, -1]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toLong() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfFloatArrayWithInitializer() {
+            val array = floatArrayOf(1.0f, 2.0f, 3.0f)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1.0, 2.0]")
+            val paddedCopy = array.copyOf(5) { -1.0f }
+            assertPrints(paddedCopy.contentToString(), "[1.0, 2.0, 3.0, -1.0, -1.0]")
+        }
+
+        @Sample
+        fun copyOfDoubleArrayWithInitializer() {
+            val array = doubleArrayOf(1.0, 2.0, 3.0)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1.0, 2.0]")
+            val paddedCopy = array.copyOf(5) { -1.0 }
+            assertPrints(paddedCopy.contentToString(), "[1.0, 2.0, 3.0, -1.0, -1.0]")
+        }
+
+        @Sample
+        fun copyOfArrayWithInitializer() {
+            val array = arrayOf("foo", "bar", "baz")
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[foo, bar]")
+            val paddedCopy = array.copyOf(5) { "qux" }
+            assertPrints(paddedCopy.contentToString(), "[foo, bar, baz, qux, qux]")
+        }
+
+        @Sample
+        fun copyOfUByteArrayWithInitializer() {
+            val array = ubyteArrayOf(1u, 2u, 3u)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { 0xffu }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, 255, 255]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toUByte() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfUShortArrayWithInitializer() {
+            val array = ushortArrayOf(1u, 2u, 3u)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { 0xffu }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, 255, 255]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toUShort() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfUIntArrayWithInitializer() {
+            val array = uintArrayOf(1u, 2u, 3u)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { 0xffu }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, 255, 255]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toUInt() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+
+        @Sample
+        fun copyOfULongArrayWithInitializer() {
+            val array = ulongArrayOf(1u, 2u, 3u)
+            val truncatedCopy = array.copyOf(2)
+            assertPrints(truncatedCopy.contentToString(), "[1, 2]")
+            val paddedCopy = array.copyOf(5) { 0xffu }
+            assertPrints(paddedCopy.contentToString(), "[1, 2, 3, 255, 255]")
+            val paddedCopyWithIndex = array.copyOf(6) { it.toULong() }
+            assertPrints(paddedCopyWithIndex.contentToString(), "[1, 2, 3, 3, 4, 5]")
+        }
+    }
+
+    class Sorting {
+
+        @Sample
+        fun sortArray() {
+            val intArray = intArrayOf(4, 3, 2, 1)
+
+            // before sorting
+            assertPrints(intArray.joinToString(), "4, 3, 2, 1")
+
+            intArray.sort()
+
+            // after sorting
+            assertPrints(intArray.joinToString(), "1, 2, 3, 4")
+        }
+
+        @Sample
+        fun sortArrayOfComparable() {
+            class Person(val firstName: String, val lastName: String) : Comparable<Person> {
+                override fun compareTo(other: Person): Int = this.lastName.compareTo(other.lastName)
+                override fun toString(): String = "$firstName $lastName"
+            }
+
+            val people = arrayOf(
+                Person("Ragnar", "Lodbrok"),
+                Person("Bjorn", "Ironside"),
+                Person("Sweyn", "Forkbeard")
+            )
+
+            // before sorting
+            assertPrints(people.joinToString(), "Ragnar Lodbrok, Bjorn Ironside, Sweyn Forkbeard")
+
+            people.sort()
+
+            // after sorting
+            assertPrints(people.joinToString(), "Sweyn Forkbeard, Bjorn Ironside, Ragnar Lodbrok")
+
+        }
+
+        @Sample
+        fun sortRangeOfArray() {
+            val intArray = intArrayOf(4, 3, 2, 1)
+
+            // before sorting
+            assertPrints(intArray.joinToString(), "4, 3, 2, 1")
+
+            intArray.sort(0, 3)
+
+            // after sorting
+            assertPrints(intArray.joinToString(), "2, 3, 4, 1")
+        }
+
+        @Sample
+        fun sortRangeOfArrayOfComparable() {
+            class Person(val firstName: String, val lastName: String) : Comparable<Person> {
+                override fun compareTo(other: Person): Int = this.lastName.compareTo(other.lastName)
+                override fun toString(): String = "$firstName $lastName"
+            }
+
+            val people = arrayOf(
+                Person("Ragnar", "Lodbrok"),
+                Person("Bjorn", "Ironside"),
+                Person("Sweyn", "Forkbeard")
+            )
+
+            // before sorting
+            assertPrints(people.joinToString(), "Ragnar Lodbrok, Bjorn Ironside, Sweyn Forkbeard")
+
+            people.sort(0, 2)
+
+            // after sorting
+            assertPrints(people.joinToString(), "Bjorn Ironside, Ragnar Lodbrok, Sweyn Forkbeard")
+        }
+
+    }
+
+    class Constructors {
+        @Sample
+        fun arrayOfSample() {
+            val emptyArray = arrayOf<Any>()
+            assertPrints(emptyArray.contentToString(), "[]")
+
+            val strings = arrayOf("Hello", "world")
+            assertPrints(strings.contentToString(), "[Hello, world]")
+
+            val numbers: Array<Number> = arrayOf(3.14, 42L, 0.123f)
+            assertPrints(numbers.contentToString(), "[3.14, 42, 0.123]")
+        }
+
+        @Sample
+        fun doubleArrayOfSample() {
+            val emptyDoubleArray = doubleArrayOf()
+            assertPrints(emptyDoubleArray.contentToString(), "[]")
+
+            val doubleArray = doubleArrayOf(1.0, 2.5, 3.14)
+            assertPrints(doubleArray.contentToString(), "[1.0, 2.5, 3.14]")
+        }
+
+        @Sample
+        fun floatArrayOfSample() {
+            val emptyFloatArray = floatArrayOf()
+            assertPrints(emptyFloatArray.contentToString(), "[]")
+
+            val floatArray = floatArrayOf(1.0f, 2.5f, 3.14f)
+            assertPrints(floatArray.contentToString(), "[1.0, 2.5, 3.14]")
+        }
+
+        @Sample
+        fun longArrayOfSample() {
+            val emptyLongArray = longArrayOf()
+            assertPrints(emptyLongArray.contentToString(), "[]")
+
+            val longArray = longArrayOf(1L, 2L, 3L)
+            assertPrints(longArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
+        fun intArrayOfSample() {
+            val emptyIntArray = intArrayOf()
+            assertPrints(emptyIntArray.contentToString(), "[]")
+
+            val intArray = intArrayOf(1, 2, 3)
+            assertPrints(intArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
+        fun charArrayOfSample() {
+            val emptyCharArray = charArrayOf()
+            assertPrints(emptyCharArray.contentToString(), "[]")
+
+            val charArray = charArrayOf('a', 'b', 'c')
+            assertPrints(charArray.contentToString(), "[a, b, c]")
+        }
+
+        @Sample
+        fun shortArrayOfSample() {
+            val emptyShortArray = shortArrayOf()
+            assertPrints(emptyShortArray.contentToString(), "[]")
+
+            val shortArray = shortArrayOf(1, 2, 3)
+            assertPrints(shortArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
+        fun byteArrayOfSample() {
+            val emptyByteArray = byteArrayOf()
+            assertPrints(emptyByteArray.contentToString(), "[]")
+
+            val byteArray = byteArrayOf(1, 2, 3)
+            assertPrints(byteArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
+        fun booleanArrayOfSample() {
+            val emptyBooleanArray = booleanArrayOf()
+            assertPrints(emptyBooleanArray.contentToString(), "[]")
+
+            val booleanArray = booleanArrayOf(true, false, true)
+            assertPrints(booleanArray.contentToString(), "[true, false, true]")
         }
     }
 

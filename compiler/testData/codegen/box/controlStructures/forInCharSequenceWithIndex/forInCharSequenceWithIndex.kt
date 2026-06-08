@@ -1,12 +1,12 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// WITH_STDLIB
 
 val cs: CharSequence = "abcd"
 
 fun box(): String {
     val s = StringBuilder()
 
-    for ((index, x) in cs.withIndex()) {
+    for ([index, x] in cs.withIndex()) {
         s.append("$index:$x;")
     }
 

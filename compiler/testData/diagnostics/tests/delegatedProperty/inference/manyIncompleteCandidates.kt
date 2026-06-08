@@ -1,11 +1,11 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: main.kt
 package test
 
 import first.*
 import second.*
 
-val a12 by <!NI;DELEGATE_SPECIAL_FUNCTION_AMBIGUITY, OI;DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE!>A()<!>
+val a12 <!DELEGATE_SPECIAL_FUNCTION_AMBIGUITY!>by<!> A()
 
 // FILE: first.kt
 package first
@@ -24,3 +24,6 @@ import first.A
 import kotlin.reflect.KProperty
 
 public operator fun <T> A.getValue(thisRef: Any?, property: KProperty<*>): T = null!!
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, classDeclaration, funWithExtensionReceiver, functionDeclaration, nullableType,
+operator, propertyDeclaration, propertyDelegate, starProjection, typeParameter */

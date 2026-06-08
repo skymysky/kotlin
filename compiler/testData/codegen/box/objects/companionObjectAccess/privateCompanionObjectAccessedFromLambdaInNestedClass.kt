@@ -1,4 +1,4 @@
-// !LANGUAGE: +ProperVisibilityForCompanionObjectInstanceField
+fun <T> eval(fn: () -> T) = fn()
 
 class Outer {
     private companion object {
@@ -6,7 +6,7 @@ class Outer {
     }
 
     class Nested {
-        fun foo() = { result }()
+        fun foo() = eval { result }
     }
 
     fun test() = Nested().foo()

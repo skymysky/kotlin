@@ -1,36 +1,53 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("project-tests-convention")
+    id("test-inputs-check")
+    id("java-test-fixtures")
 }
 
 dependencies {
-    testCompile(projectTests(":compiler:tests-common"))
-    testCompile(intellijCoreDep()) { includeJars("intellij-core") }
-    testCompile(projectTests(":generators:test-generator"))
-    testRuntime(project(":kotlin-reflect"))
-    testRuntime(intellijDep())
+    testFixturesApi(project(":kotlin-scripting-compiler"))
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesImplementation(project(":compiler:cli-jvm:javac-integration"))
+    testFixturesImplementation(intellijCore())
+    testImplementation(intellijCore())
+    testFixturesApi(platform(libs.junit.bom))
+    testCompileOnly(libs.junit4)
+    testFixturesImplementation("org.junit.jupiter:junit-jupiter:${libs.versions.junit5.get()}")
+    testImplementation("org.junit.jupiter:junit-jupiter:${libs.versions.junit5.get()}")
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testFixturesApi(testFixtures(project(":generators:test-generator")))
+    testRuntimeOnly(toolsJar())
 }
 
 sourceSets {
     "main" {}
     "test" { projectDefault() }
+    "testFixtures" { projectDefault() }
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jdkHome = rootProject.extra["JDK_18"]!!.toString()
-    kotlinOptions.jvmTarget = "1.8"
+projectTests {
+    testData(project(":compiler").isolated, "testData/builtin-classes")
+
+    withJvmStdlibAndReflect()
+    withScriptRuntime()
+    withScriptingPlugin()
+    withTestJar()
+    withAnnotations()
+    withMockJdkAnnotationsJar()
+    withThirdPartyJava8Annotations()
+
+    testTask(
+        defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_21_0),
+        jUnitMode = JUnitMode.JUnit5,
+        javaLauncher = JdkMajorVersion.JDK_1_8
+    ) {
+        systemProperty("kotlin.test.script.classpath", testSourceSet.output.classesDirs.joinToString(File.pathSeparator))
+    }
 }
 
-projectTest {
-    executable = "${rootProject.extra["JDK_18"]!!}/bin/java"
-    dependsOn(":dist")
-    workingDir = rootDir
-    systemProperty("kotlin.test.script.classpath", testSourceSet.output.classesDirs.joinToString(File.pathSeparator))
-    systemProperty("idea.home.path", intellijRootDir().canonicalPath)
-}
 
-val generateTests by generator("org.jetbrains.kotlin.generators.tests.GenerateJava8TestsKt")
+optInToK1Deprecation()
 
 testsJar()

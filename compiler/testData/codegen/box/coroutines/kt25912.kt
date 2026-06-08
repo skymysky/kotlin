@@ -1,10 +1,8 @@
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-// IGNORE_BACKEND: JS_IR, JVM_IR, NATIVE
 
 import helpers.*
-import COROUTINES_PACKAGE.*
+import kotlin.coroutines.*
 
 fun box(): String {
     val gg = object : Grouping<Int, String> {

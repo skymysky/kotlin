@@ -1,5 +1,8 @@
-// WITH_RUNTIME
+// WITH_STDLIB
+// IGNORE_BACKEND: JS_IR, WASM_JS
 
+// KT-61141: `println (message: kotlin.Any?)` instead of `println (message: kotlin.Int)`
+// IGNORE_BACKEND: NATIVE
 fun expectsString(s: String) {}
 fun expectsInt(i: Int) {}
 

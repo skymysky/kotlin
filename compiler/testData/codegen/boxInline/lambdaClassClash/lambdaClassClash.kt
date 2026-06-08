@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
+// NO_CHECK_LAMBDA_INLINING
 // FILE: 1.kt
 
 package zzz
@@ -14,14 +14,13 @@ fun doCalc(lambda2: () -> Int): Int {
 
 // FILE: 2.kt
 
-//NO_CHECK_LAMBDA_INLINING
 import zzz.*
 
 fun box(): String {
 
-    val p = { calc { 11 }} ()
+    val p = { calc { 11 } }.let { it() }
 
-    val z = { calc { 12 }}()
+    val z = { calc { 12 } }.let { it() }
 
     if (p == z) return "fail"
 

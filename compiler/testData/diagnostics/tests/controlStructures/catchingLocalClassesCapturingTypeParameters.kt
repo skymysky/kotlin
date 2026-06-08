@@ -1,4 +1,4 @@
-// !LANGUAGE: +ProhibitInnerClassesOfGenericClassExtendingThrowable
+// RUN_PIPELINE_TILL: FRONTEND
 package test
 
 var global: Throwable? = null
@@ -15,7 +15,7 @@ fun <T> foo(x: Throwable, z: T, b: (T) -> Unit) {
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     foo(RuntimeException(), 1) { throw IllegalStateException() }
     foo(global!!, "") { it.length } // (*)
 }
@@ -25,3 +25,7 @@ fun main(args: Array<String>) {
 //  at test.TestKt$main$2.invoke(test.kt)
 //  at test.TestKt.foo(test.kt:12)
 //  at test.TestKt.main(test.kt:21)
+
+/* GENERATED_FIR_TAGS: assignment, checkNotNullCall, classDeclaration, functionDeclaration, functionalType,
+integerLiteral, lambdaLiteral, localClass, localProperty, nullableType, primaryConstructor, propertyDeclaration,
+stringLiteral, tryExpression, typeParameter */

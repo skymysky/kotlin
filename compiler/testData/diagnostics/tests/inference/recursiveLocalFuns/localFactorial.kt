@@ -1,12 +1,15 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // See KT-6271
 fun foo() {
     fun fact(n: Int) = {
         if (n > 0) {
-            <!TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM!><!NI;DEBUG_INFO_MISSING_UNRESOLVED!>fact<!>(<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>n<!> <!NI;DEBUG_INFO_MISSING_UNRESOLVED!>-<!> 1)<!> <!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>*<!> n
+            <!TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM!>fact(n - 1)<!> <!UNRESOLVED_REFERENCE!>*<!> n
         }
         else {
             1
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, comparisonExpression, functionDeclaration, ifExpression, integerLiteral,
+lambdaLiteral, localFunction, multiplicativeExpression */

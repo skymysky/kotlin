@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1284
 // MODULE: lib
 // FILE: lib.kt
 
@@ -13,9 +11,6 @@ inline operator fun B.plus(b: Int) = b + 20
 
 // MODULE: main(lib)
 // FILE: main.kt
-
-// CHECK_NOT_CALLED_IN_SCOPE: function=plus_za3lpa$ scope=box
-// CHECK_NOT_CALLED_IN_SCOPE: function=plus scope=box
 
 fun box(): String {
     var result = A() + 1

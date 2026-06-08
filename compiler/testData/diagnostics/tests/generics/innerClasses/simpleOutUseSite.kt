@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER
 
 class Outer<E> {
     inner class Inner {
@@ -16,7 +16,7 @@ class Outer<E> {
 fun factoryString(): Outer<String>.Inner = null!!
 
 fun <T> infer(x: T): Outer<T>.Inner = null!!
-val infered = infer("")
+val inferred = infer("")
 
 fun main() {
     val outer: Outer<out String> = Outer<String>()
@@ -29,9 +29,13 @@ fun main() {
     checkSubtype<Outer<out CharSequence>.Inner>(outer.bar())
     checkSubtype<Outer<out CharSequence>.Inner>(outer.Inner())
 
-    outer.<!OI;MEMBER_PROJECTED_OUT!>set<!>(<!NI;TYPE_MISMATCH!>outer.bar()<!>)
-    outer.<!OI;MEMBER_PROJECTED_OUT!>set<!>(<!NI;TYPE_MISMATCH!>outer.Inner()<!>)
+    outer.set(outer.bar())
+    outer.set(outer.Inner())
 
     val x: Outer<String>.Inner = factoryString()
-    outer.<!OI;MEMBER_PROJECTED_OUT!>set<!>(<!NI;TYPE_MISMATCH!>x<!>)
+    outer.set(<!ARGUMENT_TYPE_MISMATCH!>x<!>)
 }
+
+/* GENERATED_FIR_TAGS: capturedType, checkNotNullCall, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, infix, inner, localProperty, nullableType, outProjection, propertyDeclaration, starProjection,
+stringLiteral, thisExpression, typeParameter, typeWithExtension */

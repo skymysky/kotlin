@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package kotlin.jvm.internal;
@@ -8,10 +8,12 @@ package kotlin.jvm.internal;
 import kotlin.SinceKotlin;
 import kotlin.jvm.KotlinReflectionNotSupportedError;
 import kotlin.reflect.*;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.GenericDeclaration;
 import java.util.List;
 import java.util.Map;
 
@@ -21,16 +23,28 @@ import java.util.Map;
  * All methods from KCallable should be implemented here and should delegate to the actual implementation, loaded dynamically
  * and stored in the {@link CallableReference#reflected} field.
  */
-@SuppressWarnings({"unchecked", "NullableProblems"})
-public abstract class CallableReference implements KCallable, Serializable {
+@SuppressWarnings({"unchecked", "NullableProblems", "rawtypes"})
+public abstract class CallableReference implements KCallable, Serializable, KotlinGenericDeclaration {
     // This field is not volatile intentionally:
     // 1) It's fine if the value is computed multiple times in different threads;
     // 2) An uninitialized value cannot be observed in this field from other thread because only already initialized or safely initialized
-    //    objects are written to it. The latter is guaranteed because both KFunctionImpl and KPropertyImpl have at least one final field.
+    //    objects are written to it. The latter is guaranteed because all implementations have at least one final field.
     private transient KCallable reflected;
 
     @SinceKotlin(version = "1.1")
     protected final Object receiver;
+
+    @SinceKotlin(version = "1.4")
+    private final Class owner;
+
+    @SinceKotlin(version = "1.4")
+    private final String name;
+
+    @SinceKotlin(version = "1.4")
+    private final String signature;
+
+    @SinceKotlin(version = "1.4")
+    private final boolean isTopLevel;
 
     @SinceKotlin(version = "1.1")
     public static final Object NO_RECEIVER = NoReceiver.INSTANCE;
@@ -50,7 +64,16 @@ public abstract class CallableReference implements KCallable, Serializable {
 
     @SinceKotlin(version = "1.1")
     protected CallableReference(Object receiver) {
+        this(receiver, null, null, null, false);
+    }
+
+    @SinceKotlin(version = "1.4")
+    protected CallableReference(Object receiver, Class owner, String name, String signature, boolean isTopLevel) {
         this.receiver = receiver;
+        this.owner = owner;
+        this.name = name;
+        this.signature = signature;
+        this.isTopLevel = isTopLevel;
     }
 
     protected abstract KCallable computeReflected();
@@ -79,14 +102,16 @@ public abstract class CallableReference implements KCallable, Serializable {
         return result;
     }
 
-    // The following methods provide the information identifying this callable, which is used by the reflection implementation.
-    // They are supposed to be overridden in each subclass (each anonymous class generated for a callable reference).
+    // The following methods provide the information identifying this callable, which is used by the reflection implementation and
+    // by equals/hashCode/toString. For callable references compiled prior to 1.4, these methods were overridden in each subclass
+    // (each anonymous class generated for a callable reference).
 
     /**
      * @return the class or package where the callable should be located, usually specified on the LHS of the '::' operator
      */
     public KDeclarationContainer getOwner() {
-        throw new AbstractMethodError();
+        return owner == null ? null :
+               isTopLevel ? Reflection.getOrCreateKotlinPackage(owner) : Reflection.getOrCreateKotlinClass(owner);
     }
 
     /**
@@ -94,7 +119,7 @@ public abstract class CallableReference implements KCallable, Serializable {
      */
     @Override
     public String getName() {
-        throw new AbstractMethodError();
+        return name;
     }
 
     /**
@@ -106,7 +131,13 @@ public abstract class CallableReference implements KCallable, Serializable {
      * but only as a unique and unambiguous way to map a function/property descriptor to a string.
      */
     public String getSignature() {
-        throw new AbstractMethodError();
+        return signature;
+    }
+
+    @Override
+    @Nullable
+    public GenericDeclaration findJavaDeclaration() {
+        return KotlinGenericDeclarationKt.findMethodBySignature(getOwner(), getSignature());
     }
 
     // The following methods are the delegating implementations of reflection functions. They are called when you're using reflection

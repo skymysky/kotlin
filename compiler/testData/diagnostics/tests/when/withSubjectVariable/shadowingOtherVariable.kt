@@ -1,11 +1,11 @@
-// !LANGUAGE: +VariableDeclarationInWhenSubject
-// !DIAGNOSTICS: -UNUSED_VARIABLE -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE -UNUSED_PARAMETER
 
 fun foo(): Any = 42
 fun useInt(i: Int) {}
 
 fun testShadowingParameter(y: Any) {
-    when (val <!NAME_SHADOWING!>y<!> = foo()) {
+    when (val y = foo()) {
         else -> {}
     }
 }
@@ -13,7 +13,7 @@ fun testShadowingParameter(y: Any) {
 fun testShadowedInWhenBody(x: Any) {
     when (val y = x) {
         is String -> {
-            val <!NAME_SHADOWING!>y<!> = <!DEBUG_INFO_SMARTCAST!>y<!>.length
+            val y = y.length
             useInt(y)
         }
     }
@@ -21,7 +21,10 @@ fun testShadowedInWhenBody(x: Any) {
 
 fun testShadowinLocalVariable() {
     val y = foo()
-    when (val <!NAME_SHADOWING!>y<!> = foo()) {
+    when (val y = foo()) {
         else -> {}
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, integerLiteral, isExpression, localProperty, propertyDeclaration, smartcast,
+whenExpression, whenWithSubject */

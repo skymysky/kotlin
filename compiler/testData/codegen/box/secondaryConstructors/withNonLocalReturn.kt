@@ -1,6 +1,7 @@
-// IGNORE_BACKEND: JVM_IR
+// FILE: lib.kt
 inline fun run2(block: () -> Unit) = block()
 
+// FILE: main.kt
 class A {
     val prop: Int
     constructor(arg: Boolean) {

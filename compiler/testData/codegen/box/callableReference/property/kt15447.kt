@@ -1,6 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
-//WITH_RUNTIME
+// WITH_STDLIB
 
 fun box(): String {
     var methodVar = "OK"

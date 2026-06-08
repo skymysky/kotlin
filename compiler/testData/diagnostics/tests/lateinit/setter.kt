@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 class My {
 
     lateinit var x: String
@@ -20,3 +21,5 @@ class My {
         // Ok, public var / public set
         public set
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, lateinit, propertyDeclaration */

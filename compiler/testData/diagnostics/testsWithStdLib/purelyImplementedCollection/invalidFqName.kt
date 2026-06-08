@@ -1,4 +1,6 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// DISABLE_JAVA_FACADE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // JAVAC_EXPECTED_FILE
 
 // FILE: A.java
@@ -26,3 +28,5 @@ public class B<T> extends AbstractList<T> {}
 // FILE: main.kt
 val x = A<String>()
 val y = B<String>()
+
+/* GENERATED_FIR_TAGS: flexibleType, javaFunction, javaType, propertyDeclaration */

@@ -1,3 +1,5 @@
+// DISABLE_JAVA_FACADE
+// RUN_PIPELINE_TILL: BACKEND
 // JAVAC_EXPECTED_FILE
 // FILE: backend/asmutil/AsmUtil.java
 package backend.asmutil;
@@ -35,3 +37,5 @@ open public class ECallable  {
 
 /* KT-5848 */
 
+/* GENERATED_FIR_TAGS: classDeclaration, companionObject, functionDeclaration, javaFunction, objectDeclaration,
+propertyDeclaration, stringLiteral */

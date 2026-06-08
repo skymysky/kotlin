@@ -1,4 +1,5 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: BACKEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -23,7 +24,7 @@ fun test(foo: Foo) {
     foo.ok(42, "OK")
 }
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual fun ok(x: Int, y: String) {}
@@ -39,3 +40,5 @@ actual open class Foo {
 
     actual fun failY(x: Int, <!ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS!>y: String = ""<!>) {}
 }
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, expect, functionDeclaration, integerLiteral, stringLiteral */

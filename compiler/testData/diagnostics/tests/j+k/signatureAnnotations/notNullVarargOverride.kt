@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: BaseClass.java
 import org.jetbrains.annotations.NotNull;
 
@@ -20,3 +21,6 @@ class B : BaseClass() {
         super.loadCache(*args)
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, javaFunction, javaType, nullableType, outProjection,
+override, superExpression, vararg */

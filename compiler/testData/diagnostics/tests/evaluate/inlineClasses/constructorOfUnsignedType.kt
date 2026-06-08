@@ -1,5 +1,8 @@
-// !LANGUAGE: +InlineClasses
-// JAVAC_SKIP
+// RUN_PIPELINE_TILL: FRONTEND
+// LANGUAGE: +InlineClasses
+// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED
+// SKIP_JAVAC
+// ALLOW_KOTLIN_PACKAGE
 
 // FILE: uint.kt
 
@@ -28,7 +31,7 @@ const val ui2 = UInt(40 + 2)
 @AnnoUB(UByte(1), ub0)
 fun f0() {}
 
-@AnnoUS(UShort(2 + 5), us0)
+@AnnoUS(UShort(<!ARGUMENT_TYPE_MISMATCH!>2 + 5<!>), us0)
 fun f1() {}
 
 @AnnoUI(ui0, ui1, ui2, UInt(100))
@@ -42,3 +45,6 @@ const val explicit: UInt = UInt(2)
 <!TYPE_CANT_BE_USED_FOR_CONST_VAL!>const<!> val nullable: UInt? = UInt(3)
 
 annotation class NullableAnno(val u: <!NULLABLE_TYPE_OF_ANNOTATION_MEMBER!>UInt?<!>)
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, const, functionDeclaration, integerLiteral, nullableType,
+primaryConstructor, propertyDeclaration */

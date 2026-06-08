@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 import kotlin.reflect.KProperty1
 
@@ -9,3 +9,6 @@ fun OtherClass.test(prop: KProperty1<TestClass, Int>): Unit = throw Exception()
 class OtherClass2: OtherClass() {
     val result = test(TestClass::<!UNRESOLVED_REFERENCE!>result<!>)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, primaryConstructor,
+propertyDeclaration */

@@ -1,233 +1,169 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js
 
-import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.ReflectionTypes
-import org.jetbrains.kotlin.backend.common.atMostOne
-import org.jetbrains.kotlin.backend.common.descriptors.KnownPackageFragmentDescriptor
-import org.jetbrains.kotlin.backend.common.ir.Ir
-import org.jetbrains.kotlin.backend.common.ir.Symbols
-import org.jetbrains.kotlin.backend.js.JsDeclarationFactory
-import org.jetbrains.kotlin.builtins.PrimitiveType
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.backend.common.ir.KlibSharedVariablesManager
+import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLowerings
+import org.jetbrains.kotlin.backend.common.linkage.partial.partialLinkageConfig
+import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
+import org.jetbrains.kotlin.backend.common.serialization.IrInterningService
+import org.jetbrains.kotlin.cli.common.diagnosticsCollector
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.config.phaseConfig
+import org.jetbrains.kotlin.config.phaser.PhaseConfig
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.SourceManager
-import org.jetbrains.kotlin.ir.SourceRangeInfo
-import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.backend.js.lower.inline.ModuleIndex
-import org.jetbrains.kotlin.ir.backend.js.utils.OperatorNames
+import org.jetbrains.kotlin.ir.IrBuiltIns
+import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.backend.js.lower.JsInnerClassesSupport
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsPolyfills
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrEnumEntrySymbol
-import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.DescriptorlessExternalPackageFragmentSymbol
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrDynamicTypeImpl
 import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.JsStandardClassIds
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
-import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.types.createDynamicType
+import org.jetbrains.kotlin.utils.filterIsInstanceMapNotNull
+import java.util.*
 
+@OptIn(ObsoleteDescriptorBasedAPI::class)
 class JsIrBackendContext(
     val module: ModuleDescriptor,
     override val irBuiltIns: IrBuiltIns,
-    val symbolTable: SymbolTable,
-    irModuleFragment: IrModuleFragment
-) : CommonBackendContext {
+    override val symbolTable: SymbolTable,
+    override val configuration: CompilerConfiguration, // TODO: remove configuration from backend context
+    val dceRuntimeDiagnostic: RuntimeDiagnostic? = null,
+    val safeExternalBoolean: Boolean = false,
+    val safeExternalBooleanDiagnostic: RuntimeDiagnostic? = null,
+    val incrementalCacheEnabled: Boolean = false,
+) : JsCommonBackendContext {
+    val phaseConfig = configuration.phaseConfig ?: PhaseConfig()
 
-    override val builtIns = module.builtIns
+    val polyfills = JsPolyfills()
+    val globalIrInterner = IrInterningService()
 
-    val internalPackageFragmentDescriptor = KnownPackageFragmentDescriptor(builtIns.builtInsModule, FqName("kotlin.js.internal"))
-    val implicitDeclarationFile = IrFileImpl(object : SourceManager.FileEntry {
-        override val name = "<implicitDeclarations>"
-        override val maxOffset = UNDEFINED_OFFSET
+    val minimizedNameGenerator: MinimizedNameGenerator =
+        MinimizedNameGenerator()
 
-        override fun getSourceRangeInfo(beginOffset: Int, endOffset: Int) =
-            SourceRangeInfo("", UNDEFINED_OFFSET, UNDEFINED_OFFSET, UNDEFINED_OFFSET, UNDEFINED_OFFSET, UNDEFINED_OFFSET, UNDEFINED_OFFSET)
+    val additionalExportedDeclarationNames: Set<FqName> = configuration.additionalExportedDeclarationNames
+    val keeper: Keeper = Keeper(configuration.keep.toSet())
 
-        override fun getLineNumber(offset: Int) = UNDEFINED_OFFSET
-        override fun getColumnNumber(offset: Int) = UNDEFINED_OFFSET
-    }, internalPackageFragmentDescriptor).also {
-        irModuleFragment.files += it
-    }
+    val fieldDataCache = WeakHashMap<IrClass, Map<IrField, String>>()
 
-    override val sharedVariablesManager =
-        JsSharedVariablesManager(irBuiltIns, implicitDeclarationFile)
-    override val declarationFactory = JsDeclarationFactory()
-    override val reflectionTypes: ReflectionTypes by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        // TODO
-        ReflectionTypes(module, FqName("kotlin.reflect"))
-    }
+    override val typeSystem: IrTypeSystemContext = IrTypeSystemContextImpl(irBuiltIns)
 
-    private val internalPackageName = FqName("kotlin.js")
-    private val internalPackage = module.getPackage(internalPackageName)
+    override val irFactory: IrFactory = symbolTable.irFactory
 
-    // TODO: replace it with appropriate package name once we migrate to 1.3 coroutines
-    private val coroutinePackageNameSrting = "kotlin.coroutines.experimental"
+    override var inVerbosePhase: Boolean = false
 
-    private val INTRINSICS_PACKAGE_NAME = Name.identifier("intrinsics")
-    private val COROUTINE_SUSPENDED_NAME = Name.identifier("COROUTINE_SUSPENDED")
-    private val COROUTINE_CONTEXT_NAME = Name.identifier("coroutineContext")
-    private val COROUTINE_IMPL_NAME = Name.identifier("CoroutineImpl")
-    private val CONTINUATION_NAME = Name.identifier("Continuation")
+    val devMode = configuration[JSConfigurationKeys.DEVELOPER_MODE] ?: false
+    override val es6mode = configuration[JSConfigurationKeys.USE_ES6_CLASSES] ?: false
 
-    // TODO: what is more clear way reference this getter?
-    private val CONTINUATION_CONTEXT_GETTER_NAME = Name.special("<get-context>")
-    private val CONTINUATION_CONTEXT_PROPERTY_NAME = Name.identifier("context")
+    val callMain = configuration.callMain
+    val platformArgumentsProviderJsExpression = configuration.definePlatformMainFunctionArguments
 
-    private val coroutinePackageName = FqName(coroutinePackageNameSrting)
-    private val coroutineIntrinsicsPackageName = coroutinePackageName.child(INTRINSICS_PACKAGE_NAME)
+    override val externalPackageFragment = mutableMapOf<IrFileSymbol, IrFile>()
 
-    private val coroutinePackage = module.getPackage(coroutinePackageName)
-    private val coroutineIntrinsicsPackage = module.getPackage(coroutineIntrinsicsPackageName)
+    override val additionalExportedDeclarations = hashSetOf<IrDeclaration>()
 
-    val enumEntryToGetInstanceFunction = mutableMapOf<IrEnumEntrySymbol, IrSimpleFunctionSymbol>()
+    override val bodilessBuiltInsPackageFragment: IrPackageFragment = IrExternalPackageFragmentImpl(
+        DescriptorlessExternalPackageFragmentSymbol(),
+        FqName("kotlin")
+    )
 
-    val coroutineGetContext: IrFunctionSymbol
-        get() {
-            val continuation = symbolTable.referenceClass(
-                coroutinePackage.memberScope.getContributedClassifier(
-                    CONTINUATION_NAME,
-                    NoLookupLocation.FROM_BACKEND
-                ) as ClassDescriptor
-            )
-            val contextGetter =
-                continuation.owner.declarations.filterIsInstance<IrFunction>().atMostOne { it.descriptor.name == CONTINUATION_CONTEXT_GETTER_NAME }
-                        ?: continuation.owner.declarations.filterIsInstance<IrProperty>().atMostOne { it.descriptor.name == CONTINUATION_CONTEXT_PROPERTY_NAME }?.getter!!
-            return contextGetter.symbol
-        }
+    val packageLevelJsModules = hashSetOf<IrFile>()
 
-    val coroutineContextProperty: PropertyDescriptor
-        get() {
-            val vars = internalPackage.memberScope.getContributedVariables(
-                COROUTINE_CONTEXT_NAME,
-                NoLookupLocation.FROM_BACKEND
-            )
-            return vars.single()
-        }
+    val signaturesPool = JsSignaturesPool()
+    val testFunsPerFile = hashMapOf<IrFile, IrSimpleFunction>()
 
-    val intrinsics = JsIntrinsics(irBuiltIns, this)
+    override val inlineClassesUtils = JsInlineClassesUtils(this)
 
-    private val operatorMap = referenceOperators()
+    override val innerClassesSupport: InnerClassesSupport = JsInnerClassesSupport(irFactory)
 
-    val functions = (0..22).map { symbolTable.referenceClass(builtIns.getFunction(it)) }
+    val dynamicType: IrDynamicType = IrDynamicTypeImpl(emptyList(), Variance.INVARIANT)
 
-    val kFunctions by lazy {
-        (0..22).map { symbolTable.referenceClass(reflectionTypes.getKFunction(it)) }
-    }
+    override val reflectionSymbols: ReflectionSymbols get() = symbols.reflectionSymbols
 
-    val primitiveCompanionObjects = PrimitiveType.NUMBER_TYPES
-        .filter { it.name != "LONG" && it.name != "CHAR" } // skip due to they have own explicit companions
-        .map {
-            it.typeName to symbolTable.lazyWrapper.referenceClass(
-                getClass(
-                    internalPackageName
-                        .child(Name.identifier("internal"))
-                        .child(Name.identifier("${it.typeName.identifier}CompanionObject"))
-                )
-            )
-        }.toMap()
+    override val catchAllThrowableType: IrType
+        get() = dynamicType
 
-    val suspendFunctions = (0..22).map { symbolTable.referenceClass(builtIns.getSuspendFunction(it)) }
+    override val internalPackageFqn = JsStandardClassIds.BASE_JS_PACKAGE
 
-    val dynamicType = IrDynamicTypeImpl(createDynamicType(builtIns), emptyList(), Variance.INVARIANT)
+    private val operatorMap by lazy { referenceOperators() }
 
-    val originalModuleIndex = ModuleIndex(irModuleFragment)
-
-    fun getOperatorByName(name: Name, type: KotlinType) = operatorMap[name]?.get(type)
-
-    override val ir = object : Ir<CommonBackendContext>(this, irModuleFragment) {
-        override val symbols = object : Symbols<CommonBackendContext>(this@JsIrBackendContext, symbolTable.lazyWrapper) {
-
-            override fun calc(initializer: () -> IrClassSymbol): IrClassSymbol {
-                val v = lazy { initializer() }
-                return object : IrClassSymbol {
-                    override val owner: IrClass get() = v.value.owner
-                    override val isBound: Boolean get() = v.value.isBound
-                    override fun bind(owner: IrClass) = v.value.bind(owner)
-                    override val descriptor: ClassDescriptor get() = v.value.descriptor
+    fun getOperatorByName(name: Name, lhsType: IrSimpleType, rhsType: IrSimpleType?) =
+        operatorMap[name]?.get(lhsType.classifier)?.let { candidates ->
+            if (rhsType == null)
+                candidates.singleOrNull()
+            else
+                candidates.singleOrNull { candidate ->
+                    candidate.owner.parameters.first { it.kind == IrParameterKind.Regular }.type.classifierOrNull == rhsType.classifier
                 }
+        }
+
+    override val jsPromiseSymbol: IrClassSymbol
+        get() = symbols.promiseClassSymbol
+
+    override val symbols = BackendJsSymbols(irBuiltIns, irFactory.stageController, configuration.compileLongAsBigint)
+
+    override val propertyLazyInitialization: PropertyLazyInitialization = PropertyLazyInitialization(
+        enabled = configuration.get(JSConfigurationKeys.PROPERTY_LAZY_INITIALIZATION, true),
+        eagerInitialization = symbols.eagerInitialization
+    )
+
+    override val sharedVariablesManager = KlibSharedVariablesManager(symbols)
+
+    override val shouldGenerateHandlerParameterForDefaultBodyFun: Boolean
+        get() = true
+
+    // Top-level functions forced to be loaded
+    val throwableConstructors by lazy(LazyThreadSafetyMode.NONE) {
+        symbols.throwableClass.owner.declarations.filterIsInstance<IrConstructor>().map { it.symbol }
+    }
+    val defaultThrowableCtor by lazy(LazyThreadSafetyMode.NONE) {
+        throwableConstructors.single { !it.owner.isPrimary && it.owner.parameters.isEmpty() }
+    }
+    val throwableConstructorWithMessageOnly by lazy(LazyThreadSafetyMode.NONE) {
+        throwableConstructors.single { it.owner.parameters.size == 1 && it.owner.parameters[0].type.isNullableString() }
+    }
+    val throwableConstructorWithBothMessageAndCause by lazy(LazyThreadSafetyMode.NONE) {
+        throwableConstructors.single { it.owner.parameters.size == 2 }
+    }
+
+    private fun referenceOperators(): Map<Name, Map<IrClassSymbol, Collection<IrSimpleFunctionSymbol>>> {
+        val primitiveIrSymbols = irBuiltIns.primitiveIrTypes.map { it.classifierOrFail as IrClassSymbol }
+        return OperatorNames.ALL.associateWith { name ->
+            primitiveIrSymbols.associateWith { classSymbol ->
+                classSymbol.owner.declarations
+                    .filterIsInstanceMapNotNull<IrSimpleFunction, IrSimpleFunctionSymbol> { function ->
+                        function.symbol.takeIf { function.name == name }
+                    }
             }
-
-            override val areEqual
-                get () = TODO("not implemented")
-
-            override val ThrowNullPointerException
-                get () = irBuiltIns.throwNpeSymbol
-
-            override val ThrowNoWhenBranchMatchedException
-                get () = irBuiltIns.noWhenBranchMatchedExceptionSymbol
-
-            override val ThrowTypeCastException
-                get () = irBuiltIns.throwCceSymbol
-
-            override val ThrowUninitializedPropertyAccessException = symbolTable.referenceSimpleFunction(
-                irBuiltIns.defineOperator(
-                    "throwUninitializedPropertyAccessException",
-                    builtIns.nothingType,
-                    listOf(builtIns.stringType)
-                ).descriptor
-            )
-
-            override val stringBuilder
-                get() = TODO("not implemented")
-            override val copyRangeTo: Map<ClassDescriptor, IrSimpleFunctionSymbol>
-                get() = TODO("not implemented")
-            override val coroutineImpl = symbolTable.referenceClass(getInternalClass(COROUTINE_IMPL_NAME.identifier))
-            override val coroutineSuspendedGetter = symbolTable.referenceSimpleFunction(
-                coroutineIntrinsicsPackage.memberScope.getContributedVariables(COROUTINE_SUSPENDED_NAME, NoLookupLocation.FROM_BACKEND).filterNot { it.isExpect }.single().getter!!
-            )
         }
-
-        override fun shouldGenerateHandlerParameterForDefaultBodyFun() = true
     }
 
-    private fun referenceOperators() = OperatorNames.ALL.map { name ->
-        // TODO to replace KotlinType with IrType we need right equals on IrType
-        name to irBuiltIns.primitiveTypes.fold(mutableMapOf<KotlinType, IrFunctionSymbol>()) { m, t ->
-            val function = t.memberScope.getContributedFunctions(name, NoLookupLocation.FROM_BACKEND).singleOrNull()
-            function?.let { m.put(t, symbolTable.referenceSimpleFunction(it)) }
-            m
-        }
-    }.toMap()
+    override val diagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+        configuration.diagnosticsCollector,
+        configuration.languageVersionSettings
+    )
 
-    private fun findClass(memberScope: MemberScope, className: String) = findClass(memberScope, Name.identifier(className))
+    override val partialLinkageSupport = createPartialLinkageSupportForLowerings(
+        configuration.partialLinkageConfig,
+        diagnosticReporter
+    )
 
-    private fun findClass(memberScope: MemberScope, name: Name) =
-        memberScope.getContributedClassifier(name, NoLookupLocation.FROM_BACKEND) as ClassDescriptor
-
-    private fun findFunctions(memberScope: MemberScope, className: String) =
-        findFunctions(memberScope, Name.identifier(className))
-
-    private fun findFunctions(memberScope: MemberScope, name: Name) =
-        memberScope.getContributedFunctions(name, NoLookupLocation.FROM_BACKEND).toList()
-
-    override fun getInternalClass(name: String) = findClass(internalPackage.memberScope, name)
-
-    override fun getClass(fqName: FqName) = findClass(module.getPackage(fqName.parent()).memberScope, fqName.shortName())
-
-    override fun getInternalFunctions(name: String) = findFunctions(internalPackage.memberScope, name)
-
-    fun getFunctions(fqName: FqName) = findFunctions(module.getPackage(fqName.parent()).memberScope, fqName.shortName())
-
-    override fun log(message: () -> String) {
-        /*TODO*/
-        print(message())
-    }
-
-    override fun report(element: IrElement?, irFile: IrFile?, message: String, isError: Boolean) {
-        /*TODO*/
-        print(message)
-    }
+    internal var nextAssociatedObjectKey = 0
 }

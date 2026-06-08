@@ -16,16 +16,14 @@
 
 package org.jetbrains.kotlin.resolve.calls.inference
 
-import org.jetbrains.kotlin.builtins.createFunctionType
-import org.jetbrains.kotlin.builtins.isBuiltinExtensionFunctionalType
-import org.jetbrains.kotlin.builtins.isExtensionFunctionType
-import org.jetbrains.kotlin.builtins.isSuspendFunctionType
+import org.jetbrains.kotlin.builtins.*
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystemBuilderImpl.ConstraintKind.EQUAL
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystemBuilderImpl.ConstraintKind.SUB_TYPE
 import org.jetbrains.kotlin.resolve.calls.inference.TypeBounds.Bound
 import org.jetbrains.kotlin.resolve.calls.inference.TypeBounds.BoundKind.*
+import org.jetbrains.kotlin.resolve.calls.inference.components.ConstraintSystemMarker
 import org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPosition
 import org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPositionKind
 import org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPositionKind.TYPE_BOUND_POSITION
@@ -33,14 +31,18 @@ import org.jetbrains.kotlin.resolve.calls.results.SimpleConstraintSystem
 import org.jetbrains.kotlin.resolve.descriptorUtil.hasExactAnnotation
 import org.jetbrains.kotlin.resolve.descriptorUtil.hasNoInferAnnotation
 import org.jetbrains.kotlin.types.*
+import org.jetbrains.kotlin.types.error.ErrorUtils
 import org.jetbrains.kotlin.types.TypeUtils.DONT_CARE
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext
 import org.jetbrains.kotlin.types.checker.TypeCheckingProcedure
 import org.jetbrains.kotlin.types.checker.TypeCheckingProcedureCallbacks
+import org.jetbrains.kotlin.types.model.KotlinTypeMarker
+import org.jetbrains.kotlin.types.model.TypeParameterMarker
+import org.jetbrains.kotlin.types.model.TypeSystemInferenceExtensionContext
+import org.jetbrains.kotlin.types.model.requireOrDescribe
 import org.jetbrains.kotlin.types.typeUtil.builtIns
 import org.jetbrains.kotlin.types.typeUtil.defaultProjections
 import org.jetbrains.kotlin.types.typeUtil.isDefaultBound
-import java.lang.IllegalArgumentException
-import java.lang.IllegalStateException
 import java.util.*
 
 open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystemBuilderImpl.Mode.INFERENCE) : ConstraintSystem.Builder {
@@ -88,16 +90,16 @@ open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystem
                 typeParameters.toList(), TypeSubstitution.EMPTY, typeParameters.first().containingDeclaration, freshTypeParameters
             )
             freshTypeParameters.zip(typeParameters).map {
-                val (fresh, original) = it
+                val [fresh, original] = it
                 TypeVariable(call, fresh, original, external)
             }
         }
 
-        for ((_, typeVariable) in typeParameters.zip(typeVariables)) {
+        for ([_, typeVariable] in typeParameters.zip(typeVariables)) {
             allTypeParameterBounds.put(typeVariable, TypeBoundsImpl(typeVariable))
         }
 
-        for ((typeVariable, _) in allTypeParameterBounds) {
+        for ([typeVariable, _] in allTypeParameterBounds) {
             for (declaredUpperBound in typeVariable.freshTypeParameter.upperBounds) {
                 if (declaredUpperBound.isDefaultBound()) continue //todo remove this line (?)
                 val context = ConstraintContext(TYPE_BOUND_POSITION.position(typeVariable.originalTypeParameter.index))
@@ -185,7 +187,7 @@ open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystem
     }
 
     private fun isErrorOrSpecialType(type: KotlinType?, constraintPosition: ConstraintPosition): Boolean {
-        if (TypeUtils.isDontCarePlaceholder(type) || ErrorUtils.isUninferredParameter(type)) {
+        if (TypeUtils.isDontCarePlaceholder(type) || ErrorUtils.isUninferredTypeVariable(type)) {
             return true
         }
 
@@ -305,9 +307,9 @@ open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystem
         //   Foo >: T!
         // both Foo and Foo? transform to Foo! here
         if (parameterType.isFlexible()) {
-            val customTypeVariable = parameterType.getCustomTypeVariable()
-            if (customTypeVariable != null) {
-                newConstrainingType = customTypeVariable.substitutionResult(constrainingType)
+            val customTypeParameter = parameterType.getCustomTypeParameter()
+            if (customTypeParameter != null) {
+                newConstrainingType = customTypeParameter.substitutionResult(constrainingType)
             }
         }
 
@@ -415,7 +417,7 @@ open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystem
 
     override fun fixVariables() {
         // todo variables should be fixed in the right order
-        val (external, functionTypeParameters) = allTypeParameterBounds.keys.partition { it.isExternal }
+        val [external, functionTypeParameters] = allTypeParameterBounds.keys.partition { it.isExternal }
         external.forEach { fixVariable(it) }
         functionTypeParameters.forEach { fixVariable(it) }
     }
@@ -426,13 +428,25 @@ open class ConstraintSystemBuilderImpl(private val mode: Mode = ConstraintSystem
 
     companion object {
         fun forSpecificity(): SimpleConstraintSystem = object : ConstraintSystemBuilderImpl(Mode.SPECIFICITY), SimpleConstraintSystem {
+            override val context: TypeSystemInferenceExtensionContext
+                get() = SimpleClassicTypeSystemContext
             var counter = 0
 
-            override fun registerTypeVariables(typeParameters: Collection<TypeParameterDescriptor>) =
-                registerTypeVariables(CallHandle.NONE, typeParameters)
+            // This object is in 1:1 correspondence with this `SimpleConstraintSystem`, not just the `context`.
+            // But realistically, it only exists to satisfy the compiler.
+            override val constraintSystemMarker: ConstraintSystemMarker
+                get() = object : ConstraintSystemMarker, TypeSystemInferenceExtensionContext by context {}
 
-            override fun addSubtypeConstraint(subType: UnwrappedType, superType: UnwrappedType) =
+            override fun registerTypeVariables(typeParameters: Collection<TypeParameterMarker>): TypeSubstitutor {
+                @Suppress("UNCHECKED_CAST")
+                return registerTypeVariables(CallHandle.NONE, typeParameters as Collection<TypeParameterDescriptor>)
+            }
+
+            override fun addSubtypeConstraint(subType: KotlinTypeMarker, superType: KotlinTypeMarker) {
+                requireOrDescribe(subType is UnwrappedType, subType)
+                requireOrDescribe(superType is UnwrappedType, superType)
                 addSubtypeConstraint(subType, superType, ConstraintPositionKind.VALUE_PARAMETER_POSITION.position(counter++))
+            }
 
             override fun hasContradiction(): Boolean {
                 fixVariables()
@@ -463,8 +477,9 @@ internal fun createTypeForFunctionPlaceholder(
         functionPlaceholderTypeConstructor.argumentTypes
     }
     val receiverType = if (isExtension) DONT_CARE else null
+    val contextReceiverTypes = (0 until expectedType.contextFunctionTypeParamsCount()).map { DONT_CARE }
     return createFunctionType(
-        functionPlaceholder.builtIns, Annotations.EMPTY, receiverType, newArgumentTypes, null, DONT_CARE,
+        functionPlaceholder.builtIns, Annotations.EMPTY, receiverType, contextReceiverTypes, newArgumentTypes, null, DONT_CARE,
         suspendFunction = expectedType.isSuspendFunctionType
     )
 }

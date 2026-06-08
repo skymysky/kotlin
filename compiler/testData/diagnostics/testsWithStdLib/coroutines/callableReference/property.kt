@@ -1,7 +1,5 @@
-// SKIP_TXT
-// COMMON_COROUTINES_TEST
-
-import COROUTINES_PACKAGE.coroutineContext
+// RUN_PIPELINE_TILL: FRONTEND
+import kotlin.coroutines.coroutineContext
 
 val c = ::<!UNSUPPORTED!>coroutineContext<!>
 
@@ -12,3 +10,5 @@ fun test() {
 suspend fun test2() {
     c()
 }
+
+/* GENERATED_FIR_TAGS: callableReference, functionDeclaration, propertyDeclaration, suspend */

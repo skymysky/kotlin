@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // FILE: A.java
 public class A {
     int foo() {return 1;}
@@ -11,7 +11,7 @@ fun foo() = ""
 
 open class B: A() {
     init {
-        val a: Int = <!DEBUG_INFO_LEAKING_THIS!>foo<!>()
+        val a: Int = foo()
     }
 }
 
@@ -20,7 +20,7 @@ fun test() {
 
     class B: A() {
         init {
-            val a: Int = <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>foo()<!> // todo
+            val a: Int <!INITIALIZER_TYPE_MISMATCH!>=<!> foo() // todo
         }
     }
 }
@@ -32,3 +32,6 @@ class E: A() {
         val a: A = foo() // todo: discuss
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, init, javaFunction, javaType, localClass, localFunction,
+localProperty, override, propertyDeclaration, stringLiteral */

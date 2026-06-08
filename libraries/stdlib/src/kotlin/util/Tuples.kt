@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmName("TuplesKt")
@@ -23,6 +23,7 @@ package kotlin
  * @property second Second value.
  * @constructor Creates a new instance of Pair.
  */
+@kotlin.js.JsImplicitExport(couldBeConvertedToExplicitExport = true)
 public data class Pair<out A, out B>(
     public val first: A,
     public val second: B
@@ -63,6 +64,7 @@ public fun <T> Pair<T, T>.toList(): List<T> = listOf(first, second)
  * @property second Second value.
  * @property third Third value.
  */
+@kotlin.js.JsImplicitExport(couldBeConvertedToExplicitExport = true)
 public data class Triple<out A, out B, out C>(
     public val first: A,
     public val second: B,

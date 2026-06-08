@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:JvmMultifileClass
@@ -9,7 +9,6 @@
 package kotlin.io
 
 import java.io.File
-import kotlin.*
 
 /**
  * Estimation of a root name by a given file name.
@@ -92,6 +91,7 @@ public val File.isRooted: Boolean
  * @property segments the list of [File] objects representing every directory in the path to the file,
  *     up to an including the file itself.
  */
+@ConsistentCopyVisibility
 internal data class FilePathComponents
     internal constructor(public val root: File, public val segments: List<File>) {
 

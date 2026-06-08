@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.descriptors.impl;
 
+import kotlin.DeprecationLevel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.*;
@@ -23,6 +24,7 @@ import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.types.KotlinType;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +53,7 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
     }
 
     @NotNull
-    @Override
+    @kotlin.Deprecated(message = "This method is left for binary compatibility with android.nav.safearg plugin. Used in SafeArgSyntheticDescriptorGenerator.kt")
     public SimpleFunctionDescriptorImpl initialize(
             @Nullable ReceiverParameterDescriptor extensionReceiverParameter,
             @Nullable ReceiverParameterDescriptor dispatchReceiverParameter,
@@ -59,9 +61,25 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
             @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters,
             @Nullable KotlinType unsubstitutedReturnType,
             @Nullable Modality modality,
-            @NotNull Visibility visibility
+            @NotNull DescriptorVisibility visibility
     ) {
-        return initialize(extensionReceiverParameter, dispatchReceiverParameter, typeParameters, unsubstitutedValueParameters,
+        return initialize(extensionReceiverParameter, dispatchReceiverParameter, Collections.<ReceiverParameterDescriptor>emptyList(),
+                          typeParameters, unsubstitutedValueParameters, unsubstitutedReturnType, modality, visibility, null);
+    }
+
+    @NotNull
+    @Override
+    public SimpleFunctionDescriptorImpl initialize(
+            @Nullable ReceiverParameterDescriptor extensionReceiverParameter,
+            @Nullable ReceiverParameterDescriptor dispatchReceiverParameter,
+            @NotNull List<ReceiverParameterDescriptor> contextReceiverParameters,
+            @NotNull List<? extends TypeParameterDescriptor> typeParameters,
+            @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters,
+            @Nullable KotlinType unsubstitutedReturnType,
+            @Nullable Modality modality,
+            @NotNull DescriptorVisibility visibility
+    ) {
+        return initialize(extensionReceiverParameter, dispatchReceiverParameter, contextReceiverParameters, typeParameters, unsubstitutedValueParameters,
                           unsubstitutedReturnType, modality, visibility, null);
     }
 
@@ -69,14 +87,15 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
     public SimpleFunctionDescriptorImpl initialize(
             @Nullable ReceiverParameterDescriptor extensionReceiverParameter,
             @Nullable ReceiverParameterDescriptor dispatchReceiverParameter,
+            @NotNull List<ReceiverParameterDescriptor> contextReceiverParameters,
             @NotNull List<? extends TypeParameterDescriptor> typeParameters,
             @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters,
             @Nullable KotlinType unsubstitutedReturnType,
             @Nullable Modality modality,
-            @NotNull Visibility visibility,
+            @NotNull DescriptorVisibility visibility,
             @Nullable Map<? extends UserDataKey<?>, ?> userData
     ) {
-        super.initialize(extensionReceiverParameter, dispatchReceiverParameter, typeParameters, unsubstitutedValueParameters,
+        super.initialize(extensionReceiverParameter, dispatchReceiverParameter, contextReceiverParameters, typeParameters, unsubstitutedValueParameters,
                          unsubstitutedReturnType, modality, visibility);
 
         if (userData != null && !userData.isEmpty()) {
@@ -117,7 +136,7 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
     public SimpleFunctionDescriptor copy(
             DeclarationDescriptor newOwner,
             Modality modality,
-            Visibility visibility,
+            DescriptorVisibility visibility,
             Kind kind,
             boolean copyOverrides
     ) {
@@ -126,8 +145,8 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
 
     @NotNull
     @Override
+    @SuppressWarnings("unchecked")
     public CopyBuilder<? extends SimpleFunctionDescriptor> newCopyBuilder() {
-        //noinspection unchecked
         return (CopyBuilder<? extends SimpleFunctionDescriptor>) super.newCopyBuilder();
     }
 }

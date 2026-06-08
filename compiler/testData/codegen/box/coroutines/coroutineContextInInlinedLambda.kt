@@ -1,13 +1,16 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-import helpers.*
-import COROUTINES_PACKAGE.*
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
+import kotlin.coroutines.*
 
 inline fun inlinedLambda(block: () -> Unit) {
     return block()
 }
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
 
 suspend fun useInlined(): Boolean {
     inlinedLambda { return coroutineContext === EmptyCoroutineContext }

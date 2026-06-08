@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Str(val string: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Str(val string: String)
 
 class C {
     var s = Str("")

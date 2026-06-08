@@ -1,14 +1,14 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-import helpers.*
 // WITH_REFLECT
 // CHECK_NOT_CALLED: suspendInline_61zpoe$
 // CHECK_NOT_CALLED: suspendInline_6r51u9$
 // CHECK_NOT_CALLED: suspendInline
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     fun withValue(v: String, x: Continuation<String>) {
@@ -30,6 +30,11 @@ fun builder(c: suspend Controller.() -> Unit) {
 }
 
 class OK
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun box(): String {
     var result = ""

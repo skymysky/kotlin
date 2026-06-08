@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.coroutines
@@ -37,7 +37,7 @@ class CoroutinesReferenceValuesTest {
 
     @Test
     fun testBadClass() {
-        val bad = suspend {
+        val bad = suspend() {
             checkBadClassTwice()
             getBadClassViaSuspend()
         }
@@ -45,6 +45,7 @@ class CoroutinesReferenceValuesTest {
         bad.startCoroutine(object : Continuation<BadClass> {
             override val context: CoroutineContext = EmptyCoroutineContext
 
+            @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
             override fun resumeWith(result_: Result<BadClass>) {
                 assertTrue(result == null)
                 result = result_.getOrThrow()

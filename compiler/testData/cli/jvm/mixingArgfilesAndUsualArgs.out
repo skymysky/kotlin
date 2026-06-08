@@ -1,4 +1,0 @@
-compiler/testData/cli/jvm/apiVersion.kt:2:15: error: unresolved reference: sealedSubclasses
-    ""::class.sealedSubclasses
-              ^
-COMPILATION_ERROR

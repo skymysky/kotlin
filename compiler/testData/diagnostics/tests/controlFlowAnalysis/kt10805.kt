@@ -1,13 +1,14 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: BACKEND
 // AssertionError for nested ifs with lambdas and Nothing as results
-// NI_EXPECTED_FILE
 
-val <!OI;IMPLICIT_NOTHING_PROPERTY_TYPE!>fn<!> = if (true) {
-    <!OI;TYPE_MISMATCH!>{ true }<!>
-} 
+val fn = if (true) {
+    { true }
+}
 else if (true) {
-    <!OI;TYPE_MISMATCH!>{ true }<!>
+    { true }
 }
 else {
     null!!
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, ifExpression, lambdaLiteral, propertyDeclaration */

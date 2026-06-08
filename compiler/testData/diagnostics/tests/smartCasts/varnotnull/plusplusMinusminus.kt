@@ -1,8 +1,8 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun foo(arg: Int?): Int {
     var i = arg
-    if (i != null && <!DEBUG_INFO_SMARTCAST!>i<!>++ == 5) {
-        return <!DEBUG_INFO_SMARTCAST!><!DEBUG_INFO_SMARTCAST!>i<!>--<!> + <!DEBUG_INFO_SMARTCAST!>i<!>
+    if (i != null && i++ == 5) {
+        return i-- + i
     }
     return 0
 }
@@ -12,10 +12,14 @@ operator fun Long?.inc() = this?.let { it + 1 }
 fun bar(arg: Long?): Long {
     var i = arg
     if (i++ == 5L) {
-        return i<!UNSAFE_CALL!>--<!> <!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>+<!> i
+        return i<!UNSAFE_CALL!>--<!> <!UNSAFE_OPERATOR_CALL!>+<!> i
     }
     if (i++ == 7L) {
-        return i++ <!NI;NONE_APPLICABLE, OI;UNSAFE_OPERATOR_CALL!>+<!> <!OI;TYPE_MISMATCH!>i<!>
+        return i++ <!UNSAFE_OPERATOR_CALL!>+<!> <!ARGUMENT_TYPE_MISMATCH!>i<!>
     }
     return 0L
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, andExpression, assignment, equalityExpression, funWithExtensionReceiver,
+functionDeclaration, ifExpression, incrementDecrementExpression, integerLiteral, lambdaLiteral, localProperty,
+nullableType, operator, propertyDeclaration, safeCall, smartcast, thisExpression */

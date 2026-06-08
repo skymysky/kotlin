@@ -1,18 +1,39 @@
-// !LANGUAGE: +InlineClasses
-// WITH_RUNTIME
-// IGNORE_BACKEND: JVM_IR, JS_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class GList<T>(val xs: List<T>)
-inline class GSList<T>(val ss: List<String>)
-inline class SList(val ss: List<String>)
-inline class IList(val ints: List<Int>)
-inline class GIList<T>(val ints: List<Int>)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class GList<T>(val xs: List<T>)
 
-inline class II(val i: Int)
-inline class IIList(val iis: List<II>)
-inline class GIIList<T>(val iis: List<II>)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class GList2<T: Any>(val xs: List<T?>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class GSList<T>(val ss: List<String>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class SList(val ss: List<String>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class IList(val ints: List<Int>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class GIList<T>(val ints: List<Int>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class II(val i: Int)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class IIList(val iis: List<II>)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class GIIList<T>(val iis: List<II>)
 
 fun testGList(gl: GList<String>) {
+    if (gl.xs[0] != "OK") throw AssertionError()
+}
+
+fun testGList2(gl: GList2<String>) {
     if (gl.xs[0] != "OK") throw AssertionError()
 }
 
@@ -42,6 +63,7 @@ fun testGIIList(giil: GIIList<Any>) {
 
 fun box(): String {
     testGList(GList(listOf("OK")))
+    testGList2(GList2(listOf("OK")))
     testGSList(GSList(listOf("OK")))
     testSList(SList(listOf("OK")))
     testIList(IList(listOf(42)))

@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 @Target(AnnotationTarget.EXPRESSION)
 @Retention(AnnotationRetention.SOURCE)
 annotation class ExprAnn
@@ -10,3 +11,6 @@ fun foo(): Int {
     val y = @FunAnn fun() = 2
     return x() + y()    
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, annotationDeclaration, anonymousFunction, functionDeclaration, integerLiteral,
+localProperty, propertyDeclaration */

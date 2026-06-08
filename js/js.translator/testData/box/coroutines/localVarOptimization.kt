@@ -1,8 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1251
-// DECLARES_VARIABLE: function=doResume name=k
-// PROPERTY_READ_COUNT: name=local$o count=1
-// PROPERTY_WRITE_COUNT: name=local$o count=2
 import kotlin.coroutines.*
 
 var next: () -> Unit = {}

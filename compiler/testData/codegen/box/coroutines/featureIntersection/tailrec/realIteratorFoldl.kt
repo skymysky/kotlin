@@ -1,11 +1,8 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-// DONT_RUN_GENERATED_CODE: JS
+// DISABLE_NATIVE: gcScheduler=AGGRESSIVE
 import helpers.*
-import COROUTINES_PACKAGE.*
+import kotlin.coroutines.*
 
 tailrec suspend fun <T, A> Iterator<T>.foldl(acc : A, foldFunction : (e : T, acc : A) -> A) : A =
         if (!hasNext()) acc

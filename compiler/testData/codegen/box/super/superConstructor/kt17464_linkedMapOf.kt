@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR, JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // FULL_JDK
 
 open class B(val map: LinkedHashMap<String, String>)

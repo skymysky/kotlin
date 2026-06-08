@@ -1,3 +1,4 @@
+
 annotation class Ann
 
 class A {

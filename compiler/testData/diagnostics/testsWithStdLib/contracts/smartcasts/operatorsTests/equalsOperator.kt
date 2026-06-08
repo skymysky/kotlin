@@ -1,7 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -26,7 +25,7 @@ fun testBasicEquals(x: Int?) {
         x<!UNSAFE_CALL!>.<!>inc()
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.inc()
     }
 
     x<!UNSAFE_CALL!>.<!>inc()
@@ -36,7 +35,7 @@ fun testBasicNotEquals(x: Int?) {
     x<!UNSAFE_CALL!>.<!>inc()
 
     if (myEqualsNotNull(x)) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.inc()
     }
     else {
         x<!UNSAFE_CALL!>.<!>inc()
@@ -45,3 +44,5 @@ fun testBasicNotEquals(x: Int?) {
     x<!UNSAFE_CALL!>.<!>inc()
 }
 
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, equalityExpression, functionDeclaration, ifExpression,
+lambdaLiteral, nullableType, smartcast */

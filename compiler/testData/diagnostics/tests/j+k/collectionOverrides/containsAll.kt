@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE -PARAMETER_NAME_CHANGED_ON_OVERRIDE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE -PARAMETER_NAME_CHANGED_ON_OVERRIDE
 // JAVAC_EXPECTED_FILE
 // FILE: A.java
 import java.util.*;
@@ -37,20 +38,23 @@ fun foo(
         cs: Collection<String>, ca: Collection<Any?>
 ) {
     a.containsAll(cs)
-    a.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    a.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 
     b.containsAll(cs)
-    b.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    b.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 
     ic.containsAll(cs)
-    ic.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    ic.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 
     ka.containsAll(cs)
-    ka.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    ka.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 
     kb.containsAll(cs)
-    kb.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    kb.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 
     al.containsAll(cs)
-    al.containsAll(<!TYPE_MISMATCH!>ca<!>)
+    al.containsAll(<!ARGUMENT_TYPE_MISMATCH!>ca<!>)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, javaFunction, javaType, nullableType, override,
+typeParameter */

@@ -1,11 +1,28 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
+
+inline fun tryCatch(t: () -> String, onException: (Exception) -> String) =
+    try {
+        t()
+    } catch (e: RuntimeException) {
+        onException(e)
+    }
+
+inline fun tryCatchFinally(t: () -> String, onException: (Exception) -> String, f: () -> Unit) =
+    try {
+        t()
+    } catch (e: RuntimeException) {
+        onException(e)
+    } finally {
+        f()
+    }
+
+// FILE: main.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 var globalResult = ""
 var wasCalled = false
@@ -68,22 +85,6 @@ fun builder(expectException: Boolean = false, c: suspend Controller.() -> String
 fun commonThrow(t: Throwable) {
     throw t
 }
-
-inline fun tryCatch(t: () -> String, onException: (Exception) -> String) =
-        try {
-            t()
-        } catch (e: RuntimeException) {
-            onException(e)
-        }
-
-inline fun tryCatchFinally(t: () -> String, onException: (Exception) -> String, f: () -> Unit) =
-        try {
-            t()
-        } catch (e: RuntimeException) {
-            onException(e)
-        } finally {
-            f()
-        }
 
 fun box(): String {
     builder {

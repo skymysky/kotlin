@@ -1,12 +1,14 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 package f
 
 fun test(a: Boolean, b: Boolean): Int {
-    return <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!>if(a) {
+    return if(a) {
         1
     } else {
-        <!OI;TYPE_MISMATCH!><!INVALID_IF_AS_EXPRESSION!>if<!> (b) {
+        <!INVALID_IF_AS_EXPRESSION!>if<!> (b) {
             3
-        }<!>
-    }<!>
+        }
+    }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, ifExpression, integerLiteral */

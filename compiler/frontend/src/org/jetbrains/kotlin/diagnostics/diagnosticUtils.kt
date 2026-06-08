@@ -21,25 +21,23 @@ import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
-import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages
-import org.jetbrains.kotlin.diagnostics.rendering.DiagnosticRenderer
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
-import org.jetbrains.kotlin.resolve.calls.callResolverUtil.getEffectiveExpectedType
-import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.calls.context.CallPosition
 import org.jetbrains.kotlin.resolve.calls.context.ResolutionContext
 import org.jetbrains.kotlin.resolve.calls.inference.isCaptured
 import org.jetbrains.kotlin.resolve.calls.inference.wrapWithCapturingSubstitution
-import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 import org.jetbrains.kotlin.resolve.calls.model.VariableAsFunctionResolvedCall
+import org.jetbrains.kotlin.resolve.calls.util.getEffectiveExpectedType
+import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeConstructorSubstitution
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.types.TypeUtils.noExpectedType
 import org.jetbrains.kotlin.types.typeUtil.isAnyOrNullableAny
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isNullableNothing
@@ -49,27 +47,29 @@ fun ResolutionContext<*>.reportTypeMismatchDueToTypeProjection(
     expectedType: KotlinType,
     expressionType: KotlinType?
 ): Boolean {
-    if (!TypeUtils.contains(expectedType) { it.isAnyOrNullableAny() || it.isNothing() || it.isNullableNothing() }) return false
+    if (!TypeUtils.contains(expectedType) {
+            // We have to check expected type is available otherwise we'll get an exception
+            !noExpectedType(it) && (it.isAnyOrNullableAny() || it.isNothing() || it.isNullableNothing())
+        }
+    ) return false
 
-    val callPosition = this.callPosition
-    val (resolvedCall, correspondingNotApproximatedTypeByDescriptor: (CallableDescriptor) -> KotlinType?) = when (callPosition) {
-        is CallPosition.ValueArgumentPosition -> Pair(
-            callPosition.resolvedCall, { f: CallableDescriptor ->
+    val [resolvedCall, correspondingNotApproximatedTypeByDescriptor: (CallableDescriptor) -> KotlinType?] = when (callPosition) {
+        is CallPosition.ValueArgumentPosition ->
+            callPosition.resolvedCall to { f: CallableDescriptor ->
                 getEffectiveExpectedType(f.valueParameters[callPosition.valueParameter.index], callPosition.valueArgument, this)
-            })
-        is CallPosition.ExtensionReceiverPosition -> Pair<ResolvedCall<*>, (CallableDescriptor) -> KotlinType?>(
-            callPosition.resolvedCall, { f: CallableDescriptor ->
-                f.extensionReceiverParameter?.type
-            })
-        is CallPosition.PropertyAssignment -> Pair<ResolvedCall<out CallableDescriptor>, (CallableDescriptor) -> KotlinType?>(
-            callPosition.leftPart.getResolvedCall(trace.bindingContext) ?: return false, { f: CallableDescriptor ->
-                (f as? PropertyDescriptor)?.setter?.valueParameters?.get(0)?.type
-            })
-        is CallPosition.Unknown -> return false
+            }
+        is CallPosition.ExtensionReceiverPosition ->
+            callPosition.resolvedCall to { f: CallableDescriptor -> f.extensionReceiverParameter?.type }
+        is CallPosition.PropertyAssignment -> {
+            if (callPosition.isLeft) return false
+            val resolvedCall = callPosition.leftPart.getResolvedCall(trace.bindingContext) ?: return false
+            resolvedCall to { f: CallableDescriptor -> (f as? PropertyDescriptor)?.setter?.valueParameters?.get(0)?.type }
+        }
+        is CallPosition.Unknown, is CallPosition.CallableReferenceRhs -> return false
     }
 
     val receiverType = resolvedCall.smartCastDispatchReceiverType
-            ?: (resolvedCall.dispatchReceiver ?: return false).type
+        ?: (resolvedCall.dispatchReceiver ?: return false).type
 
     val callableDescriptor = resolvedCall.resultingDescriptor.original
 
@@ -112,9 +112,23 @@ fun ResolutionContext<*>.reportTypeMismatchDueToTypeProjection(
 }
 
 fun BindingTrace.reportDiagnosticOnce(diagnostic: Diagnostic) {
-    if (bindingContext.diagnostics.forElement(diagnostic.psiElement).any { it.factory == diagnostic.factory }) return
+    if (bindingContext.diagnostics.noSuppression().forElement(diagnostic.psiElement).any { it.factory == diagnostic.factory }) return
 
     report(diagnostic)
+}
+
+fun BindingTrace.reportDiagnosticOnceWrtDiagnosticFactoryList(
+    diagnosticToReport: Diagnostic,
+    vararg diagnosticFactories: DiagnosticFactory<*>,
+) {
+    val hasAlreadyReportedDiagnosticFromListOrSameType =
+        bindingContext.diagnostics.noSuppression()
+            .forElement(diagnosticToReport.psiElement)
+            .any { diagnostic -> diagnostic.factory == diagnosticToReport.factory || diagnosticFactories.any { it == diagnostic.factory } }
+
+    if (hasAlreadyReportedDiagnosticFromListOrSameType) return
+
+    report(diagnosticToReport)
 }
 
 class TypeMismatchDueToTypeProjectionsData(
@@ -165,18 +179,4 @@ inline fun <reified T : KtDeclaration> reportOnDeclarationAs(
             trace.report(what(it))
         } ?: throw AssertionError("Declaration for $descriptor is expected to be ${T::class.simpleName}, actual declaration: $psiElement")
     } ?: throw AssertionError("No declaration for $descriptor")
-}
-
-fun <D : Diagnostic> DiagnosticSink.reportFromPlugin(diagnostic: D, ext: DefaultErrorMessages.Extension) {
-    @Suppress("UNCHECKED_CAST")
-    val renderer = ext.map[diagnostic.factory] as? DiagnosticRenderer<D>
-            ?: error("Renderer not found for diagnostic ${diagnostic.factory.name}")
-
-    val renderedDiagnostic = RenderedDiagnostic(diagnostic, renderer)
-
-    when (diagnostic.severity) {
-        Severity.ERROR -> report(Errors.PLUGIN_ERROR.on(diagnostic.psiElement, renderedDiagnostic))
-        Severity.WARNING -> report(Errors.PLUGIN_WARNING.on(diagnostic.psiElement, renderedDiagnostic))
-        Severity.INFO -> report(Errors.PLUGIN_INFO.on(diagnostic.psiElement, renderedDiagnostic))
-    }
 }

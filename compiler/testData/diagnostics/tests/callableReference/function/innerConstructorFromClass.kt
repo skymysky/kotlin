@@ -1,6 +1,6 @@
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_EXPRESSION
-// !LANGUAGE: +CallableReferencesToClassMembersWithEmptyLHS
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_EXPRESSION
 
 import kotlin.reflect.KFunction1
 
@@ -32,3 +32,7 @@ class B {
         checkSubtype<KFunction1<A, A.Inner>>(y)
     }
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, companionObject, funWithExtensionReceiver,
+functionDeclaration, functionalType, infix, inner, localProperty, nullableType, objectDeclaration, propertyDeclaration,
+typeParameter, typeWithExtension */

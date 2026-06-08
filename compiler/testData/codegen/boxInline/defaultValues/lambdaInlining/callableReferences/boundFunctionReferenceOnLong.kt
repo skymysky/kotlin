@@ -1,8 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
-// FILE: 1.kt
-// LANGUAGE_VERSION: 1.2
 // SKIP_INLINE_CHECK_IN: inlineFun$default
+// FILE: 1.kt
 package test
 
 inline fun inlineFun(a: Int, lambda: (Int) -> Int = 1::plus): Int {

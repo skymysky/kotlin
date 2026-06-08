@@ -1,14 +1,15 @@
+// SPLIT_PER_MODULE
 // MODULE: lib
+// JS_MODULE_KIND: UMD
 // FILE: lib.kt
-// MODULE_KIND: UMD
 package lib
 
 fun bar() = "OK"
 
 
 // MODULE: main(lib)
+// JS_MODULE_KIND: UMD
 // FILE: main.kt
-// MODULE_KIND: UMD
 package foo
 
 import lib.bar

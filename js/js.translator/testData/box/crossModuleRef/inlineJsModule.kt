@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1316
 // MODULE: lib1
 // FILE: lib1.js
 define("lib1", [], function() {
@@ -9,18 +7,18 @@ define("lib1", [], function() {
 })
 
 // MODULE: lib2(lib1)
+// JS_MODULE_KIND: AMD
 // FILE: lib2.kt
-// MODULE_KIND: AMD
 @JsModule("lib1")
 external fun foo(): String
 
 // MODULE: lib3(lib2)
+// JS_MODULE_KIND: AMD
 // FILE: lib3.kt
-// MODULE_KIND: AMD
 inline fun bar() = foo()
 
 // MODULE: main(lib3)
+// JS_MODULE_KIND: AMD
 // FILE: main.kt
-// MODULE_KIND: AMD
 
 fun box() = bar()

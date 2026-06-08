@@ -1,4 +1,4 @@
-// !LANGUAGE: +InnerClassInEnumEntryClass
+// RUN_PIPELINE_TILL: BACKEND
 
 enum class A {
     X {
@@ -11,3 +11,5 @@ enum class A {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: enumDeclaration, enumEntry */

@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -26,7 +26,7 @@ fun threeLevelsReturnNoInitialization(x: Int?): Int? {
     // Inner always jumps to outer
     // And middle always calls inner
     // So, in fact, middle never finished normally
-    // Hence 'y = 54' in middle is unreachable, and middle doesn't performs definite initalization
+    // Hence 'y = 54' in middle is unreachable, and middle doesn't performs definite initialization
     // Hence, outer doesn't performs definite initialization
     val y: Int
     myRun outer@ {
@@ -42,7 +42,7 @@ fun threeLevelsReturnNoInitialization(x: Int?): Int? {
             }
         }
         // Possible to report unreachable here
-        <!UNREACHABLE_CODE!>y = 54<!>
+        <!VAL_REASSIGNMENT!>y<!> = 54
     }
     return <!UNINITIALIZED_VARIABLE!>y<!>.inc()
 }
@@ -72,7 +72,7 @@ fun threeLevelsReturnWithUnknown(x: Int?): Int? {
         unknownRun middle@ {
             x.myLet inner@ {
                 if (it == null) {
-                    <!CAPTURED_VAL_INITIALIZATION!>y<!> = 42
+                    y = 42
                     return@outer Unit
                 }
                 else {
@@ -84,3 +84,7 @@ fun threeLevelsReturnWithUnknown(x: Int?): Int? {
     }
     return <!UNINITIALIZED_VARIABLE!>y<!>.inc()
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, equalityExpression, funWithExtensionReceiver,
+functionDeclaration, functionalType, ifExpression, inline, integerLiteral, lambdaLiteral, localProperty, nullableType,
+propertyDeclaration, thisExpression, typeParameter */

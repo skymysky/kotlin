@@ -1,12 +1,13 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 fun testLambda() {
     val basicTest: (Int) -> Int = myRun {
         val x: Any? = null
-        if (x is String) return@myRun { it -> <!DEBUG_INFO_SMARTCAST!>x<!>.length + it }
+        if (x is String) return@myRun { it -> x.length + it }
         if (x !is Int) return@myRun { it -> it }
 
-        { it -> <!DEBUG_INFO_SMARTCAST!>x<!> + it }
+        { it -> x + it }
     }
 
     val twoLambda: (Int) -> Int = myRun {
@@ -20,3 +21,6 @@ fun testLambda() {
 }
 
 inline fun <R> myRun(block: () -> R): R = block()
+
+/* GENERATED_FIR_TAGS: additiveExpression, functionDeclaration, functionalType, ifExpression, inline, integerLiteral,
+isExpression, lambdaLiteral, localProperty, nullableType, propertyDeclaration, smartcast, typeParameter */

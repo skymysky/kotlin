@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // Please make sure that this test is consistent with the blackbox test "annotationsOnNonExistentAccessors.kt"
 
 import kotlin.reflect.KProperty
@@ -6,19 +7,19 @@ annotation class Ann
 annotation class AnnRepeat
 
 class Foo(
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!> private val y0: Int,
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!> private vararg val y1: String
+    @get:Ann private val y0: Int,
+    @get:Ann private vararg val y1: String
 ) {
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+    @get:Ann
     private val x1 = ""
 
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@set:Ann<!>
+    @set:Ann
     private var x2 = ""
 
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@setparam:Ann<!>
+    @setparam:Ann
     private var x3 = ""
 
-    @setparam:[<!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>Ann<!> <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>AnnRepeat<!>]
+    @setparam:[Ann AnnRepeat]
     private var x4 = ""
 
     @get:Ann
@@ -27,12 +28,12 @@ class Foo(
     @get:Ann
     protected val x6 = ""
 
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+    @get:Ann
     private val x7: String = ""
-        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@AnnRepeat<!> get
+        @AnnRepeat get
 
     @get:Ann
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@set:Ann<!>
+    @set:Ann
     private var x8: String = ""
         get() { return "" }
 
@@ -55,25 +56,19 @@ private class EffetivelyPrivate private constructor(
 }
 
 class PrivateToThis<in I> {
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@set:Ann<!>
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@setparam:Ann<!>
+    @get:Ann
+    @set:Ann
+    @setparam:Ann
     private var x0: I = TODO()
 }
 
 class Statics {
-    @get:Ann
-    lateinit var y0: String
-
-    <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
-    private lateinit var y1: String
-
     companion object {
         @JvmField
-        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+        @get:Ann
         val x0 = ""
 
-        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+        @get:Ann
         const val x1 = ""
 
         @JvmStatic
@@ -81,11 +76,11 @@ class Statics {
         val x2 = ""
 
         @JvmStatic
-        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+        @get:Ann
         private val x3 = ""
 
         @JvmStatic
-        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@get:Ann<!>
+        @get:Ann
         private val x4 = ""
     }
 }
@@ -118,3 +113,10 @@ class WithSource {
     private val x1 = ""
         @SourceAnn get
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, annotationUseSiteTargetField, annotationUseSiteTargetFieldDelegate,
+annotationUseSiteTargetParam, annotationUseSiteTargetProperty, annotationUseSiteTargetPropertyGetter,
+annotationUseSiteTargetPropertySetter, annotationUseSiteTargetReceiver, annotationUseSiteTargetSetterParameter,
+assignment, classDeclaration, companionObject, const, funWithExtensionReceiver, functionDeclaration, getter, in,
+integerLiteral, nestedClass, nullableType, objectDeclaration, operator, outProjection, primaryConstructor,
+propertyDeclaration, propertyDelegate, setter, starProjection, stringLiteral, typeParameter, vararg */

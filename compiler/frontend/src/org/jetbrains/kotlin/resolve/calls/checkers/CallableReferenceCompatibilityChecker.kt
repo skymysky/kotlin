@@ -20,8 +20,8 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.psi.KtCallableReferenceExpression
-import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
-import org.jetbrains.kotlin.resolve.calls.callUtil.isCallableReference
+import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
+import org.jetbrains.kotlin.resolve.calls.util.isCallableReference
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 
 class CallableReferenceCompatibilityChecker : CallChecker {
@@ -29,7 +29,7 @@ class CallableReferenceCompatibilityChecker : CallChecker {
         val typeInferenceForCallableReferencesFeature = LanguageFeature.TypeInferenceOnGenericsForCallableReferences
         if (context.languageVersionSettings.supportsFeature(typeInferenceForCallableReferencesFeature)) return
 
-        for ((_, resolvedArgument) in resolvedCall.valueArguments) {
+        for ([_, resolvedArgument] in resolvedCall.valueArguments) {
             inner@ for (argument in resolvedArgument.arguments) {
                 val argumentExpression = argument.getArgumentExpression() as? KtCallableReferenceExpression ?: continue@inner
                 val callableReferenceResolvedCall =

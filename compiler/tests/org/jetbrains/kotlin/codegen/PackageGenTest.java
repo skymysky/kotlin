@@ -17,7 +17,9 @@
 package org.jetbrains.kotlin.codegen;
 
 import com.intellij.util.ArrayUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.test.ConfigurationKind;
+import org.jetbrains.kotlin.test.FirParser;
 
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
@@ -27,6 +29,15 @@ import java.util.Arrays;
 import java.util.List;
 
 public class PackageGenTest extends CodegenTestCase {
+    @Override
+    public boolean getUseFir() {
+        return true;
+    }
+
+    @Override
+    public @NotNull FirParser getFirParser() {
+        return FirParser.LightTree;
+    }
 
     @Override
     protected void setUp() throws Exception {
@@ -86,7 +97,7 @@ public class PackageGenTest extends CodegenTestCase {
         loadText("fun foo(a: Int?) = if (a != null) a else 239");
         Method main = generateFunction();
         assertEquals(610, main.invoke(null, 610));
-        assertEquals(239, main.invoke(null, new Object[]{null}));
+        assertEquals(239, main.invoke(null, new Object[] {null}));
     }
 
     public void testIntBoxed() throws Exception {
@@ -171,6 +182,7 @@ public class PackageGenTest extends CodegenTestCase {
         assertEquals("beer", result.toString());
     }
 
+    @SuppressWarnings("StringOperationCanBeSimplified")
     public void testJavaEquals() throws Exception {
         loadText("fun foo(s1: String, s2: String) = s1 == s2");
         Method main = generateFunction();
@@ -178,6 +190,7 @@ public class PackageGenTest extends CodegenTestCase {
         assertEquals(Boolean.FALSE, main.invoke(null, new String("kotlin"), new String("ceylon")));
     }
 
+    @SuppressWarnings("StringOperationCanBeSimplified")
     public void testJavaNotEquals() throws Exception {
         loadText("fun foo(s1: String, s2: String) = s1 != s2");
         Method main = generateFunction();
@@ -196,10 +209,11 @@ public class PackageGenTest extends CodegenTestCase {
     public void testEqualsNullLiteral() throws Exception {
         loadText("fun foo(s: String?) = s == null");
         Method main = generateFunction();
-        assertEquals(Boolean.TRUE, main.invoke(null, new Object[] { null }));
+        assertEquals(Boolean.TRUE, main.invoke(null, new Object[] {null}));
         assertEquals(Boolean.FALSE, main.invoke(null, "kotlin"));
     }
 
+    @SuppressWarnings("StringOperationCanBeSimplified")
     public void testTripleEq() throws Exception {
         loadText("fun foo(s1: String?, s2: String?) = s1 === s2");
         Method main = generateFunction();
@@ -209,6 +223,7 @@ public class PackageGenTest extends CodegenTestCase {
         assertEquals(Boolean.FALSE, main.invoke(null, s1, s2));
     }
 
+    @SuppressWarnings("StringOperationCanBeSimplified")
     public void testTripleNotEq() throws Exception {
         loadText("fun foo(s1: String?, s2: String?) = s1 !== s2");
         Method main = generateFunction();
@@ -250,14 +265,14 @@ public class PackageGenTest extends CodegenTestCase {
         loadText("fun foo(s: String?) = s ?: \"null\"");
         Method main = generateFunction();
         assertEquals("kotlin", main.invoke(null, "kotlin"));
-        assertEquals("null", main.invoke(null, new Object[] { null }));
+        assertEquals("null", main.invoke(null, new Object[] {null}));
     }
 
     public void testElvisInt() throws Exception {
         loadText("fun foo(a: Int?): Int = a ?: 239");
         Method main = generateFunction();
         assertEquals(610, main.invoke(null, 610));
-        assertEquals(239, main.invoke(null, new Object[]{null}));
+        assertEquals(239, main.invoke(null, new Object[] {null}));
     }
 
     public void testVarargs() throws Exception {
@@ -301,7 +316,7 @@ public class PackageGenTest extends CodegenTestCase {
         assertEquals(610, c.gridx);
     }
 
-    public void testIncrementAsLastOperation() throws Exception {
+    public void testIncrementAsLastOperation() {
         loadText("fun foo() { var a = 0; a++; }");
         generateFunction();  // make sure we're not falling off end of code
     }
@@ -309,30 +324,30 @@ public class PackageGenTest extends CodegenTestCase {
     public void testArrayRead() throws Exception {
         loadText("fun foo(c: Array<String>) = c[0]");
         Method main = generateFunction();
-        assertEquals("main", main.invoke(null, new Object[]{new String[]{"main"}}));
+        assertEquals("main", main.invoke(null, new Object[] {new String[] {"main"}}));
     }
 
     public void testArrayWrite() throws Exception {
         loadText("fun foo(c: Array<String>) { c[0] = \"kotlin\"; }");
         Method main = generateFunction();
-        String[] array = new String[] { null };
-        main.invoke(null, new Object[] { array });
+        String[] array = new String[] {null};
+        main.invoke(null, new Object[] {array});
         assertEquals("kotlin", array[0]);
     }
 
     public void testArrayAugAssign() throws Exception {
         loadText("fun foo(c: Array<Int>) { c[0] *= 2 }");
         Method main = generateFunction();
-        Integer[] data = new Integer[] { 5 };
-        main.invoke(null, new Object[] { data });
+        Integer[] data = new Integer[] {5};
+        main.invoke(null, new Object[] {data});
         assertEquals(10, data[0].intValue());
     }
 
     public void testArrayAugAssignLong() throws Exception {
         loadText("fun foo(c: LongArray) { c[0] *= 2.toLong() }");
         Method main = generateFunction();
-        long[] data = new long[] { 5 };
-        main.invoke(null, new Object[] { data });
+        long[] data = new long[] {5};
+        main.invoke(null, new Object[] {data});
         assertEquals(10L, data[0]);
     }
 
@@ -342,6 +357,7 @@ public class PackageGenTest extends CodegenTestCase {
         Integer[] result = (Integer[]) main.invoke(null);
         assertEquals(4, result.length);
     }
+
     public void testFloatArrayNew() throws Exception {
         loadText("fun foo() = FloatArray(4)");
         Method main = generateFunction();
@@ -352,7 +368,7 @@ public class PackageGenTest extends CodegenTestCase {
     public void testArraySize() throws Exception {
         loadText("fun foo(a: Array<Int>) = a.size");
         Method main = generateFunction();
-        Object[] args = new Object[] { new Integer[4] };
+        Object[] args = new Object[] {new Integer[4]};
         int result = (Integer) main.invoke(null, args);
         assertEquals(4, result);
     }
@@ -360,7 +376,7 @@ public class PackageGenTest extends CodegenTestCase {
     public void testIntArraySize() throws Exception {
         loadText("fun foo(a: IntArray) = a.size");
         Method main = generateFunction();
-        Object[] args = new Object[] { new int[4] };
+        Object[] args = new Object[] {new int[4]};
         int result = (Integer) main.invoke(null, args);
         assertEquals(4, result);
     }
@@ -440,13 +456,13 @@ public class PackageGenTest extends CodegenTestCase {
     public void testExplicitCallOfBooleanNotIntrinsic() throws Exception {
         loadText("fun foo(a: Boolean) = a.not()");
         Method main = generateFunction();
-        assertEquals(false, ((Boolean) main.invoke(null, true)).booleanValue());
+        assertFalse(((Boolean) main.invoke(null, true)).booleanValue());
     }
 
     public void testAppendArrayToString() throws Exception {
         loadText("fun foo(a: String, b: Array<String>) = a + b");
         Method main = generateFunction();
-        String[] args = new String[] { "foo", "bar" };
+        String[] args = new String[] {"foo", "bar"};
         //noinspection ImplicitArrayToString
         assertEquals("s" + args.toString(), main.invoke(null, "s", args));
     }

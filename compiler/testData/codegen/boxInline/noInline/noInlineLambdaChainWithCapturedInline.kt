@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// NO_CHECK_LAMBDA_INLINING
 // FILE: 1.kt
 
 package test
@@ -10,7 +9,6 @@ inline fun <T> inlineFun(arg: T, f: (T) -> Unit) {
 
 // FILE: 2.kt
 
-//NO_CHECK_LAMBDA_INLINING
 import test.*
 
 inline fun test1(crossinline param: () -> String): String {
@@ -21,10 +19,10 @@ inline fun test1(crossinline param: () -> String): String {
                 {
                     {
                         result = param() + c + a
-                    }()
-                }()
+                    }.let { it() }
+                }.let { it() }
             }
-        }()
+        }.let { it() }
     }
 
     return result
@@ -37,8 +35,8 @@ inline fun test2(crossinline param: () -> String): String {
         {
             {
                 result = param() + a
-            }()
-        }()
+            }.let { it() }
+        }.let { it() }
     }
 
     return result
@@ -53,10 +51,10 @@ inline fun test3(crossinline param: () -> String): String {
                     {
                         {
                             result = param() + c + a
-                        }()
-                    }()
+                        }.let { it() }
+                    }.let { it() }
                 }
-            }()
+            }.let { it() }
         }
     }
 

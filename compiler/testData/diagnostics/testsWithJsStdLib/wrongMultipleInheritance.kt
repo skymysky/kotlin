@@ -1,10 +1,14 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 open class A {
     fun get(index: Int): Char = '*'
 }
 
+typealias TA = A
+
 abstract class <!WRONG_MULTIPLE_INHERITANCE!>B<!> : A(), CharSequence
+abstract class <!WRONG_MULTIPLE_INHERITANCE!>B2<!> : TA(), CharSequence
 
 interface I {
     fun nextChar(): Char

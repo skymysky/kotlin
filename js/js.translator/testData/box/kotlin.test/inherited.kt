@@ -1,5 +1,11 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1351
+// KJS_WITH_FULL_RUNTIME
+// SKIP_DCE_DRIVEN
+// RUN_UNIT_TESTS
+
+// DISABLE_IR_VISIBILITY_CHECKS: ANY
+// ^ @Suppress("INVISIBLE_MEMBER") in _common.kt
+
+import common.*
 import kotlin.test.Test
 import kotlin.test.BeforeTest
 import kotlin.test.AfterTest

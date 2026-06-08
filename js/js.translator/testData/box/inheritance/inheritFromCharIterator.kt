@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1294
+// KJS_WITH_FULL_RUNTIME
 package foo
 
 class MyCharIterator : CharIterator() {

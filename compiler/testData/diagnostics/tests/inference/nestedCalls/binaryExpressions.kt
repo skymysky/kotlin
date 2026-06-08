@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 package h
 
 interface A<T> {}
@@ -14,7 +14,7 @@ fun <T> id(t: T): T = t
 infix fun <T> Z.foo(a: A<T>): A<T> = a
 
 fun test(z: Z) {
-    z <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>foo<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>()
+    z <!CANNOT_INFER_PARAMETER_TYPE!>foo<!> <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>()
     val a: A<Int> = id(z foo newA())
     val b: A<Int> = id(z.foo(newA()))
     use(a, b)
@@ -24,49 +24,53 @@ fun test(z: Z) {
 operator fun <T> Z.plus(a: A<T>): A<T> = a
 
 fun test1(z: Z) {
-    id(z <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>+<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>())
-    <!NI;UNREACHABLE_CODE!>val a: A<Z> = z + newA()<!>
-    <!NI;UNREACHABLE_CODE!>val b: A<Z> = z.plus(newA())<!>
-    <!NI;UNREACHABLE_CODE!>val c: A<Z> = id(z + newA())<!>
-    <!NI;UNREACHABLE_CODE!>val d: A<Z> = id(z.plus(newA()))<!>
-    <!NI;UNREACHABLE_CODE!>use(a, b, c, d)<!>
+    <!CANNOT_INFER_PARAMETER_TYPE!>id<!>(z <!CANNOT_INFER_PARAMETER_TYPE!>+<!> <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>())
+    val a: A<Z> = z + newA()
+    val b: A<Z> = z.plus(newA())
+    val c: A<Z> = id(z + newA())
+    val d: A<Z> = id(z.plus(newA()))
+    use(a, b, c, d)
 }
 
 //comparison operation
 operator fun <T> Z.compareTo(a: A<T>): Int { use(a); return 1 }
 
 fun test2(z: Z) {
-    val a: Boolean = id(z <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!><<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>())
+    val a: Boolean = id(z <!CANNOT_INFER_PARAMETER_TYPE!><<!> <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>())
     val b: Boolean = id(z < newA<Z>())
     use(a, b)
 }
 
 //'equals' operation
-fun Z.<!EXTENSION_SHADOWED_BY_MEMBER!>equals<!>(any: Any): Int { use(any); return 1 }
+fun Z.equals(any: Any): Int { use(any); return 1 }
 
 fun test3(z: Z) {
-    z <!NI;EQUALS_MISSING!>==<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>()
+    z == <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>()
     z == newA<Z>()
-    id(z <!NI;EQUALS_MISSING!>==<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>())
+    id(z == <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>())
     id(z == newA<Z>())
 
-    id(z === <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>())
+    id(z === <!CANNOT_INFER_PARAMETER_TYPE!>newA<!>())
     id(z === newA<Z>())
 }
 
 //'in' operation
 fun test4(collection: Collection<A<*>>) {
-    id(<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>newA<!>() in collection)
-    <!NI;UNREACHABLE_CODE!>id(newA<Int>() in collection)<!>
+    id(<!CANNOT_INFER_PARAMETER_TYPE!>newA<!>() in collection)
+    id(newA<Int>() in collection)
 }
 
 //boolean operations
 fun <T> toBeOrNot(): Boolean = throw Exception()
 
 fun test5() {
-    if (<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>toBeOrNot<!>() && <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>toBeOrNot<!>()) {}
+    if (<!CANNOT_INFER_PARAMETER_TYPE!>toBeOrNot<!>() && <!CANNOT_INFER_PARAMETER_TYPE!>toBeOrNot<!>()) {}
     if (toBeOrNot<Int>() && toBeOrNot<Int>()) {}
 }
 
 //use
 fun use(vararg a: Any?) = a
+
+/* GENERATED_FIR_TAGS: additiveExpression, andExpression, comparisonExpression, equalityExpression,
+funWithExtensionReceiver, functionDeclaration, ifExpression, infix, integerLiteral, interfaceDeclaration, localProperty,
+nullableType, operator, outProjection, propertyDeclaration, starProjection, typeParameter, vararg */

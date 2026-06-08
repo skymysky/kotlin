@@ -1,4 +1,6 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// DISABLE_JAVA_FACADE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // FILE: A.java
 public class A {
     static void foo() {}
@@ -34,3 +36,6 @@ class Y: X() {
         val a: Double = foo()
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, companionObject, functionDeclaration, init, integerLiteral, javaFunction,
+javaType, localProperty, objectDeclaration, propertyDeclaration */

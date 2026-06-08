@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 @DslMarker
 @Target(AnnotationTarget.CLASS, AnnotationTarget.TYPEALIAS)
 annotation class XMarker
@@ -26,3 +27,6 @@ fun test() {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, lambdaLiteral, typeAliasDeclaration, typeWithExtension */

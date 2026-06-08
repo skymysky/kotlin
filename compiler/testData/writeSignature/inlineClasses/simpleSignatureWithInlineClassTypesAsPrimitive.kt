@@ -1,4 +1,4 @@
-// !LANGUAGE: +InlineClasses
+// LANGUAGE: +InlineClasses
 
 inline class Foo(val x: Int)
 
@@ -13,7 +13,7 @@ object Test {
 // jvm signature: (I)V
 // generic signature: null
 
-// method: Test::asReturn
+// method: Test::asReturn-qUNOhfQ
 // jvm signature: ()I
 // generic signature: null
 
@@ -21,6 +21,6 @@ object Test {
 // jvm signature: (I)V
 // generic signature: null
 
-// method: Test::asAll--J2ODwA
+// method: Test::asAll-rPNOez0
 // jvm signature: (ILjava/lang/Object;II)I
 // generic signature: null

@@ -4,8 +4,7 @@ buildscript {
     repositories {
         mavenLocal()
         google()
-        jcenter()
-        maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
+        mavenCentral()
     }
     dependencies {
         classpath "com.android.tools.build:gradle:$android_tools_version"
@@ -16,14 +15,6 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        mavenLocal()
-        google()
-        jcenter()
-    }
-}
-
-task clean(type: Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

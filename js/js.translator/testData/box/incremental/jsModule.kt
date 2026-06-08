@@ -1,9 +1,8 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1283
+// NO_COMMON_FILES
 
 // MODULE: lib
+// JS_MODULE_KIND: AMD
 // FILE: a.kt
-// MODULE_KIND: AMD
 @file:JsModule("foo")
 
 external fun fooF(): String
@@ -18,8 +17,8 @@ external fun barF(): String
 fun dummyF() = "dummy"
 
 // MODULE: main(lib)
+// JS_MODULE_KIND: AMD
 // FILE: main.kt
-// MODULE_KIND: AMD
 
 fun box(): String {
     val foo = fooF()

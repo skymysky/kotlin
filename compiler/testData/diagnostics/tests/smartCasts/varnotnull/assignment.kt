@@ -1,11 +1,14 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun foo() {
     var v: String? = null
     v<!UNSAFE_CALL!>.<!>length
     v = "abc"
-    <!DEBUG_INFO_SMARTCAST!>v<!>.length
+    v.length
     v = null
-    <!OI;DEBUG_INFO_CONSTANT!>v<!><!UNSAFE_CALL!>.<!>length
+    v<!UNSAFE_CALL!>.<!>length
     v = "abc"
-    <!DEBUG_INFO_SMARTCAST!>v<!>.length
+    v.length
 }
+
+/* GENERATED_FIR_TAGS: assignment, functionDeclaration, localProperty, nullableType, propertyDeclaration, smartcast,
+stringLiteral */

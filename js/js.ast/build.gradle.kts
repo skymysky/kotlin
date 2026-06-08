@@ -1,20 +1,16 @@
-
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
 }
 
-jvmTarget = "1.6"
-
 dependencies {
-    compile(project(":compiler:util"))
-    compile(project(":compiler:frontend"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
-    compileOnly(intellijDep()) { includeJars("trove4j") }
+    implementation(project(":core:util.runtime"))
+
+    api(kotlinStdlib())
+    compileOnly(intellijCore())
+    compileOnly(libs.intellij.fastutil)
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
-

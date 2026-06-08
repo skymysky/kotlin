@@ -1,10 +1,12 @@
-// !LANGUAGE: +NewInference
+// RUN_PIPELINE_TILL: BACKEND
 
 fun bar() {
-    if (true) <!TYPE_MISMATCH!>{
-        <!EXPECTED_TYPE_MISMATCH!>fun local() {
-        }<!>
-    }<!> else {
+    if (true) {
+        fun local() {
+        }
+    } else {
 
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, ifExpression, localFunction */

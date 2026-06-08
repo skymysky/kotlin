@@ -1,8 +1,8 @@
-# Module kotlin.test
+# Module kotlin-test
 
 ## kotlin.test
 
-`kotlin.test` library provides [annotations](kotlin.test/index.html#annotations) to mark test functions and a set of [utility functions](kotlin.test/index.html#functions) for performing assertions in tests, 
+The `kotlin.test` library provides [annotations](https://kotlinlang.org/api/latest/kotlin.test/kotlin.test/#annotations) to mark test functions and a set of [utility functions](https://kotlinlang.org/api/latest/kotlin.test/kotlin.test/#functions) for performing assertions in tests, 
 independently of the test framework being used. 
 
 The test framework is abstracted through the [Asserter][kotlin.test.Asserter] class. 
@@ -15,11 +15,11 @@ The library consists of the modules:
 - `kotlin-test-common` – assertions for use in common code;
 - `kotlin-test-annotations-common` – test annotations for use in common code;
 - `kotlin-test` – a JVM implementation of assertions from `kotlin-test-common`;
-- `kotlin-test-junit` – provides an implementation of [Asserter] on top of JUnit
+- `kotlin-test-junit` – provides an implementation of [Asserter][kotlin.test.Asserter] on top of JUnit
   and maps the test annotations from `kotlin-test-annotations-common` to JUnit test annotations;
-- `kotlin-test-junit5` – provides an implementation of [Asserter] on top of JUnit 5
+- `kotlin-test-junit5` – provides an implementation of [Asserter][kotlin.test.Asserter] on top of JUnit 5
   and maps the test annotations from `kotlin-test-annotations-common` to JUnit 5 test annotations;
-- `kotlin-test-testng` – provides an implementation of [Asserter] on top of TestNG
+- `kotlin-test-testng` – provides an implementation of [Asserter][kotlin.test.Asserter] on top of TestNG
   and maps the test annotations from `kotlin-test-annotations-common` to TestNG test annotations;
 - `kotlin-test-js` – a JS implementation of common test assertions and annotations 
   with the out-of-the-box support for [Jasmine](https://jasmine.github.io/), [Mocha](https://mochajs.org/), 

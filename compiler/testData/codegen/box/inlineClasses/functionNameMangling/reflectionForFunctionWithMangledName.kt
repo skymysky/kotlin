@@ -1,9 +1,11 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
+
 import kotlin.test.*
 
-inline class S(val string: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class S(val string: String)
 
 fun foo(s: S) = s
 

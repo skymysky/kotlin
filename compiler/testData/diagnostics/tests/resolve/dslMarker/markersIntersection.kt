@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 @DslMarker
 @Target(AnnotationTarget.TYPE)
 annotation class L1
@@ -60,7 +60,7 @@ fun test() {
         bar1t(this) {
             a()
             bar1 {
-                <!OI;DSL_SCOPE_VIOLATION!>a<!>()
+                <!DSL_SCOPE_VIOLATION!>a<!>()
                 b()
             }
 
@@ -76,7 +76,7 @@ fun test() {
         foo2 {
             bar1t(this) {
                 a()
-                <!OI;DSL_SCOPE_VIOLATION!>b<!>()
+                <!DSL_SCOPE_VIOLATION!>b<!>()
             }
         }
     }
@@ -91,3 +91,6 @@ fun test() {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, functionDeclaration, functionalType, integerLiteral,
+lambdaLiteral, nullableType, thisExpression, typeParameter, typeWithExtension */

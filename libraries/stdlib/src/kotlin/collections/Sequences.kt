@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
@@ -8,7 +8,8 @@
 
 package kotlin.sequences
 
-import kotlin.*
+import kotlin.internal.InlineOnly
+import kotlin.random.Random
 
 /**
  * Given an [iterator] function constructs a [Sequence] that returns values through the [Iterator]
@@ -34,7 +35,39 @@ public fun <T> Iterator<T>.asSequence(): Sequence<T> = Sequence { this }.constra
  *
  * @sample samples.collections.Sequences.Building.sequenceOfValues
  */
-public fun <T> sequenceOf(vararg elements: T): Sequence<T> = if (elements.isEmpty()) emptySequence() else elements.asSequence()
+public fun <T> sequenceOf(vararg elements: T): Sequence<T> = elements.asSequence()
+
+/**
+ * Creates a [Sequence] that contains a single given element.
+ *
+ * @param element the single element to be contained in the resulting sequence.
+ * @return a sequence containing only the specified [element].
+ * @sample samples.collections.Sequences.Building.sequenceOfSingleValue
+ */
+@SinceKotlin("2.2")
+public fun <T> sequenceOf(element: T): Sequence<T> = Sequence {
+    object : Iterator<T> {
+        private var _hasNext: Boolean = true
+
+        override fun next(): T {
+            if (!_hasNext) throw NoSuchElementException()
+            _hasNext = false
+            return element
+        }
+
+        override fun hasNext(): Boolean = _hasNext
+    }
+}
+
+/**
+ * Creates an empty [Sequence].
+ *
+ * @return an empty sequence.
+ * @sample samples.collections.Sequences.Building.sequenceOfEmpty
+ */
+@SinceKotlin("2.2")
+@InlineOnly
+public inline fun <T> sequenceOf(): Sequence<T> = emptySequence()
 
 /**
  * Returns an empty sequence.
@@ -63,7 +96,7 @@ public inline fun <T> Sequence<T>?.orEmpty(): Sequence<T> = this ?: emptySequenc
  * @sample samples.collections.Sequences.Usage.sequenceIfEmpty
  */
 @SinceKotlin("1.3")
-public fun <T> Sequence<T>.ifEmpty(defaultValue: () -> Sequence<T>): Sequence<T> = buildSequence {
+public fun <T> Sequence<T>.ifEmpty(defaultValue: () -> Sequence<T>): Sequence<T> = sequence {
     val iterator = this@ifEmpty.iterator()
     if (iterator.hasNext()) {
         yieldAll(iterator)
@@ -76,6 +109,8 @@ public fun <T> Sequence<T>.ifEmpty(defaultValue: () -> Sequence<T>): Sequence<T>
  * Returns a sequence of all elements from all sequences in this sequence.
  *
  * The operation is _intermediate_ and _stateless_.
+ *
+ * @sample samples.collections.Sequences.Transformations.flattenSequenceOfSequences
  */
 public fun <T> Sequence<Sequence<T>>.flatten(): Sequence<T> = flatten { it.iterator() }
 
@@ -83,6 +118,8 @@ public fun <T> Sequence<Sequence<T>>.flatten(): Sequence<T> = flatten { it.itera
  * Returns a sequence of all elements from all iterables in this sequence.
  *
  * The operation is _intermediate_ and _stateless_.
+ *
+ * @sample samples.collections.Sequences.Transformations.flattenSequenceOfLists
  */
 @kotlin.jvm.JvmName("flattenSequenceOfIterable")
 public fun <T> Sequence<Iterable<T>>.flatten(): Sequence<T> = flatten { it.iterator() }
@@ -100,6 +137,8 @@ private fun <T, R> Sequence<T>.flatten(iterator: (T) -> Iterator<R>): Sequence<R
  * *second* list is built from the second values of each pair from this sequence.
  *
  * The operation is _terminal_.
+ *
+ * @sample samples.collections.Sequences.Transformations.unzip
  */
 public fun <T, R> Sequence<Pair<T, R>>.unzip(): Pair<List<T>, List<R>> {
     val listT = ArrayList<T>()
@@ -110,6 +149,36 @@ public fun <T, R> Sequence<Pair<T, R>>.unzip(): Pair<List<T>, List<R>> {
     }
     return listT to listR
 }
+
+/**
+ * Returns a sequence that yields elements of this sequence randomly shuffled.
+ *
+ * Note that every iteration of the sequence returns elements in a different order.
+ *
+ * The operation is _intermediate_ and _stateful_.
+ */
+@SinceKotlin("1.4")
+public fun <T> Sequence<T>.shuffled(): Sequence<T> = shuffled(Random)
+
+/**
+ * Returns a sequence that yields elements of this sequence randomly shuffled
+ * using the specified [random] instance as the source of randomness.
+ *
+ * Note that every iteration of the sequence returns elements in a different order.
+ *
+ * The operation is _intermediate_ and _stateful_.
+ */
+@SinceKotlin("1.4")
+public fun <T> Sequence<T>.shuffled(random: Random): Sequence<T> = sequence<T> {
+    val buffer = toMutableList()
+    while (buffer.isNotEmpty()) {
+        val j = random.nextInt(buffer.size)
+        val last = buffer.removeLast()
+        val value = if (j < buffer.size) buffer.set(j, last) else last
+        yield(value)
+    }
+}
+
 
 /**
  * A sequence that returns the values from the underlying [sequence] that either match or do not match
@@ -253,40 +322,67 @@ constructor(
     private val transformer: (T) -> R,
     private val iterator: (R) -> Iterator<E>
 ) : Sequence<E> {
+    private object State {
+        const val UNDEFINED = 0
+        const val READY = 1
+        const val DONE = 2
+    }
+
     override fun iterator(): Iterator<E> = object : Iterator<E> {
         val iterator = sequence.iterator()
         var itemIterator: Iterator<E>? = null
 
+        // Use state to avoid excessive ensureItemIterator calls.
+        // The state is represented by the integer to avoid an overhead associated with the enum.
+        var state = State.UNDEFINED
+
         override fun next(): E {
-            if (!ensureItemIterator())
+            if (state == State.DONE) throw NoSuchElementException()
+            if (state == State.UNDEFINED && !ensureItemIterator()) {
                 throw NoSuchElementException()
+            }
+            state = State.UNDEFINED
             return itemIterator!!.next()
         }
 
         override fun hasNext(): Boolean {
+            if (state == State.READY) return true
+            if (state == State.DONE) return false
             return ensureItemIterator()
         }
 
         private fun ensureItemIterator(): Boolean {
-            if (itemIterator?.hasNext() == false)
-                itemIterator = null
+            val itemIterator = itemIterator
+            if (itemIterator != null && itemIterator.hasNext()) {
+                state = State.READY
+                return true
+            }
 
-            while (itemIterator == null) {
-                if (!iterator.hasNext()) {
-                    return false
-                } else {
-                    val element = iterator.next()
-                    val nextItemIterator = iterator(transformer(element))
-                    if (nextItemIterator.hasNext()) {
-                        itemIterator = nextItemIterator
-                        return true
-                    }
+            while (iterator.hasNext()) {
+                val element = iterator.next()
+                val nextItemIterator = iterator(transformer(element))
+                if (nextItemIterator.hasNext()) {
+                    this.itemIterator = nextItemIterator
+                    state = State.READY
+                    return true
                 }
             }
-            return true
+
+            state = State.DONE
+            this.itemIterator = null
+            return false
         }
     }
 }
+
+internal fun <T, C, R> flatMapIndexed(source: Sequence<T>, transform: (Int, T) -> C, iterator: (C) -> Iterator<R>): Sequence<R> =
+    sequence {
+        var index = 0
+        for (element in source) {
+            val result = transform(checkIndexOverflow(index++), element)
+            yieldAll(iterator(result))
+        }
+    }
 
 /**
  * A sequence that supports drop(n) and take(n) operations
@@ -325,7 +421,7 @@ internal class SubSequence<T>(
         // Shouldn't be called from constructor to avoid premature iteration
         private fun drop() {
             while (position < startIndex && iterator.hasNext()) {
-                iterator.next()
+                val _ = iterator.next()
                 position++
             }
         }
@@ -448,7 +544,7 @@ internal class DropSequence<T>(
         // Shouldn't be called from constructor to avoid premature iteration
         private fun drop() {
             while (left > 0 && iterator.hasNext()) {
-                iterator.next()
+                val _ = iterator.next()
                 left--
             }
         }
@@ -572,7 +668,7 @@ private class GeneratorSequence<T : Any>(private val getInitialValue: () -> T?, 
  *
  * The operation is _intermediate_ and _stateless_.
  *
- * [IllegalStateException] is thrown on iterating the returned sequence from the second time.
+ * [IllegalStateException] is thrown on iterating the returned sequence for the second time and the following times.
  *
  */
 public fun <T> Sequence<T>.constrainOnce(): Sequence<T> {
@@ -588,7 +684,7 @@ public fun <T> Sequence<T>.constrainOnce(): Sequence<T> {
  * The returned sequence is constrained to be iterated only once.
  *
  * @see constrainOnce
- * @see kotlin.coroutines.experimental.buildSequence
+ * @see kotlin.sequences.sequence
  *
  * @sample samples.collections.Sequences.Building.generateSequence
  */
@@ -605,7 +701,7 @@ public fun <T : Any> generateSequence(nextFunction: () -> T?): Sequence<T> {
  *
  * The sequence can be iterated multiple times, each time starting with [seed].
  *
- * @see kotlin.coroutines.experimental.buildSequence
+ * @see kotlin.sequences.sequence
  *
  * @sample samples.collections.Sequences.Building.generateSequenceWithSeed
  */
@@ -625,10 +721,9 @@ public fun <T : Any> generateSequence(seed: T?, nextFunction: (T) -> T?): Sequen
  *
  * The sequence can be iterated multiple times.
  *
- * @see kotlin.coroutines.experimental.buildSequence
+ * @see kotlin.sequences.sequence
  *
  * @sample samples.collections.Sequences.Building.generateSequenceWithLazySeed
  */
 public fun <T : Any> generateSequence(seedFunction: () -> T?, nextFunction: (T) -> T?): Sequence<T> =
     GeneratorSequence(seedFunction, nextFunction)
-

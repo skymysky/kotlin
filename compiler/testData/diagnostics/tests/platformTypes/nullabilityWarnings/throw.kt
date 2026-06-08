@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: J.java
 
 import org.jetbrains.annotations.*;
@@ -18,9 +18,11 @@ fun test() {
 }
 
 fun test1() {
-    throw <!TYPE_MISMATCH!>J.<!NI;TYPE_MISMATCH!>staticN<!><!>
+    throw <!TYPE_MISMATCH!>J.staticN<!>
 }
 
 fun test2() {
     throw J.staticJ
 }
+
+/* GENERATED_FIR_TAGS: flexibleType, functionDeclaration, javaProperty, nullableType */

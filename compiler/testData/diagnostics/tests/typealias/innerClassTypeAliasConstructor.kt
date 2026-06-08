@@ -1,5 +1,4 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
 
 class Outer {
     inner class Inner
@@ -20,5 +19,8 @@ typealias GIntI = Generic<Int>.Inner
 fun test2(x: Generic<Int>) = x.GI()
 fun <T> test3(x: Generic<T>) = x.GI()
 fun <T> test4(x: Generic<List<T>>) = x.GI()
-fun <T> test5(x: Generic<T>) = <!OI;TYPE_MISMATCH!>x<!>.<!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>GIntI<!>()
+fun <T> test5(x: Generic<T>) = x.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>GIntI<!>()
 fun Generic<Int>.test6() = GIntI()
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, inner, nullableType,
+typeAliasDeclaration, typeAliasDeclarationWithTypeParameter, typeParameter */

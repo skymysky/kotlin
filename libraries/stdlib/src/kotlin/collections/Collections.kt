@@ -1,16 +1,17 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:kotlin.js.JsFileName("CollectionsKt")
 @file:kotlin.jvm.JvmMultifileClass
 @file:kotlin.jvm.JvmName("CollectionsKt")
+@file:OptIn(kotlin.experimental.ExperimentalTypeInference::class, kotlin.js.ExperimentalJsFileName::class)
 
 package kotlin.collections
 
-import kotlin.*
-import kotlin.comparisons.compareValues
 import kotlin.contracts.*
+import kotlin.random.Random
 
 internal object EmptyIterator : ListIterator<Nothing> {
     override fun hasNext(): Boolean = false
@@ -52,7 +53,10 @@ internal object EmptyList : List<Nothing>, Serializable, RandomAccess {
     private fun readResolve(): Any = EmptyList
 }
 
-internal fun <T> Array<out T>.asCollection(): Collection<T> = ArrayAsCollection(this, isVarargs = false)
+@kotlin.internal.InlineOnly
+internal expect inline fun <T> Array<out T>.asArrayList(): ArrayList<T>
+
+internal fun <T> Array<out T>.asCollection(isVarargs: Boolean = false): Collection<T> = ArrayAsCollection(this, isVarargs = isVarargs)
 
 private class ArrayAsCollection<T>(val values: Array<out T>, val isVarargs: Boolean) : Collection<T> {
     override val size: Int get() = values.size
@@ -75,6 +79,16 @@ public fun <T> emptyList(): List<T> = EmptyList
  * @sample samples.collections.Collections.Lists.readOnlyList
  */
 public fun <T> listOf(vararg elements: T): List<T> = if (elements.size > 0) elements.asList() else emptyList()
+
+/**
+ * Returns a new read-only list containing only the specified object [element].
+ *
+ * The returned list is serializable (JVM).
+ *
+ * @sample samples.collections.Collections.Lists.singletonReadOnlyList
+ */
+@SinceKotlin("1.9")
+public expect fun <T> listOf(element: T): List<T>
 
 /**
  * Returns an empty read-only list.  The returned list is serializable (JVM).
@@ -104,14 +118,14 @@ public inline fun <T> arrayListOf(): ArrayList<T> = ArrayList()
  * @sample samples.collections.Collections.Lists.mutableList
  */
 public fun <T> mutableListOf(vararg elements: T): MutableList<T> =
-    if (elements.size == 0) ArrayList() else ArrayList(ArrayAsCollection(elements, isVarargs = true))
+    if (elements.size == 0) ArrayList() else elements.asArrayList()
 
 /**
  * Returns a new [ArrayList] with the given elements.
  * @sample samples.collections.Collections.Lists.arrayList
  */
 public fun <T> arrayListOf(vararg elements: T): ArrayList<T> =
-    if (elements.size == 0) ArrayList() else ArrayList(ArrayAsCollection(elements, isVarargs = true))
+    if (elements.size == 0) ArrayList() else elements.asArrayList()
 
 /**
  * Returns a new read-only list either of single given element, if it is not null, or empty list if the element is null. The returned list is serializable (JVM).
@@ -127,7 +141,11 @@ public fun <T : Any> listOfNotNull(vararg elements: T?): List<T> = elements.filt
 
 /**
  * Creates a new read-only list with the specified [size], where each element is calculated by calling the specified
- * [init] function. The [init] function returns a list element given its index.
+ * [init] function.
+ *
+ * The function [init] is called for each list element sequentially starting from the first one.
+ * It should return the value for a list element given its index.
+ *
  * @sample samples.collections.Collections.Lists.readOnlyListFromInitializer
  */
 @SinceKotlin("1.1")
@@ -136,7 +154,11 @@ public inline fun <T> List(size: Int, init: (index: Int) -> T): List<T> = Mutabl
 
 /**
  * Creates a new mutable list with the specified [size], where each element is calculated by calling the specified
- * [init] function. The [init] function returns a list element given its index.
+ * [init] function.
+ *
+ * The function [init] is called for each list element sequentially starting from the first one.
+ * It should return the value for a list element given its index.
+ *
  * @sample samples.collections.Collections.Lists.mutableListFromInitializer
  */
 @SinceKotlin("1.1")
@@ -146,6 +168,58 @@ public inline fun <T> MutableList(size: Int, init: (index: Int) -> T): MutableLi
     repeat(size) { index -> list.add(init(index)) }
     return list
 }
+
+/**
+ * Builds a new read-only [List] by populating a [MutableList] using the given [builderAction]
+ * and returning a read-only list with the same elements.
+ *
+ * The list passed as a receiver to the [builderAction] is valid only inside that function.
+ * Using it outside of the function produces an unspecified behavior.
+ *
+ * The returned list is serializable (JVM).
+ *
+ * @sample samples.collections.Builders.Lists.buildListSample
+ */
+@SinceKotlin("1.6")
+@kotlin.internal.InlineOnly
+@Suppress("LEAKED_IN_PLACE_LAMBDA", "WRONG_INVOCATION_KIND", "DEPRECATION")
+public inline fun <E> buildList(@BuilderInference builderAction: MutableList<E>.() -> Unit): List<E> {
+    contract { callsInPlace(builderAction, InvocationKind.EXACTLY_ONCE) }
+    return buildListInternal(builderAction)
+}
+
+@PublishedApi
+@SinceKotlin("1.3")
+@kotlin.internal.InlineOnly
+internal expect inline fun <E> buildListInternal(builderAction: MutableList<E>.() -> Unit): List<E>
+
+/**
+ * Builds a new read-only [List] by populating a [MutableList] using the given [builderAction]
+ * and returning a read-only list with the same elements.
+ *
+ * The list passed as a receiver to the [builderAction] is valid only inside that function.
+ * Using it outside of the function produces an unspecified behavior.
+ *
+ * The returned list is serializable (JVM).
+ *
+ * [capacity] is used to hint the expected number of elements added in the [builderAction].
+ *
+ * @throws IllegalArgumentException if the given [capacity] is negative.
+ *
+ * @sample samples.collections.Builders.Lists.buildListSampleWithCapacity
+ */
+@SinceKotlin("1.6")
+@kotlin.internal.InlineOnly
+@Suppress("LEAKED_IN_PLACE_LAMBDA", "WRONG_INVOCATION_KIND", "DEPRECATION")
+public inline fun <E> buildList(capacity: Int, @BuilderInference builderAction: MutableList<E>.() -> Unit): List<E> {
+    contract { callsInPlace(builderAction, InvocationKind.EXACTLY_ONCE) }
+    return buildListInternal(capacity, builderAction)
+}
+
+@PublishedApi
+@SinceKotlin("1.3")
+@kotlin.internal.InlineOnly
+internal expect inline fun <E> buildListInternal(capacity: Int, builderAction: MutableList<E>.() -> Unit): List<E>
 
 /**
  * Returns an [IntRange] of the valid indices for this collection.
@@ -205,8 +279,12 @@ public inline fun <T> List<T>?.orEmpty(): List<T> = this ?: emptyList()
  */
 @SinceKotlin("1.3")
 @kotlin.internal.InlineOnly
-public inline fun <C, R> C.ifEmpty(defaultValue: () -> R): R where C : Collection<*>, C : R =
-    if (isEmpty()) defaultValue() else this
+public inline fun <C, R> C.ifEmpty(defaultValue: () -> R): R where C : Collection<*>, C : R {
+    contract {
+        callsInPlace(defaultValue, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (isEmpty()) defaultValue() else this
+}
 
 
 /**
@@ -218,6 +296,15 @@ public inline fun <C, R> C.ifEmpty(defaultValue: () -> R): R where C : Collectio
 @Suppress("EXTENSION_SHADOWED_BY_MEMBER") // false warning, extension takes precedence in some cases
 @kotlin.internal.InlineOnly
 public inline fun <@kotlin.internal.OnlyInputTypes T> Collection<T>.containsAll(elements: Collection<T>): Boolean = this.containsAll(elements)
+
+
+/**
+ * Returns a new list with the elements of this list randomly shuffled
+ * using the specified [random] instance as the source of randomness.
+ */
+@SinceKotlin("1.3")
+public fun <T> Iterable<T>.shuffled(random: Random): List<T> = toMutableList().apply { shuffle(random) }
+
 
 internal fun <T> List<T>.optimizeReadOnlyList() = when (size) {
     0 -> emptyList()
@@ -328,13 +415,17 @@ public inline fun <T, K : Comparable<K>> List<T>.binarySearchBy(
 
 
 /**
- * Searches this list or its range for an element for which [comparison] function returns zero using the binary search algorithm.
- * The list is expected to be sorted into ascending order according to the provided [comparison],
- * otherwise the result is undefined.
+ * Searches this list or its range for an element for which the given [comparison] function returns zero using the binary search algorithm.
+ *
+ * The list is expected to be sorted so that the signs of the [comparison] function's return values ascend on the list elements,
+ * i.e. negative values come before zero and zeroes come before positive values.
+ * Otherwise, the result is undefined.
  *
  * If the list contains multiple elements for which [comparison] returns zero, there is no guarantee which one will be found.
  *
- * @param comparison function that compares an element of the list with the element being searched.
+ * @param comparison function that returns zero when called on the list element being searched.
+ * On the elements coming before the target element, the function must return negative values;
+ * on the elements coming after the target element, the function must return positive values.
  *
  * @return the index of the found element, if it is contained in the list within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
@@ -378,10 +469,12 @@ private fun rangeCheck(size: Int, fromIndex: Int, toIndex: Int) {
 
 @PublishedApi
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 internal expect fun checkIndexOverflow(index: Int): Int
 
 @PublishedApi
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 internal expect fun checkCountOverflow(count: Int): Int
 
 
@@ -393,3 +486,43 @@ internal fun throwIndexOverflow() { throw ArithmeticException("Index overflow ha
 @SinceKotlin("1.3")
 internal fun throwCountOverflow() { throw ArithmeticException("Count overflow has happened.") }
 
+
+internal fun collectionToArrayCommonImpl(collection: Collection<*>): Array<Any?> {
+    if (collection.isEmpty()) return emptyArray<Any?>()
+
+    val destination = arrayOfNulls<Any>(collection.size)
+
+    val iterator = collection.iterator()
+    var index = 0
+    while (iterator.hasNext()) {
+        destination[index++] = iterator.next()
+    }
+
+    return destination
+}
+
+internal fun <T> collectionToArrayCommonImpl(collection: Collection<*>, array: Array<T>): Array<T> {
+    if (collection.isEmpty()) return terminateCollectionToArray(0, array)
+
+    val destination = if (array.size < collection.size) {
+        arrayOfNulls(array, collection.size)
+    } else {
+        array
+    }
+
+    val iterator = collection.iterator()
+    var index = 0
+    while (iterator.hasNext()) {
+        @Suppress("UNCHECKED_CAST")
+        destination[index++] = iterator.next() as T
+    }
+
+    return terminateCollectionToArray(collection.size, destination)
+}
+
+/**
+ * In JVM if the size of [array] is bigger than [collectionSize], sets `array[collectionSize] = null`.
+ * In other platforms does nothing.
+ * Returns the given [array].
+ */
+internal expect fun <T> terminateCollectionToArray(collectionSize: Int, array: Array<T>): Array<T>

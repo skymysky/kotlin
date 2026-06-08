@@ -1,4 +1,3 @@
-// EXPECTED_REACHABLE_NODES: 1230
 package foo
 
 open class Base {

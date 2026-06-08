@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
+// NO_CHECK_LAMBDA_INLINING
 // FILE: 1.kt
 
 package test
@@ -17,7 +17,6 @@ inline fun doSmth(a: String): String {
 
 // FILE: 2.kt
 
-//NO_CHECK_LAMBDA_INLINING
 import test.*
 
 fun test1(param: String): String {
@@ -55,7 +54,7 @@ inline fun test2(crossinline param: () -> String): String {
 
 inline fun test22(crossinline param: () -> String): String {
     var result = "fail1"
-    {{result = param()}()}()
+    { { result = param() }.let { it() } }.let { it() }
 
     return result
 }

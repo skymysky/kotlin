@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: A.java
 public interface A {
     public class A_ {}
@@ -25,3 +26,6 @@ class Y: B {
         val b: <!UNRESOLVED_REFERENCE!>B_<!> = <!UNRESOLVED_REFERENCE!>B_<!>()
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, companionObject, interfaceDeclaration, javaFunction, javaType, nestedClass,
+objectDeclaration, propertyDeclaration */

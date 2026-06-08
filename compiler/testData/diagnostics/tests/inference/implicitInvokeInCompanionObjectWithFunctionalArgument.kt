@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
 
 class TestClass {
     companion object {
@@ -12,6 +12,10 @@ fun test(s: String): String {
     val a = TestClass { "K" }
     a checkType { _<String>() }
 
-    <!UNREACHABLE_CODE!>val b =<!> TestClass { return s }
-    <!UNREACHABLE_CODE!>b checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Nothing>() }<!>
+    val b = TestClass { return s }
+    b checkType { _<Nothing>() }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, companionObject, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, inline, lambdaLiteral, localProperty, nullableType, objectDeclaration, operator, propertyDeclaration,
+stringLiteral, typeParameter, typeWithExtension */

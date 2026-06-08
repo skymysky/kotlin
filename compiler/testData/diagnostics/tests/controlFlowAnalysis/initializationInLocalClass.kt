@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE
 
 fun foo() {
     var x: String
@@ -36,7 +37,7 @@ fun gav() {
     class C(val s: String) {
         constructor(): this("") {
             // Error!
-            <!VAL_REASSIGNMENT!>y<!> = s
+            <!CAPTURED_VAL_INITIALIZATION!>y<!> = s
         }
     }
     <!UNINITIALIZED_VARIABLE!>y<!>.length
@@ -88,3 +89,7 @@ class My {
 fun init() {
     <!VAL_REASSIGNMENT!>top<!> = 1
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, assignment, classDeclaration, functionDeclaration, ifExpression, init,
+integerLiteral, localClass, localFunction, localProperty, primaryConstructor, propertyDeclaration, secondaryConstructor,
+stringLiteral */

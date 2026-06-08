@@ -1,13 +1,12 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JS, NATIVE
-// WITH_RUNTIME
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// WITH_STDLIB
 
 fun box(): String {
     val s = StringBuilder()
 
     val xs = StringBuilder("abcd")
 
-    for ((index, x) in xs.withIndex()) {
+    for ([index, x] in xs.withIndex()) {
         s.append("$index:$x;")
         xs.setLength(0)
     }

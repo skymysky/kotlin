@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
@@ -9,13 +9,14 @@
 
 package kotlin.text
 
-import kotlin.*
-
-
-
 /**
- * Parses the string as a signed [Byte] number and returns the result
- * or `null` if the string is not a valid representation of a number.
+ * Parses the string to a [Byte] number or returns `null` if the string is not a valid representation of a [Byte].
+ *
+ * The string must consist of an optional leading `+` or `-` sign and decimal digits (`0-9`),
+ * and fit the valid [Byte] value range (within `Byte.MIN_VALUE..Byte.MAX_VALUE`),
+ * otherwise `null` is returned.
+ *
+ * @sample samples.text.Numbers.toByteOrNull
  */
 @SinceKotlin("1.1")
 public fun String.toByteOrNull(): Byte? = toByteOrNull(radix = 10)
@@ -34,8 +35,13 @@ public fun String.toByteOrNull(radix: Int): Byte? {
 }
 
 /**
- * Parses the string as a [Short] number and returns the result
- * or `null` if the string is not a valid representation of a number.
+ * Parses the string to a [Short] number or returns `null` if the string is not a valid representation of a [Short].
+ *
+ * The string must consist of an optional leading `+` or `-` sign and decimal digits (`0-9`),
+ * and fit the valid [Short] value range (within `Short.MIN_VALUE..Short.MAX_VALUE`),
+ * otherwise `null` is returned.
+ *
+ * @sample samples.text.Numbers.toShortOrNull
  */
 @SinceKotlin("1.1")
 public fun String.toShortOrNull(): Short? = toShortOrNull(radix = 10)
@@ -54,8 +60,13 @@ public fun String.toShortOrNull(radix: Int): Short? {
 }
 
 /**
- * Parses the string as an [Int] number and returns the result
- * or `null` if the string is not a valid representation of a number.
+ * Parses the string to an [Int] number or returns `null` if the string is not a valid representation of an [Int].
+ *
+ * The string must consist of an optional leading `+` or `-` sign and decimal digits (`0-9`),
+ * and fit the valid [Int] value range (within `Int.MIN_VALUE..Int.MAX_VALUE`),
+ * otherwise `null` is returned.
+ *
+ * @sample samples.text.Numbers.toIntOrNull
  */
 @SinceKotlin("1.1")
 public fun String.toIntOrNull(): Int? = toIntOrNull(radix = 10)
@@ -98,13 +109,25 @@ public fun String.toIntOrNull(radix: Int): Int? {
     }
 
 
-    val limitBeforeMul = limit / radix
+    val limitForMaxRadix = (-Int.MAX_VALUE) / 36
+
+    var limitBeforeMul = limitForMaxRadix
     var result = 0
-    for (i in start..(length - 1)) {
+    for (i in start until length) {
         val digit = digitOf(this[i], radix)
 
         if (digit < 0) return null
-        if (result < limitBeforeMul) return null
+        if (result < limitBeforeMul) {
+            if (limitBeforeMul == limitForMaxRadix) {
+                limitBeforeMul = limit / radix
+
+                if (result < limitBeforeMul) {
+                    return null
+                }
+            } else {
+                return null
+            }
+        }
 
         result *= radix
 
@@ -117,8 +140,13 @@ public fun String.toIntOrNull(radix: Int): Int? {
 }
 
 /**
- * Parses the string as a [Long] number and returns the result
- * or `null` if the string is not a valid representation of a number.
+ * Parses the string to a [Long] number or returns `null` if the string is not a valid representation of a [Long].
+ *
+ * The string must consist of an optional leading `+` or `-` sign and decimal digits (`0-9`),
+ * and fit the valid [Long] value range (within `Long.MIN_VALUE..Long.MAX_VALUE`),
+ * otherwise `null` is returned.
+ *
+ * @sample samples.text.Numbers.toLongOrNull
  */
 @SinceKotlin("1.1")
 public fun String.toLongOrNull(): Long? = toLongOrNull(radix = 10)
@@ -161,13 +189,25 @@ public fun String.toLongOrNull(radix: Int): Long? {
     }
 
 
-    val limitBeforeMul = limit / radix
+    val limitForMaxRadix = (-Long.MAX_VALUE) / 36
+
+    var limitBeforeMul = limitForMaxRadix
     var result = 0L
-    for (i in start..(length - 1)) {
+    for (i in start until length) {
         val digit = digitOf(this[i], radix)
 
         if (digit < 0) return null
-        if (result < limitBeforeMul) return null
+        if (result < limitBeforeMul) {
+            if (limitBeforeMul == limitForMaxRadix) {
+                limitBeforeMul = limit / radix
+
+                if (result < limitBeforeMul) {
+                    return null
+                }
+            } else {
+                return null
+            }
+        }
 
         result *= radix
 

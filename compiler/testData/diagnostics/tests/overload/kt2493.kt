@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 interface A
 interface B
 
@@ -13,8 +13,11 @@ class BImpl: B
 
 class C: A, B
 
-fun main(args: Array<String>) {
+fun main() {
     AImpl().f()
     BImpl().f()
-    C().<!NI;OVERLOAD_RESOLUTION_AMBIGUITY, OI;CANNOT_COMPLETE_RESOLVE!>f<!>()
+    C().<!OVERLOAD_RESOLUTION_AMBIGUITY!>f<!>()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, interfaceDeclaration,
+typeConstraint, typeParameter */

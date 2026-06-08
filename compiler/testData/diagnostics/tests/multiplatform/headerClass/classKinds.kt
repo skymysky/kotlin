@@ -1,4 +1,4 @@
-// !LANGUAGE: +MultiPlatformProjects
+// RUN_PIPELINE_TILL: BACKEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -12,7 +12,7 @@ expect class Class
 
 expect enum class En { ENTRY }
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual interface Interface
@@ -24,3 +24,6 @@ actual object Object
 actual class Class
 
 actual enum class En { ENTRY }
+
+/* GENERATED_FIR_TAGS: actual, annotationDeclaration, classDeclaration, enumDeclaration, enumEntry, expect,
+interfaceDeclaration, objectDeclaration, primaryConstructor, propertyDeclaration */

@@ -1,4 +1,3 @@
-// EXPECTED_REACHABLE_NODES: 1226
 package foo
 
 class Ex1(val s: String) : Exception()

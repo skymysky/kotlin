@@ -1,3 +1,6 @@
-fun foo(<!UNUSED_PARAMETER!>a<!>: Any) {
-    foo({ <!CANNOT_INFER_PARAMETER_TYPE, UNUSED_ANONYMOUS_PARAMETER!>index<!> -> } {  })
+// RUN_PIPELINE_TILL: FRONTEND
+fun foo(a: Any) {
+    foo({ <!VALUE_PARAMETER_WITHOUT_EXPLICIT_TYPE!>index<!> -> } {  })
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, lambdaLiteral */

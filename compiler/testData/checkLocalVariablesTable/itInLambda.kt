@@ -1,4 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
+// LAMBDAS: CLASS
+
 public fun <T> Iterable<T>.myforEach(operation: (T) -> Unit) : Unit {
     for (element in this) operation(element)
 }
@@ -12,5 +13,5 @@ fun foo1() {
 }
 
 // METHOD : ItInLambdaKt$foo1$1.invoke(I)V
-// VARIABLE : NAME=this TYPE=LItInLambdaKt$foo1$1; INDEX=0
-// VARIABLE : NAME=it TYPE=I INDEX=1
+// VARIABLE : NAME=it TYPE=I
+// VARIABLE : NAME=this TYPE=LItInLambdaKt$foo1$1;

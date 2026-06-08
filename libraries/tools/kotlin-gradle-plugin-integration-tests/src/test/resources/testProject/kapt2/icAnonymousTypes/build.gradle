@@ -1,46 +1,36 @@
-buildscript {
-    repositories {
-        mavenLocal()
-        jcenter()
-        maven { url 'https://maven.google.com' }
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:$android_tools_version"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.kapt'
 }
-
-apply plugin: 'com.android.application'
-
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
 
 android {
-  compileSdkVersion 27
-  buildToolsVersion "27.0.3"
+    namespace = "com.example.databinding"
 
-  defaultConfig {
-    applicationId "org.kotlinlang.test"
+    compileSdkVersion = 27
 
-    minSdkVersion 16
-    targetSdkVersion 27
+    defaultConfig {
+        applicationId = "org.kotlinlang.test"
 
-    versionCode 1
-    versionName "1.0"
-  }
+        minSdkVersion = 16
+        targetSdkVersion = 27
 
-  dataBinding {
-    enabled true
-  }
-}
+        versionCode = 1
+        versionName = "1.0"
+    }
 
-repositories {
-    mavenLocal()
-    jcenter()
-    maven { url 'https://maven.google.com' }
+
+    // Needed for older AGP. It can be removed when the lowest supported AGP version is 4.2.0 or newer.
+    compileOptions {
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
+    }
+
+    dataBinding {
+        enabled = true
+    }
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    kapt "com.android.databinding:compiler:$android_tools_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }

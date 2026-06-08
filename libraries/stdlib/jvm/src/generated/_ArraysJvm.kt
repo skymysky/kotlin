@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license 
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
@@ -13,12 +13,103 @@ package kotlin.collections
 // See: https://github.com/JetBrains/kotlin/tree/master/libraries/stdlib
 //
 
-import kotlin.*
-import kotlin.text.*
-import kotlin.comparisons.*
+import kotlin.ranges.contains
+import kotlin.ranges.reversed
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun <T> Array<out T>.elementAt(index: Int): T {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun ByteArray.elementAt(index: Int): Byte {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun ShortArray.elementAt(index: Int): Short {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun IntArray.elementAt(index: Int): Int {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun LongArray.elementAt(index: Int): Long {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun FloatArray.elementAt(index: Int): Float {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun DoubleArray.elementAt(index: Int): Double {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun BooleanArray.elementAt(index: Int): Boolean {
+    return get(index)
+}
+
+/**
+ * Returns an element at the given [index] or throws an [IndexOutOfBoundsException] if the [index] is out of bounds of this array.
+ * 
+ * @sample samples.collections.Collections.Elements.elementAt
+ */
+@kotlin.internal.InlineOnly
+public actual inline fun CharArray.elementAt(index: Int): Char {
+    return get(index)
+}
 
 /**
  * Returns a list containing all elements that are instances of specified class.
+ * 
+ * @sample samples.collections.Collections.Filtering.filterIsInstanceJVM
  */
 public fun <R> Array<*>.filterIsInstance(klass: Class<R>): List<R> {
     return filterIsInstanceTo(ArrayList<R>(), klass)
@@ -26,7 +117,10 @@ public fun <R> Array<*>.filterIsInstance(klass: Class<R>): List<R> {
 
 /**
  * Appends all elements that are instances of specified class to the given [destination].
+ * 
+ * @sample samples.collections.Collections.Filtering.filterIsInstanceToJVM
  */
+@IgnorableReturnValue
 public fun <C : MutableCollection<in R>, R> Array<*>.filterIsInstanceTo(destination: C, klass: Class<R>): C {
     @Suppress("UNCHECKED_CAST")
     for (element in this) if (klass.isInstance(element)) destination.add(element as R)
@@ -51,6 +145,7 @@ public actual fun ByteArray.asList(): List<Byte> {
         override fun get(index: Int): Byte = this@asList[index]
         override fun indexOf(element: Byte): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Byte): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -65,6 +160,7 @@ public actual fun ShortArray.asList(): List<Short> {
         override fun get(index: Int): Short = this@asList[index]
         override fun indexOf(element: Short): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Short): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -79,6 +175,7 @@ public actual fun IntArray.asList(): List<Int> {
         override fun get(index: Int): Int = this@asList[index]
         override fun indexOf(element: Int): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Int): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -93,6 +190,7 @@ public actual fun LongArray.asList(): List<Long> {
         override fun get(index: Int): Long = this@asList[index]
         override fun indexOf(element: Long): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Long): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -103,10 +201,11 @@ public actual fun FloatArray.asList(): List<Float> {
     return object : AbstractList<Float>(), RandomAccess {
         override val size: Int get() = this@asList.size
         override fun isEmpty(): Boolean = this@asList.isEmpty()
-        override fun contains(element: Float): Boolean = this@asList.contains(element)
+        override fun contains(element: Float): Boolean = this@asList.any { it.toBits() == element.toBits() }
         override fun get(index: Int): Float = this@asList[index]
-        override fun indexOf(element: Float): Int = this@asList.indexOf(element)
-        override fun lastIndexOf(element: Float): Int = this@asList.lastIndexOf(element)
+        override fun indexOf(element: Float): Int = this@asList.indexOfFirst { it.toBits() == element.toBits() }
+        override fun lastIndexOf(element: Float): Int = this@asList.indexOfLast { it.toBits() == element.toBits() }
+        
     }
 }
 
@@ -117,10 +216,11 @@ public actual fun DoubleArray.asList(): List<Double> {
     return object : AbstractList<Double>(), RandomAccess {
         override val size: Int get() = this@asList.size
         override fun isEmpty(): Boolean = this@asList.isEmpty()
-        override fun contains(element: Double): Boolean = this@asList.contains(element)
+        override fun contains(element: Double): Boolean = this@asList.any { it.toBits() == element.toBits() }
         override fun get(index: Int): Double = this@asList[index]
-        override fun indexOf(element: Double): Int = this@asList.indexOf(element)
-        override fun lastIndexOf(element: Double): Int = this@asList.lastIndexOf(element)
+        override fun indexOf(element: Double): Int = this@asList.indexOfFirst { it.toBits() == element.toBits() }
+        override fun lastIndexOf(element: Double): Int = this@asList.indexOfLast { it.toBits() == element.toBits() }
+        
     }
 }
 
@@ -135,6 +235,7 @@ public actual fun BooleanArray.asList(): List<Boolean> {
         override fun get(index: Int): Boolean = this@asList[index]
         override fun indexOf(element: Boolean): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Boolean): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -149,6 +250,7 @@ public actual fun CharArray.asList(): List<Char> {
         override fun get(index: Int): Char = this@asList[index]
         override fun indexOf(element: Char): Int = this@asList.indexOf(element)
         override fun lastIndexOf(element: Char): Int = this@asList.lastIndexOf(element)
+        
     }
 }
 
@@ -158,10 +260,18 @@ public actual fun CharArray.asList(): List<Char> {
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the element to search for.
+ * @param comparator the comparator according to which this array is sorted.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted according to the specified [comparator].
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun <T> Array<out T>.binarySearch(element: T, comparator: Comparator<in T>, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element, comparator)
@@ -173,10 +283,17 @@ public fun <T> Array<out T>.binarySearch(element: T, comparator: Comparator<in T
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun <T> Array<out T>.binarySearch(element: T, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -188,10 +305,17 @@ public fun <T> Array<out T>.binarySearch(element: T, fromIndex: Int = 0, toIndex
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun ByteArray.binarySearch(element: Byte, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -203,10 +327,17 @@ public fun ByteArray.binarySearch(element: Byte, fromIndex: Int = 0, toIndex: In
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun ShortArray.binarySearch(element: Short, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -218,10 +349,17 @@ public fun ShortArray.binarySearch(element: Short, fromIndex: Int = 0, toIndex: 
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun IntArray.binarySearch(element: Int, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -233,10 +371,17 @@ public fun IntArray.binarySearch(element: Int, fromIndex: Int = 0, toIndex: Int 
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun LongArray.binarySearch(element: Long, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -248,10 +393,17 @@ public fun LongArray.binarySearch(element: Long, fromIndex: Int = 0, toIndex: In
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun FloatArray.binarySearch(element: Float, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -263,10 +415,17 @@ public fun FloatArray.binarySearch(element: Float, fromIndex: Int = 0, toIndex: 
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun DoubleArray.binarySearch(element: Double, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
@@ -278,30 +437,67 @@ public fun DoubleArray.binarySearch(element: Double, fromIndex: Int = 0, toIndex
  * 
  * If the array contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
  * 
+ * @param element the to search for.
+ * @param fromIndex the start of the range (inclusive) to search in, 0 by default.
+ * @param toIndex the end of the range (exclusive) to search in, size of this array by default.
+ * 
  * @return the index of the element, if it is contained in the array within the specified range;
  * otherwise, the inverted insertion point `(-insertion point - 1)`.
  * The insertion point is defined as the index at which the element should be inserted,
  * so that the array (or the specified subrange of array) still remains sorted.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 public fun CharArray.binarySearch(element: Char, fromIndex: Int = 0, toIndex: Int = size): Int {
     return java.util.Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
- * Returns `true` if the two specified arrays are *deeply* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *deeply* equal to one another.
  * 
- * If two corresponding elements are nested arrays, they are also compared deeply.
- * If any of arrays contains itself on any nesting level the behavior is undefined.
+ * Two arrays are considered deeply equal if they have the same size, and elements at corresponding indices are deeply equal.
+ * That is, if two corresponding elements are nested arrays, they are also compared deeply.
+ * Elements of other types are compared for equality using the [equals][Any.equals] function.
+ * For floating point numbers, this means `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
+ * 
+ * If any of the arrays contain themselves at any nesting level, the behavior is undefined.
+ * 
+ * @param other the array to compare deeply with this array.
+ * @return `true` if the two arrays are deeply equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.contentDeepEquals
  */
 @SinceKotlin("1.1")
+@kotlin.internal.LowPriorityInOverloadResolution
 @JvmName("contentDeepEqualsInline")
 @kotlin.internal.InlineOnly
 public actual inline infix fun <T> Array<out T>.contentDeepEquals(other: Array<out T>): Boolean {
-    if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0))
-        return contentDeepEqualsImpl(other)
-    else
-        return java.util.Arrays.deepEquals(this, other)
+    return this.contentDeepEquals(other)
+}
+
+/**
+ * Checks if the two specified arrays are *deeply* equal to one another.
+ * 
+ * Two arrays are considered deeply equal if they have the same size, and elements at corresponding indices are deeply equal.
+ * That is, if two corresponding elements are nested arrays, they are also compared deeply.
+ * Elements of other types are compared for equality using the [equals][Any.equals] function.
+ * For floating point numbers, this means `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
+ * 
+ * The arrays are also considered deeply equal if both are `null`.
+ * 
+ * If any of the arrays contain themselves at any nesting level, the behavior is undefined.
+ * 
+ * @param other the array to compare deeply with this array.
+ * @return `true` if the two arrays are deeply equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.contentDeepEquals
+ */
+@SinceKotlin("1.4")
+@JvmName("contentDeepEqualsNullable")
+@kotlin.internal.InlineOnly
+public actual inline infix fun <T> Array<out T>?.contentDeepEquals(other: Array<out T>?): Boolean {
+    return contentDeepEqualsImpl(other)
 }
 
 /**
@@ -311,13 +507,24 @@ public actual inline infix fun <T> Array<out T>.contentDeepEquals(other: Array<o
  * If any of arrays contains itself on any nesting level the behavior is undefined.
  */
 @SinceKotlin("1.1")
+@kotlin.internal.LowPriorityInOverloadResolution
 @JvmName("contentDeepHashCodeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun <T> Array<out T>.contentDeepHashCode(): Int {
-    if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0))
-        return contentDeepHashCodeImpl()
-    else
-        return java.util.Arrays.deepHashCode(this)
+    return this.contentDeepHashCode()
+}
+
+/**
+ * Returns a hash code based on the contents of this array as if it is [List].
+ * Nested arrays are treated as lists too.
+ * 
+ * If any of arrays contains itself on any nesting level the behavior is undefined.
+ */
+@SinceKotlin("1.4")
+@JvmName("contentDeepHashCodeNullable")
+@kotlin.internal.InlineOnly
+public actual inline fun <T> Array<out T>?.contentDeepHashCode(): Int {
+    return contentDeepHashCodeImpl()
 }
 
 /**
@@ -330,183 +537,277 @@ public actual inline fun <T> Array<out T>.contentDeepHashCode(): Int {
  * @sample samples.collections.Arrays.ContentOperations.contentDeepToString
  */
 @SinceKotlin("1.1")
+@kotlin.internal.LowPriorityInOverloadResolution
 @JvmName("contentDeepToStringInline")
 @kotlin.internal.InlineOnly
 public actual inline fun <T> Array<out T>.contentDeepToString(): String {
-    if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0))
-        return contentDeepToStringImpl()
-    else
-        return java.util.Arrays.deepToString(this)
+    return this.contentDeepToString()
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Returns a string representation of the contents of this array as if it is a [List].
+ * Nested arrays are treated as lists too.
+ * 
+ * If any of arrays contains itself on any nesting level that reference
+ * is rendered as `"[...]"` to prevent recursion.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.contentDeepToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
+@JvmName("contentDeepToStringNullable")
 @kotlin.internal.InlineOnly
-public actual inline infix fun <T> Array<out T>.contentEquals(other: Array<out T>): Boolean {
+public actual inline fun <T> Array<out T>?.contentDeepToString(): String {
+    return contentDeepToStringImpl()
+}
+
+/**
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * Elements are compared for equality using the [equals][Any.equals] function.
+ * For floating point numbers, this means `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * If the arrays contain nested arrays, use [contentDeepEquals] to recursively compare their elements.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.arrayContentEquals
+ */
+@SinceKotlin("1.4")
+@kotlin.internal.InlineOnly
+public actual inline infix fun <T> Array<out T>?.contentEquals(other: Array<out T>?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.intArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun ByteArray.contentEquals(other: ByteArray): Boolean {
+public actual inline infix fun ByteArray?.contentEquals(other: ByteArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.intArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun ShortArray.contentEquals(other: ShortArray): Boolean {
+public actual inline infix fun ShortArray?.contentEquals(other: ShortArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.intArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun IntArray.contentEquals(other: IntArray): Boolean {
+public actual inline infix fun IntArray?.contentEquals(other: IntArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.intArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun LongArray.contentEquals(other: LongArray): Boolean {
+public actual inline infix fun LongArray?.contentEquals(other: LongArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * Elements are compared for equality using the [equals][Any.equals] function.
+ * This means `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.doubleArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun FloatArray.contentEquals(other: FloatArray): Boolean {
+public actual inline infix fun FloatArray?.contentEquals(other: FloatArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * Elements are compared for equality using the [equals][Any.equals] function.
+ * This means `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.doubleArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun DoubleArray.contentEquals(other: DoubleArray): Boolean {
+public actual inline infix fun DoubleArray?.contentEquals(other: DoubleArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.booleanArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun BooleanArray.contentEquals(other: BooleanArray): Boolean {
+public actual inline infix fun BooleanArray?.contentEquals(other: BooleanArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
- * Returns `true` if the two specified arrays are *structurally* equal to one another,
- * i.e. contain the same number of the same elements in the same order.
+ * Checks if the two specified arrays are *structurally* equal to one another.
+ * 
+ * Two arrays are considered structurally equal if they have the same size, and elements at corresponding indices are equal.
+ * 
+ * The arrays are also considered structurally equal if both are `null`.
+ * 
+ * @param other the array to compare with this array.
+ * @return `true` if the two arrays are structurally equal, `false` otherwise.
+ * 
+ * @sample samples.collections.Arrays.ContentOperations.charArrayContentEquals
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline infix fun CharArray.contentEquals(other: CharArray): Boolean {
+public actual inline infix fun CharArray?.contentEquals(other: CharArray?): Boolean {
     return java.util.Arrays.equals(this, other)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun <T> Array<out T>.contentHashCode(): Int {
+public actual inline fun <T> Array<out T>?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun ByteArray.contentHashCode(): Int {
+public actual inline fun ByteArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun ShortArray.contentHashCode(): Int {
+public actual inline fun ShortArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun IntArray.contentHashCode(): Int {
+public actual inline fun IntArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun LongArray.contentHashCode(): Int {
+public actual inline fun LongArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun FloatArray.contentHashCode(): Int {
+public actual inline fun FloatArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun DoubleArray.contentHashCode(): Int {
+public actual inline fun DoubleArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun BooleanArray.contentHashCode(): Int {
+public actual inline fun BooleanArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun CharArray.contentHashCode(): Int {
+public actual inline fun CharArray?.contentHashCode(): Int {
     return java.util.Arrays.hashCode(this)
 }
 
@@ -515,9 +816,9 @@ public actual inline fun CharArray.contentHashCode(): Int {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun <T> Array<out T>.contentToString(): String {
+public actual inline fun <T> Array<out T>?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -526,9 +827,9 @@ public actual inline fun <T> Array<out T>.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun ByteArray.contentToString(): String {
+public actual inline fun ByteArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -537,9 +838,9 @@ public actual inline fun ByteArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun ShortArray.contentToString(): String {
+public actual inline fun ShortArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -548,9 +849,9 @@ public actual inline fun ShortArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun IntArray.contentToString(): String {
+public actual inline fun IntArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -559,9 +860,9 @@ public actual inline fun IntArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun LongArray.contentToString(): String {
+public actual inline fun LongArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -570,9 +871,9 @@ public actual inline fun LongArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun FloatArray.contentToString(): String {
+public actual inline fun FloatArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -581,9 +882,9 @@ public actual inline fun FloatArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun DoubleArray.contentToString(): String {
+public actual inline fun DoubleArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -592,9 +893,9 @@ public actual inline fun DoubleArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun BooleanArray.contentToString(): String {
+public actual inline fun BooleanArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -603,9 +904,9 @@ public actual inline fun BooleanArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@SinceKotlin("1.1")
+@SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
-public actual inline fun CharArray.contentToString(): String {
+public actual inline fun CharArray?.contentToString(): String {
     return java.util.Arrays.toString(this)
 }
 
@@ -620,16 +921,15 @@ public actual inline fun CharArray.contentToString(): String {
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun <T> Array<out T>.copyInto(destination: Array<T>, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): Array<T> {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -645,16 +945,15 @@ public actual fun <T> Array<out T>.copyInto(destination: Array<T>, destinationOf
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun ByteArray.copyInto(destination: ByteArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): ByteArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -670,16 +969,15 @@ public actual fun ByteArray.copyInto(destination: ByteArray, destinationOffset: 
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun ShortArray.copyInto(destination: ShortArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): ShortArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -695,16 +993,15 @@ public actual fun ShortArray.copyInto(destination: ShortArray, destinationOffset
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun IntArray.copyInto(destination: IntArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): IntArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -720,16 +1017,15 @@ public actual fun IntArray.copyInto(destination: IntArray, destinationOffset: In
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun LongArray.copyInto(destination: LongArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): LongArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -745,16 +1041,15 @@ public actual fun LongArray.copyInto(destination: LongArray, destinationOffset: 
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun FloatArray.copyInto(destination: FloatArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): FloatArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -770,16 +1065,15 @@ public actual fun FloatArray.copyInto(destination: FloatArray, destinationOffset
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun DoubleArray.copyInto(destination: DoubleArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): DoubleArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -795,16 +1089,15 @@ public actual fun DoubleArray.copyInto(destination: DoubleArray, destinationOffs
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun BooleanArray.copyInto(destination: BooleanArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): BooleanArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -820,16 +1113,15 @@ public actual fun BooleanArray.copyInto(destination: BooleanArray, destinationOf
  * @param endIndex the end (exclusive) of the subrange to copy, size of this array by default.
  * 
  * @throws IndexOutOfBoundsException or [IllegalArgumentException] when [startIndex] or [endIndex] is out of range of this array indices or when `startIndex > endIndex`.
- * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationIndex],
+ * @throws IndexOutOfBoundsException when the subrange doesn't fit into the [destination] array starting at the specified [destinationOffset],
  * or when that index is out of the [destination] array indices range.
  * 
  * @return the [destination] array.
  */
 @SinceKotlin("1.3")
+@IgnorableReturnValue
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun CharArray.copyInto(destination: CharArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): CharArray {
-    @Suppress("NAME_SHADOWING")
-    val endIndex = if (endIndex == -1) size else endIndex // TODO: Remove when default value from expect is fixed
     System.arraycopy(this, startIndex, destination, destinationOffset, endIndex - startIndex)
     return destination
 }
@@ -1053,154 +1345,136 @@ public actual inline fun <T> Array<T>.copyOf(newSize: Int): Array<T?> {
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun <T> Array<T>.copyOfRange(fromIndex: Int, toIndex: Int): Array<T> {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun ByteArray.copyOfRange(fromIndex: Int, toIndex: Int): ByteArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun ShortArray.copyOfRange(fromIndex: Int, toIndex: Int): ShortArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun IntArray.copyOfRange(fromIndex: Int, toIndex: Int): IntArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun LongArray.copyOfRange(fromIndex: Int, toIndex: Int): LongArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun FloatArray.copyOfRange(fromIndex: Int, toIndex: Int): FloatArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun DoubleArray.copyOfRange(fromIndex: Int, toIndex: Int): DoubleArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun BooleanArray.copyOfRange(fromIndex: Int, toIndex: Int): BooleanArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 /**
  * Returns a new array which is a copy of the specified range of the original array.
  * 
- * @param fromIndex the start of the range (inclusive), must be in `0..array.size`
- * @param toIndex the end of the range (exclusive), must be in `fromIndex..array.size`
+ * @param fromIndex the start of the range (inclusive) to copy.
+ * @param toIndex the end of the range (exclusive) to copy.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
 @JvmName("copyOfRangeInline")
 @kotlin.internal.InlineOnly
 public actual inline fun CharArray.copyOfRange(fromIndex: Int, toIndex: Int): CharArray {
-    return if (kotlin.internal.apiVersionIsAtLeast(1, 3, 0)) {
-        copyOfRangeImpl(fromIndex, toIndex)
-    } else {
-        if (toIndex > size) throw IndexOutOfBoundsException("toIndex: $toIndex, size: $size")
-        java.util.Arrays.copyOfRange(this, fromIndex, toIndex)
-    }
+    return copyOfRangeImpl(fromIndex, toIndex)
 }
 
 @SinceKotlin("1.3")
@@ -1276,65 +1550,128 @@ internal fun CharArray.copyOfRangeImpl(fromIndex: Int, toIndex: Int): CharArray 
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun <T> Array<T>.fill(element: T, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun <T> Array<T>.fill(element: T, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun ByteArray.fill(element: Byte, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun ByteArray.fill(element: Byte, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun ShortArray.fill(element: Short, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun ShortArray.fill(element: Short, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun IntArray.fill(element: Int, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun IntArray.fill(element: Int, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun LongArray.fill(element: Long, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun LongArray.fill(element: Long, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun FloatArray.fill(element: Float, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun FloatArray.fill(element: Float, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun DoubleArray.fill(element: Double, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun DoubleArray.fill(element: Double, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun BooleanArray.fill(element: Boolean, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun BooleanArray.fill(element: Boolean, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
 /**
- * Fills original array with the provided value.
+ * Fills this array or its subrange with the specified [element] value.
+ * 
+ * @param fromIndex the start of the range (inclusive) to fill, 0 by default.
+ * @param toIndex the end of the range (exclusive) to fill, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun CharArray.fill(element: Char, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun CharArray.fill(element: Char, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.fill(this, fromIndex, toIndex, element)
 }
 
@@ -1627,6 +1964,8 @@ public actual inline fun <T> Array<T>.plusElement(element: T): Array<T> {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun IntArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1634,6 +1973,8 @@ public actual fun IntArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun LongArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1641,6 +1982,8 @@ public actual fun LongArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun ByteArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1648,6 +1991,8 @@ public actual fun ByteArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun ShortArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1655,6 +2000,8 @@ public actual fun ShortArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun DoubleArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1662,6 +2009,8 @@ public actual fun DoubleArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun FloatArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1669,6 +2018,8 @@ public actual fun FloatArray.sort(): Unit {
 
 /**
  * Sorts the array in-place.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArray
  */
 public actual fun CharArray.sort(): Unit {
     if (size > 1) java.util.Arrays.sort(this)
@@ -1676,6 +2027,10 @@ public actual fun CharArray.sort(): Unit {
 
 /**
  * Sorts the array in-place according to the natural order of its elements.
+ * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortArrayOfComparable
  */
 @kotlin.internal.InlineOnly
 public actual inline fun <T : Comparable<T>> Array<out T>.sort(): Unit {
@@ -1686,6 +2041,8 @@ public actual inline fun <T : Comparable<T>> Array<out T>.sort(): Unit {
 /**
  * Sorts the array in-place according to the natural order of its elements.
  * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
+ * 
  * @throws ClassCastException if any element of the array is not [Comparable].
  */
 public fun <T> Array<out T>.sort(): Unit {
@@ -1694,62 +2051,156 @@ public fun <T> Array<out T>.sort(): Unit {
 
 /**
  * Sorts a range in the array in-place.
+ * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArrayOfComparable
+ */
+@SinceKotlin("1.4")
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun <T : Comparable<T>> Array<out T>.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun ByteArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun ShortArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun IntArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun LongArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun FloatArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun DoubleArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArray
+ */
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun CharArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
+    java.util.Arrays.sort(this, fromIndex, toIndex)
+}
+
+/**
+ * Sorts a range in the array in-place.
+ * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
+ * 
+ * @sample samples.collections.Arrays.Sorting.sortRangeOfArrayOfComparable
  */
 public fun <T> Array<out T>.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
- * Sorts a range in the array in-place.
- */
-public fun ByteArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun ShortArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun IntArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun LongArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun FloatArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun DoubleArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
- * Sorts a range in the array in-place.
- */
-public fun CharArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
-    java.util.Arrays.sort(this, fromIndex, toIndex)
-}
-
-/**
  * Sorts the array in-place according to the order specified by the given [comparator].
+ * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
  */
 public actual fun <T> Array<out T>.sortWith(comparator: Comparator<in T>): Unit {
     if (size > 1) java.util.Arrays.sort(this, comparator)
@@ -1757,8 +2208,17 @@ public actual fun <T> Array<out T>.sortWith(comparator: Comparator<in T>): Unit 
 
 /**
  * Sorts a range in the array in-place with the given [comparator].
+ * 
+ * The sort is _stable_. It means that equal elements preserve their order relative to each other after sorting.
+ * 
+ * @param fromIndex the start of the range (inclusive) to sort, 0 by default.
+ * @param toIndex the end of the range (exclusive) to sort, size of this array by default.
+ * 
+ * @throws IndexOutOfBoundsException if [fromIndex] is less than zero or [toIndex] is greater than the size of this array.
+ * @throws IllegalArgumentException if [fromIndex] is greater than [toIndex].
  */
-public fun <T> Array<out T>.sortWith(comparator: Comparator<in T>, fromIndex: Int = 0, toIndex: Int = size): Unit {
+@Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
+public actual fun <T> Array<out T>.sortWith(comparator: Comparator<in T>, fromIndex: Int = 0, toIndex: Int = size): Unit {
     java.util.Arrays.sort(this, fromIndex, toIndex, comparator)
 }
 
@@ -1851,74 +2311,758 @@ public actual fun CharArray.toTypedArray(): Array<Char> {
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun <T : Comparable<T>> Array<out T>.toSortedSet(): java.util.SortedSet<T> {
     return toCollection(java.util.TreeSet<T>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun ByteArray.toSortedSet(): java.util.SortedSet<Byte> {
     return toCollection(java.util.TreeSet<Byte>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun ShortArray.toSortedSet(): java.util.SortedSet<Short> {
     return toCollection(java.util.TreeSet<Short>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun IntArray.toSortedSet(): java.util.SortedSet<Int> {
     return toCollection(java.util.TreeSet<Int>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun LongArray.toSortedSet(): java.util.SortedSet<Long> {
     return toCollection(java.util.TreeSet<Long>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun FloatArray.toSortedSet(): java.util.SortedSet<Float> {
     return toCollection(java.util.TreeSet<Float>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun DoubleArray.toSortedSet(): java.util.SortedSet<Double> {
     return toCollection(java.util.TreeSet<Double>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun BooleanArray.toSortedSet(): java.util.SortedSet<Boolean> {
     return toCollection(java.util.TreeSet<Boolean>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  */
 public fun CharArray.toSortedSet(): java.util.SortedSet<Char> {
     return toCollection(java.util.TreeSet<Char>())
 }
 
 /**
- * Returns a [SortedSet][java.util.SortedSet] of all elements.
+ * Returns a new [SortedSet][java.util.SortedSet] of all elements.
  * 
  * Elements in the set returned are sorted according to the given [comparator].
  */
 public fun <T> Array<out T>.toSortedSet(comparator: Comparator<in T>): java.util.SortedSet<T> {
     return toCollection(java.util.TreeSet<T>(comparator))
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@SinceKotlin("1.1")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun Array<out Double>.max(): Double? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@SinceKotlin("1.1")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun Array<out Float>.max(): Float? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun <T : Comparable<T>> Array<out T>.max(): T? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ByteArray.max(): Byte? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ShortArray.max(): Short? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun IntArray.max(): Int? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun LongArray.max(): Long? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun FloatArray.max(): Float? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun DoubleArray.max(): Double? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxOrNull instead.", ReplaceWith("this.maxOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun CharArray.max(): Char? {
+    return maxOrNull()
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <T, R : Comparable<R>> Array<out T>.maxBy(selector: (T) -> R): T? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> ByteArray.maxBy(selector: (Byte) -> R): Byte? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> ShortArray.maxBy(selector: (Short) -> R): Short? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> IntArray.maxBy(selector: (Int) -> R): Int? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> LongArray.maxBy(selector: (Long) -> R): Long? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> FloatArray.maxBy(selector: (Float) -> R): Float? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> DoubleArray.maxBy(selector: (Double) -> R): Double? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> BooleanArray.maxBy(selector: (Boolean) -> R): Boolean? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxByOrNull instead.", ReplaceWith("this.maxByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> CharArray.maxBy(selector: (Char) -> R): Char? {
+    return maxByOrNull(selector)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun <T> Array<out T>.maxWith(comparator: Comparator<in T>): T? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ByteArray.maxWith(comparator: Comparator<in Byte>): Byte? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ShortArray.maxWith(comparator: Comparator<in Short>): Short? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun IntArray.maxWith(comparator: Comparator<in Int>): Int? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun LongArray.maxWith(comparator: Comparator<in Long>): Long? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun FloatArray.maxWith(comparator: Comparator<in Float>): Float? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun DoubleArray.maxWith(comparator: Comparator<in Double>): Double? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun BooleanArray.maxWith(comparator: Comparator<in Boolean>): Boolean? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use maxWithOrNull instead.", ReplaceWith("this.maxWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun CharArray.maxWith(comparator: Comparator<in Char>): Char? {
+    return maxWithOrNull(comparator)
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@SinceKotlin("1.1")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun Array<out Double>.min(): Double? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@SinceKotlin("1.1")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun Array<out Float>.min(): Float? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun <T : Comparable<T>> Array<out T>.min(): T? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ByteArray.min(): Byte? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ShortArray.min(): Short? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun IntArray.min(): Int? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun LongArray.min(): Long? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun FloatArray.min(): Float? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun DoubleArray.min(): Double? {
+    return minOrNull()
+}
+
+@Deprecated("Use minOrNull instead.", ReplaceWith("this.minOrNull()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun CharArray.min(): Char? {
+    return minOrNull()
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <T, R : Comparable<R>> Array<out T>.minBy(selector: (T) -> R): T? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> ByteArray.minBy(selector: (Byte) -> R): Byte? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> ShortArray.minBy(selector: (Short) -> R): Short? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> IntArray.minBy(selector: (Int) -> R): Int? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> LongArray.minBy(selector: (Long) -> R): Long? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> FloatArray.minBy(selector: (Float) -> R): Float? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> DoubleArray.minBy(selector: (Double) -> R): Double? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> BooleanArray.minBy(selector: (Boolean) -> R): Boolean? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minByOrNull instead.", ReplaceWith("this.minByOrNull(selector)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public inline fun <R : Comparable<R>> CharArray.minBy(selector: (Char) -> R): Char? {
+    return minByOrNull(selector)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun <T> Array<out T>.minWith(comparator: Comparator<in T>): T? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ByteArray.minWith(comparator: Comparator<in Byte>): Byte? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun ShortArray.minWith(comparator: Comparator<in Short>): Short? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun IntArray.minWith(comparator: Comparator<in Int>): Int? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun LongArray.minWith(comparator: Comparator<in Long>): Long? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun FloatArray.minWith(comparator: Comparator<in Float>): Float? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun DoubleArray.minWith(comparator: Comparator<in Double>): Double? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun BooleanArray.minWith(comparator: Comparator<in Boolean>): Boolean? {
+    return minWithOrNull(comparator)
+}
+
+@Deprecated("Use minWithOrNull instead.", ReplaceWith("this.minWithOrNull(comparator)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5", hiddenSince = "1.6")
+@Suppress("CONFLICTING_OVERLOADS")
+public fun CharArray.minWith(comparator: Comparator<in Char>): Char? {
+    return minWithOrNull(comparator)
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun <T> Array<out T>.sumOf(selector: (T) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun ByteArray.sumOf(selector: (Byte) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun ShortArray.sumOf(selector: (Short) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun IntArray.sumOf(selector: (Int) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun LongArray.sumOf(selector: (Long) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun FloatArray.sumOf(selector: (Float) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun DoubleArray.sumOf(selector: (Double) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigDecimal")
+@kotlin.internal.InlineOnly
+public inline fun CharArray.sumOf(selector: (Char) -> java.math.BigDecimal): java.math.BigDecimal {
+    var sum: java.math.BigDecimal = 0.toBigDecimal()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun <T> Array<out T>.sumOf(selector: (T) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun ByteArray.sumOf(selector: (Byte) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun ShortArray.sumOf(selector: (Short) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun IntArray.sumOf(selector: (Int) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun LongArray.sumOf(selector: (Long) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun FloatArray.sumOf(selector: (Float) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun DoubleArray.sumOf(selector: (Double) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun BooleanArray.sumOf(selector: (Boolean) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+/**
+ * Returns the sum of all values produced by [selector] function applied to each element in the array.
+ */
+@SinceKotlin("1.4")
+@OptIn(kotlin.experimental.ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+@kotlin.jvm.JvmName("sumOfBigInteger")
+@kotlin.internal.InlineOnly
+public inline fun CharArray.sumOf(selector: (Char) -> java.math.BigInteger): java.math.BigInteger {
+    var sum: java.math.BigInteger = 0.toBigInteger()
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
 }
 

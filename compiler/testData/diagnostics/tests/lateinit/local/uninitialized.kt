@@ -1,4 +1,4 @@
-// !LANGUAGE: +LateinitLocalVariables
+// RUN_PIPELINE_TILL: BACKEND
 
 fun test1() {
     lateinit var s: String
@@ -22,3 +22,6 @@ fun test3() {
     }
     s.length
 }
+
+/* GENERATED_FIR_TAGS: assignment, functionDeclaration, ifExpression, lambdaLiteral, lateinit, localProperty,
+propertyDeclaration, stringLiteral */

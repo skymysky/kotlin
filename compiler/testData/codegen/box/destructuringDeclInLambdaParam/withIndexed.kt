@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 data class Station(
         val id: String?,
         val name: String,

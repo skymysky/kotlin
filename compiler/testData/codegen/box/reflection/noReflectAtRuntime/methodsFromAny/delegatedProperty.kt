@@ -1,7 +1,6 @@
-// IGNORE_BACKEND: JVM_IR
 // IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JS
-// WITH_RUNTIME
+// IGNORE_BACKEND: JS_IR_ES6
+// WITH_STDLIB
 
 import kotlin.reflect.KProperty
 import kotlin.test.assertEquals

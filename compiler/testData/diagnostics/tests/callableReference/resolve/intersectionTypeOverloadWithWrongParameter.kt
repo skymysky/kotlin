@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 import kotlin.reflect.KCallable
 
@@ -11,9 +11,12 @@ class Foo {
     }
 
     fun foo() {
-        <!NI;NONE_APPLICABLE, OI;OVERLOAD_RESOLUTION_AMBIGUITY!>installRoute<!><Any>(::<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>route<!>)
+        <!NONE_APPLICABLE!>installRoute<!><Any>(::route)
     }
 
 }
 
 fun route(s: String): Any? = null
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, functionDeclaration, functionalType, nullableType,
+starProjection, typeConstraint, typeParameter */

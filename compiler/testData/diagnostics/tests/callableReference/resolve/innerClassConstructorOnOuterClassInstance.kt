@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
 
 abstract class A {
     inner class InnerInA
@@ -11,3 +12,6 @@ fun foo(a: A) {
         val v = a::InnerInA
     }
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, functionDeclaration, ifExpression, inner, isExpression,
+localProperty, propertyDeclaration */

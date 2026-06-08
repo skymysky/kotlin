@@ -1,5 +1,8 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 class X<T>(val t: T) {
-    constructor(t: T, i: Int) : this(<!TYPE_MISMATCH!>i<!>)
+    constructor(t: T, i: Int) : this(<!ARGUMENT_TYPE_MISMATCH!>i<!>)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, nullableType, primaryConstructor, propertyDeclaration, secondaryConstructor,
+typeParameter */

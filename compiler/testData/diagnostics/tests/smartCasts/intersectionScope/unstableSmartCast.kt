@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
 interface A {
     fun foo(): CharSequence?
@@ -31,8 +31,12 @@ fun test() {
         x.foo().checkType { _<CharSequence?>() }
         x.baz("")
         x.baz(1).checkType { _<Unit>() }
-        <!OI;SMARTCAST_IMPOSSIBLE!>x<!>.baz(1, 2)
+        <!SMARTCAST_IMPOSSIBLE!>x<!>.baz(1, 2)
 
-        <!OI;SMARTCAST_IMPOSSIBLE!>x<!>.foobar().checkType { _<String>() }
+        <!SMARTCAST_IMPOSSIBLE!>x<!>.foobar().checkType { _<String>() }
     }
 }
+
+/* GENERATED_FIR_TAGS: andExpression, checkNotNullCall, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, ifExpression, infix, integerLiteral, interfaceDeclaration, intersectionType, isExpression, lambdaLiteral,
+nullableType, propertyDeclaration, smartcast, stringLiteral, typeParameter, typeWithExtension */

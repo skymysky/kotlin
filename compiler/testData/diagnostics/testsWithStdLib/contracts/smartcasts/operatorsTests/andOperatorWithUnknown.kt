@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -25,7 +25,7 @@ fun unknownFunction(x: Any?) = x == 42
 
 fun annotatedTrue(x: Any?) {
     if (trueWhenString(x) && unknownFunction(x)) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
@@ -43,7 +43,7 @@ fun annotatedFalse(x: Any?) {
 
 fun annotatedTrueWithVariable(x: Any?, b: Boolean) {
     if (trueWhenString(x) && b) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
@@ -58,3 +58,6 @@ fun annotatedFalseWithVariable(x: Any?, b: Boolean) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: andExpression, contractConditionalEffect, contracts, equalityExpression, functionDeclaration,
+ifExpression, integerLiteral, isExpression, lambdaLiteral, nullableType, smartcast */

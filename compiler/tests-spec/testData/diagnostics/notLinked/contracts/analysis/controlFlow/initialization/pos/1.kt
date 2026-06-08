@@ -1,23 +1,22 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !WITH_CONTRACT_FUNCTIONS
-// SKIP_TXT
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 /*
- KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (POSITIVE)
-
- SECTION: contracts
- CATEGORY: analysis, controlFlow, initialization
- NUMBER: 1
- DESCRIPTION: val/var assignments using contract functions with CallsInPlace effect
+ * KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (POSITIVE)
+ *
+ * SECTIONS: contracts, analysis, controlFlow, initialization
+ * NUMBER: 1
+ * DESCRIPTION: val/var assignments using contract functions with CallsInPlace effect
+ * HELPERS: contractFunctions
  */
 
+// TESTCASE NUMBER: 1
 fun case_1() {
     val value_1: Int
     funWithExactlyOnceCallsInPlace { value_1 = 10 }
     value_1.inc()
 }
 
+// TESTCASE NUMBER: 2
 fun case_2() {
     var value_1: Int
     var value_2: Int
@@ -27,6 +26,7 @@ fun case_2() {
     value_2.div(10)
 }
 
+// TESTCASE NUMBER: 3
 class case_3 {
     val value_1: Int
     var value_2: Int

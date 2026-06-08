@@ -1,13 +1,14 @@
-// !WITH_NEW_INFERENCE
-
+// RUN_PIPELINE_TILL: FRONTEND
 fun <T : Number> materializeNumber(): T = TODO()
 
 fun a(): Unit = run {
-    <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>materializeNumber<!>()
+    <!CANNOT_INFER_PARAMETER_TYPE!>materializeNumber<!>()
 }
 
 fun b(): Unit = run {
     run {
-        <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>materializeNumber<!>()
+        <!CANNOT_INFER_PARAMETER_TYPE!>materializeNumber<!>()
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, lambdaLiteral, typeConstraint, typeParameter */

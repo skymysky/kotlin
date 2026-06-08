@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 package Jet87
 
 open class A() {
@@ -9,9 +10,9 @@ interface B {
 }
 
 interface G<X> {
-    val <<!TYPE_PARAMETER_OF_PROPERTY_NOT_USED_IN_RECEIVER!>X<!>> boo: Double  where X : A, X : B
-    val <<!TYPE_PARAMETER_OF_PROPERTY_NOT_USED_IN_RECEIVER!>A<!>> bal: Double  where A : B
-    val <<!TYPE_PARAMETER_OF_PROPERTY_NOT_USED_IN_RECEIVER!>Y<!>> bas: Double where Y : B, <!NAME_IN_CONSTRAINT_IS_NOT_A_TYPE_PARAMETER!>X<!> : B
+    val <<!INCORRECT_TYPE_PARAMETER_OF_PROPERTY!>X<!>> boo: Double  where X : A, X : B
+    val <<!INCORRECT_TYPE_PARAMETER_OF_PROPERTY!>A<!>> bal: Double  where A : B
+    val <<!INCORRECT_TYPE_PARAMETER_OF_PROPERTY!>Y<!>> bas: Double where Y : B, <!NAME_IN_CONSTRAINT_IS_NOT_A_TYPE_PARAMETER!>X<!> : B
 }
 
 class C() : A(), B
@@ -48,7 +49,7 @@ class Bar<T : <!FINAL_UPPER_BOUND!>Foo<!>>
 class Buzz<T> where T : <!FINAL_UPPER_BOUND!>Bar<<!UPPER_BOUND_VIOLATED!>Int<!>><!>, T : <!UNRESOLVED_REFERENCE!>nioho<!>
 
 class X<T : <!FINAL_UPPER_BOUND!>Foo<!>>
-class Y<<!CONFLICTING_UPPER_BOUNDS!>T<!>> where T : <!FINAL_UPPER_BOUND!>Foo<!>, T : <!ONLY_ONE_CLASS_BOUND_ALLOWED, FINAL_UPPER_BOUND!>Bar<Foo><!>
+class Y<<!CONFLICTING_UPPER_BOUNDS!>T<!>> where T : <!FINAL_UPPER_BOUND!>Foo<!>, T : <!FINAL_UPPER_BOUND, ONLY_ONE_CLASS_BOUND_ALLOWED!>Bar<Foo><!>
 
 fun <T> test2(t : T)
   where
@@ -62,8 +63,11 @@ fun <T> test2(t : T)
   t.bar()
 }
 
-val t1 = test2<<!UPPER_BOUND_VIOLATED!>A<!>>(A())
-val t2 = test2<<!UPPER_BOUND_VIOLATED!>B<!>>(C())
+val t1 = <!INAPPLICABLE_CANDIDATE!>test2<!><<!UPPER_BOUND_VIOLATED!>A<!>>(A())
+val t2 = <!INAPPLICABLE_CANDIDATE!>test2<!><<!UPPER_BOUND_VIOLATED!>B<!>>(C())
 val t3 = test2<C>(C())
 
-val <<!TYPE_PARAMETER_OF_PROPERTY_NOT_USED_IN_RECEIVER!>T<!>, <!TYPE_PARAMETER_OF_PROPERTY_NOT_USED_IN_RECEIVER!>B : T<!>> x : Int = 0
+val <<!INCORRECT_TYPE_PARAMETER_OF_PROPERTY!>T<!>, <!INCORRECT_TYPE_PARAMETER_OF_PROPERTY!>B : T<!>> x : Int = 0
+
+/* GENERATED_FIR_TAGS: classDeclaration, companionObject, functionDeclaration, integerLiteral, interfaceDeclaration,
+nullableType, objectDeclaration, primaryConstructor, propertyDeclaration, typeConstraint, typeParameter */

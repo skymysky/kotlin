@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.ranges
@@ -70,14 +70,12 @@ public open class RangeIterationTestBase {
             else -> throw IllegalArgumentException("Unsupported sequence type: $sequence")
         }
 
-        assertEquals(expectedFirst, first)
-        assertEquals(expectedLast, last)
+        assertEquals<Any>(expectedFirst, first)
+        assertEquals<Any>(expectedLast, last)
         assertEquals(expectedIncrement, increment)
 
-        if (expectedElements.isEmpty())
-            assertTrue(sequence.none())
-        else
-            assertEquals(expectedElements, sequence.toList())
+        assertEquals(expectedElements.isEmpty(), sequence.none())
+        assertEquals(expectedElements, sequence.toList())
 
         compare(expectedElements.iterator(), sequence.iterator()) {
             iteratorBehavior()
@@ -168,6 +166,19 @@ public class RangeIterationTest : RangeIterationTestBase() {
         doTest(1u.toUByte() until 5u.toUByte(), 1u, 4u, 1, listOf(1u, 2u, 3u, 4u))
         doTest(1u.toUShort() until 5u.toUShort(), 1u, 4u, 1, listOf(1u, 2u, 3u, 4u))
         doTest(1uL until 5uL, 1uL, 4uL, 1L, listOf<ULong>(1u, 2u, 3u, 4u))
+    }
+
+    @Test fun openRangeUntil() {
+        doTest(1..<5, 1, 4, 1, listOf(1, 2, 3, 4))
+        doTest(1.toByte()..<5.toByte(), 1, 4, 1, listOf(1, 2, 3, 4))
+        doTest(1.toShort()..<5.toShort(), 1, 4, 1, listOf(1, 2, 3, 4))
+        doTest(1L..<5L, 1L, 4L, 1L, listOf<Long>(1, 2, 3, 4))
+        doTest('a'..<'d', 'a', 'c', 1, listOf('a', 'b', 'c'))
+
+        doTest(1u..<5u, 1u, 4u, 1, listOf(1u, 2u, 3u, 4u))
+        doTest(1u.toUByte()..<5u.toUByte(), 1u, 4u, 1, listOf(1u, 2u, 3u, 4u))
+        doTest(1u.toUShort()..<5u.toUShort(), 1u, 4u, 1, listOf(1u, 2u, 3u, 4u))
+        doTest(1uL..<5uL, 1uL, 4uL, 1L, listOf<ULong>(1u, 2u, 3u, 4u))
     }
 
 
@@ -375,15 +386,15 @@ public class RangeIterationTest : RangeIterationTestBase() {
     }
 
     @Test fun maxValueMinusTwoToMaxValue() {
-        doTest((MaxI - 2)..MaxI, MaxI - 2, MaxI, 1, listOf(MaxI - 2, MaxI - 1, MaxI))
-        doTest((MaxB - 2).toByte()..MaxB, (MaxB - 2).toInt(), MaxB.toInt(), 1, listOf((MaxB - 2).toInt(), (MaxB - 1).toInt(), MaxB.toInt()))
-        doTest((MaxS - 2).toShort()..MaxS, (MaxS - 2).toInt(), MaxS.toInt(), 1, listOf((MaxS - 2).toInt(), (MaxS - 1).toInt(), MaxS.toInt()))
-        doTest((MaxL - 2).toLong()..MaxL, (MaxL - 2).toLong(), MaxL, 1L, listOf((MaxL - 2).toLong(), (MaxL - 1).toLong(), MaxL))
+        doTest(MaxI - 2..MaxI, MaxI - 2, MaxI, 1, listOf(MaxI - 2, MaxI - 1, MaxI))
+        doTest((MaxB - 2).toByte()..MaxB, MaxB - 2, MaxB.toInt(), 1, listOf(MaxB - 2, MaxB - 1, MaxB.toInt()))
+        doTest((MaxS - 2).toShort()..MaxS, MaxS - 2, MaxS.toInt(), 1, listOf(MaxS - 2, MaxS - 1, MaxS.toInt()))
+        doTest(MaxL - 2..MaxL, MaxL - 2, MaxL, 1L, listOf(MaxL - 2, MaxL - 1, MaxL))
 
-        doTest((MaxC - 2)..MaxC, (MaxC - 2), MaxC, 1, listOf((MaxC - 2), (MaxC - 1), MaxC))
+        doTest(MaxC - 2..MaxC, MaxC - 2, MaxC, 1, listOf(MaxC - 2, MaxC - 1, MaxC))
 
-        doTest((MaxUI - 2u)..MaxUI, MaxUI - 2u, MaxUI, 1, listOf(MaxUI - 2u, MaxUI - 1u, MaxUI))
-        doTest((MaxUL - 2u)..MaxUL, MaxUL - 2u, MaxUL, 1L, listOf(MaxUL - 2u, MaxUL - 1u, MaxUL))
+        doTest(MaxUI - 2u..MaxUI, MaxUI - 2u, MaxUI, 1, listOf(MaxUI - 2u, MaxUI - 1u, MaxUI))
+        doTest(MaxUL - 2u..MaxUL, MaxUL - 2u, MaxUL, 1L, listOf(MaxUL - 2u, MaxUL - 1u, MaxUL))
     }
 
     @Test fun maxValueToMinValue() {
@@ -412,15 +423,15 @@ public class RangeIterationTest : RangeIterationTestBase() {
 
     @Test fun progressionMaxValueMinusTwoToMaxValue() {
         doTest((MaxI - 2)..MaxI step 2, MaxI - 2, MaxI, 2, listOf(MaxI - 2, MaxI))
-        doTest((MaxB - 2).toByte()..MaxB step 2, (MaxB - 2).toInt(), MaxB.toInt(), 2, listOf((MaxB - 2).toInt(), MaxB.toInt()))
-        doTest((MaxS - 2).toShort()..MaxS step 2, (MaxS - 2).toInt(), MaxS.toInt(), 2, listOf((MaxS - 2).toInt(), MaxS.toInt()))
-        doTest((MaxL - 2).toLong()..MaxL step 2, (MaxL - 2).toLong(), MaxL, 2L, listOf((MaxL - 2).toLong(), MaxL))
+        doTest((MaxB - 2).toByte()..MaxB step 2, MaxB - 2, MaxB.toInt(), 2, listOf(MaxB - 2, MaxB.toInt()))
+        doTest((MaxS - 2).toShort()..MaxS step 2, MaxS - 2, MaxS.toInt(), 2, listOf(MaxS - 2, MaxS.toInt()))
+        doTest(MaxL - 2..MaxL step 2, MaxL - 2, MaxL, 2L, listOf(MaxL - 2, MaxL))
 
         doTest((MaxC - 2)..MaxC step 2, (MaxC - 2), MaxC, 2, listOf((MaxC - 2), MaxC))
 
         doTest((MaxUI - 2u)..MaxUI step 2, MaxUI - 2u, MaxUI, 2, listOf(MaxUI - 2u, MaxUI))
-        doTest((MaxUB - 2u).toUByte()..MaxUB step 2, (MaxUB - 2u).toUInt(), MaxUB.toUInt(), 2, listOf((MaxUB - 2u).toUInt(), MaxUB.toUInt()))
-        doTest((MaxUS - 2u).toUShort()..MaxUS step 2, (MaxUS - 2u).toUInt(), MaxUS.toUInt(), 2, listOf((MaxUS - 2u).toUInt(), MaxUS.toUInt()))
+        doTest((MaxUB - 2u).toUByte()..MaxUB step 2, MaxUB - 2u, MaxUB.toUInt(), 2, listOf(MaxUB - 2u, MaxUB.toUInt()))
+        doTest((MaxUS - 2u).toUShort()..MaxUS step 2, MaxUS - 2u, MaxUS.toUInt(), 2, listOf(MaxUS - 2u, MaxUS.toUInt()))
         doTest(MaxUL - 2u..MaxUL step 2, MaxUL - 2u, MaxUL, 2L, listOf(MaxUL - 2u, MaxUL))
     }
 
@@ -453,53 +464,77 @@ public class RangeIterationTest : RangeIterationTestBase() {
     }
 
     @Test fun inexactToMaxValue() {
-        doTest((MaxI - 5)..MaxI step 3, MaxI - 5, MaxI - 2, 3, listOf(MaxI - 5, MaxI - 2))
-        doTest((MaxB - 5).toByte()..MaxB step 3, (MaxB - 5).toInt(), (MaxB - 2).toInt(), 3, listOf((MaxB - 5).toInt(), (MaxB - 2).toInt()))
-        doTest((MaxS - 5).toShort()..MaxS step 3, (MaxS - 5).toInt(), (MaxS - 2).toInt(), 3, listOf((MaxS - 5).toInt(), (MaxS - 2).toInt()))
-        doTest((MaxL - 5).toLong()..MaxL step 3, (MaxL - 5).toLong(), (MaxL - 2).toLong(), 3L, listOf((MaxL - 5).toLong(), (MaxL - 2).toLong()))
+        doTest(MaxI - 5..MaxI step 3, MaxI - 5, MaxI - 2, 3, listOf(MaxI - 5, MaxI - 2))
+        doTest((MaxB - 5).toByte()..MaxB step 3, MaxB - 5, MaxB - 2, 3, listOf(MaxB - 5, MaxB - 2))
+        doTest((MaxS - 5).toShort()..MaxS step 3, MaxS - 5, MaxS - 2, 3, listOf(MaxS - 5, MaxS - 2))
+        doTest(MaxL - 5..MaxL step 3, MaxL - 5, MaxL - 2, 3L, listOf(MaxL - 5, MaxL - 2))
 
-        doTest((MaxC - 5)..MaxC step 3, (MaxC - 5), (MaxC - 2), 3, listOf((MaxC - 5), (MaxC - 2)))
+        doTest((MaxC - 5)..MaxC step 3, MaxC - 5, MaxC - 2, 3, listOf(MaxC - 5, MaxC - 2))
 
-        doTest((MaxUI - 5u)..MaxUI step 3, MaxUI - 5u, MaxUI - 2u, 3, listOf(MaxUI - 5u, MaxUI - 2u))
-        doTest((MaxUB - 5u).toUByte()..MaxUB step 3, (MaxUB - 5u).toUInt(), (MaxUB - 2u).toUInt(), 3, listOf((MaxUB - 5u).toUInt(), (MaxUB - 2u).toUInt()))
-        doTest((MaxUS - 5u).toUShort()..MaxUS step 3, (MaxUS - 5u).toUInt(), (MaxUS - 2u).toUInt(), 3, listOf((MaxUS - 5u).toUInt(), (MaxUS - 2u).toUInt()))
-        doTest((MaxUL - 5u)..MaxUL step 3, (MaxUL - 5u), (MaxUL - 2u), 3L, listOf((MaxUL - 5u), (MaxUL - 2u)))
+        doTest(MaxUI - 5u..MaxUI step 3, MaxUI - 5u, MaxUI - 2u, 3, listOf(MaxUI - 5u, MaxUI - 2u))
+        doTest((MaxUB - 5u).toUByte()..MaxUB step 3, MaxUB - 5u, MaxUB - 2u, 3, listOf(MaxUB - 5u, MaxUB - 2u))
+        doTest((MaxUS - 5u).toUShort()..MaxUS step 3, MaxUS - 5u, MaxUS - 2u, 3, listOf(MaxUS - 5u, MaxUS - 2u))
+        doTest(MaxUL - 5u..MaxUL step 3, MaxUL - 5u, MaxUL - 2u, 3L, listOf(MaxUL - 5u, MaxUL - 2u))
     }
 
     @Test fun overflowZeroToMinValue() {
+        doTest(0.toByte()..MinB step 3, 0, MinB.toInt(), 3, listOf())
+        doTest(0.toShort()..MinS step 3, 0, MinS.toInt(), 3, listOf())
         doTest(0..MinI step 3, 0, MinI, 3, listOf())
         doTest(0L..MinL step 3, 0, MinL, 3L, listOf())
 
+        doTest(0.toByte() until MinB step 3, 0, MinB.toInt() - 1, 3, listOf())
+        doTest(0.toShort() until MinS step 3, 0, MinS.toInt() - 1, 3, listOf())
+        doTest(0 until MinI step 3, 1, 0, 3, listOf())
+        doTest(0L until MinL step 3, 1L, 0L, 3L, listOf())
+
+        doTest(0.toByte()..<MinB step 3, 0, MinB.toInt() - 1, 3, listOf())
+        doTest(0.toShort()..<MinS step 3, 0, MinS.toInt() - 1, 3, listOf())
+        doTest(0..<MinI step 3, 1, 0, 3, listOf())
+        doTest(0L..<MinL step 3, 1L, 0L, 3L, listOf())
+
         // 1u as used as a start since min value is 0u for unsigned types
+        doTest(1u.toUByte()..MinUB step 3, 1u, MinUB.toUInt(), 3, listOf())
+        doTest(1u.toUShort()..MinUS step 3, 1u, MinUS.toUInt(), 3, listOf())
         doTest(1u..MinUI step 3, 1u, MinUI, 3, listOf())
         doTest(1uL..MinUL step 3, 1u, MinUL, 3L, listOf())
+
+        doTest(1u.toUByte() until MinUB step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1u.toUShort() until MinUS step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1u until MinUI step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1uL until MinUL step 3, MaxUL, MinUL, 3L, listOf())
+
+        doTest(1u.toUByte()..<MinUB step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1u.toUShort()..<MinUS step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1u..<MinUI step 3, MaxUI, MinUI, 3, listOf())
+        doTest(1uL..<MinUL step 3, MaxUL, MinUL, 3L, listOf())
     }
 
     @Test fun progressionDownToMinValue() {
         doTest((MinI + 2) downTo MinI step 1, MinI + 2, MinI, -1, listOf(MinI + 2, MinI + 1, MinI))
-        doTest((MinB + 2).toByte() downTo MinB step 1, (MinB + 2).toInt(), MinB.toInt(), -1, listOf((MinB + 2).toInt(), (MinB + 1).toInt(), MinB.toInt()))
-        doTest((MinS + 2).toShort() downTo MinS step 1, (MinS + 2).toInt(), MinS.toInt(), -1, listOf((MinS + 2).toInt(), (MinS + 1).toInt(), MinS.toInt()))
-        doTest((MinL + 2).toLong() downTo MinL step 1, (MinL + 2).toLong(), MinL, -1L, listOf((MinL + 2).toLong(), (MinL + 1).toLong(), MinL))
+        doTest((MinB + 2).toByte() downTo MinB step 1, MinB + 2, MinB.toInt(), -1, listOf(MinB + 2, MinB + 1, MinB.toInt()))
+        doTest((MinS + 2).toShort() downTo MinS step 1, MinS + 2, MinS.toInt(), -1, listOf(MinS + 2, MinS + 1, MinS.toInt()))
+        doTest(MinL + 2 downTo MinL step 1, MinL + 2, MinL, -1L, listOf(MinL + 2, MinL + 1, MinL))
 
         doTest((MinC + 2) downTo MinC step 1, (MinC + 2), MinC, -1, listOf((MinC + 2), (MinC + 1), MinC))
 
         doTest((MinUI + 2u) downTo MinUI step 1, MinUI + 2u, MinUI, -1, listOf(MinUI + 2u, MinUI + 1u, MinUI))
-        doTest((MinUB + 2u).toUByte() downTo MinUB step 1, (MinUB + 2u).toUInt(), MinUB.toUInt(), -1, listOf((MinUB + 2u).toUInt(), (MinUB + 1u).toUInt(), MinUB.toUInt()))
-        doTest((MinUS + 2u).toUShort() downTo MinUS step 1, (MinUS + 2u).toUInt(), MinUS.toUInt(), -1, listOf((MinUS + 2u).toUInt(), (MinUS + 1u).toUInt(), MinUS.toUInt()))
+        doTest((MinUB + 2u).toUByte() downTo MinUB step 1, MinUB + 2u, MinUB.toUInt(), -1, listOf(MinUB + 2u, MinUB + 1u, MinUB.toUInt()))
+        doTest((MinUS + 2u).toUShort() downTo MinUS step 1, MinUS + 2u, MinUS.toUInt(), -1, listOf(MinUS + 2u, MinUS + 1u, MinUS.toUInt()))
         doTest((MinUL + 2u) downTo MinUL step 1, (MinUL + 2u), MinUL, -1L, listOf((MinUL + 2u), (MinUL + 1u), MinUL))
     }
 
     @Test fun inexactDownToMinValue() {
         doTest((MinI + 5) downTo MinI step 3, MinI + 5, MinI + 2, -3, listOf(MinI + 5, MinI + 2))
-        doTest((MinB + 5).toByte() downTo MinB step 3, (MinB + 5).toInt(), (MinB + 2).toInt(), -3, listOf((MinB + 5).toInt(), (MinB + 2).toInt()))
-        doTest((MinS + 5).toShort() downTo MinS step 3, (MinS + 5).toInt(), (MinS + 2).toInt(), -3, listOf((MinS + 5).toInt(), (MinS + 2).toInt()))
-        doTest((MinL + 5).toLong() downTo MinL step 3, (MinL + 5).toLong(), (MinL + 2).toLong(), -3L, listOf((MinL + 5).toLong(), (MinL + 2).toLong()))
+        doTest((MinB + 5).toByte() downTo MinB step 3, MinB + 5, MinB + 2, -3, listOf(MinB + 5, MinB + 2))
+        doTest((MinS + 5).toShort() downTo MinS step 3, MinS + 5, MinS + 2, -3, listOf(MinS + 5, MinS + 2))
+        doTest(MinL + 5 downTo MinL step 3, MinL + 5, MinL + 2, -3L, listOf(MinL + 5, MinL + 2))
 
         doTest((MinC + 5) downTo MinC step 3, (MinC + 5), (MinC + 2), -3, listOf((MinC + 5), (MinC + 2)))
 
         doTest((MinUI + 5u) downTo MinUI step 3, MinUI + 5u, MinUI + 2u, -3, listOf(MinUI + 5u, MinUI + 2u))
-        doTest((MinUB + 5u).toUByte() downTo MinUB step 3, (MinUB + 5u).toUInt(), (MinUB + 2u).toUInt(), -3, listOf((MinUB + 5u).toUInt(), (MinUB + 2u).toUInt()))
-        doTest((MinUS + 5u).toUShort() downTo MinUS step 3, (MinUS + 5u).toUInt(), (MinUS + 2u).toUInt(), -3, listOf((MinUS + 5u).toUInt(), (MinUS + 2u).toUInt()))
+        doTest((MinUB + 5u).toUByte() downTo MinUB step 3, MinUB + 5u, MinUB + 2u, -3, listOf(MinUB + 5u, MinUB + 2u))
+        doTest((MinUS + 5u).toUShort() downTo MinUS step 3, MinUS + 5u, MinUS + 2u, -3, listOf(MinUS + 5u, MinUS + 2u))
         doTest(MinUL + 5u downTo MinUL step 3, (MinUL + 5u), (MinUL + 2u), -3L, listOf((MinUL + 5u), (MinUL + 2u)))
     }
 

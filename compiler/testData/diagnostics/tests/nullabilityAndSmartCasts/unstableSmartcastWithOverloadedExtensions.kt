@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 class A
 class B
@@ -12,3 +13,6 @@ fun smartCastInterference(b: B) {
         <!SMARTCAST_IMPOSSIBLE!>a<!>.foo(b)
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, equalityExpression, funWithExtensionReceiver, functionDeclaration, ifExpression,
+nullableType, propertyDeclaration, smartcast */

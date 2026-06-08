@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: J.java
 
 import org.jetbrains.annotations.*;
@@ -15,5 +15,7 @@ public class J {
 // FILE: k.kt
 
 class A : List<String> by J.staticNN
-class B : List<String> by <!TYPE_MISMATCH!>J.<!NI;TYPE_MISMATCH!>staticN<!><!>
+class B : List<String> by <!TYPE_MISMATCH!>J.staticN<!>
 class C : List<String> by J.staticJ
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, inheritanceDelegation, javaProperty, nullableType */

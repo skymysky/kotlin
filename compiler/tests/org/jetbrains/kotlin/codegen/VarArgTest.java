@@ -16,7 +16,9 @@
 
 package org.jetbrains.kotlin.codegen;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.test.ConfigurationKind;
+import org.jetbrains.kotlin.test.FirParser;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -24,6 +26,16 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 
 public class VarArgTest extends CodegenTestCase {
+    @Override
+    public boolean getUseFir() {
+        return true;
+    }
+
+    @Override
+    public @NotNull FirParser getFirParser() {
+        return FirParser.LightTree;
+    }
+
     @Override
     protected void setUp() throws Exception {
         super.setUp();
@@ -34,64 +46,64 @@ public class VarArgTest extends CodegenTestCase {
         loadText("fun test(vararg ts: String) = ts");
         Method main = generateFunction();
         String[] args = {"mama", "papa"};
-        assertTrue(args == main.invoke(null, new Object[]{ args } ));
+        assertSame(args, main.invoke(null, new Object[] {args}));
     }
 
     public void testIntArray() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test(vararg ts: Int) = ts");
         Method main = generateFunction();
         int[] args = {3, 4};
-        assertTrue(args == main.invoke(null, new Object[]{ args }));
+        assertSame(args, main.invoke(null, new Object[] {args}));
     }
 
     public void testIntArrayKotlinNoArgs() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test() = testf(); fun testf(vararg ts: Int) = ts");
         Method main = generateFunction("test");
         Object res = main.invoke(null);
-        assertTrue(((int[])res).length == 0);
+        assertEquals(0, ((int[]) res).length);
     }
 
     public void testIntArrayKotlin() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test() = testf(239, 7); fun testf(vararg ts: Int) = ts");
         Method main = generateFunction("test");
         Object res = main.invoke(null);
-        assertTrue(((int[])res).length == 2);
-        assertTrue(((int[])res)[0] == 239);
-        assertTrue(((int[])res)[1] == 7);
+        assertEquals(2, ((int[]) res).length);
+        assertEquals(239, ((int[]) res)[0]);
+        assertEquals(7, ((int[]) res)[1]);
     }
 
     public void testNullableIntArrayKotlin() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test() = testf(239.toByte(), 7.toByte()); fun testf(vararg ts: Byte?) = ts");
         Method main = generateFunction("test");
         Object res = main.invoke(null);
-        assertTrue(((Byte[])res).length == 2);
-        assertTrue(((Byte[])res)[0] == (byte)239);
-        assertTrue(((Byte[])res)[1] == 7);
+        assertEquals(2, ((Byte[]) res).length);
+        assertEquals((byte) ((Byte[]) res)[0], (byte) 239);
+        assertEquals(7, (byte) ((Byte[]) res)[1]);
     }
 
     public void testIntArrayKotlinObj() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test() = testf(\"239\"); fun testf(vararg ts: String) = ts");
         Method main = generateFunction("test");
         Object res = main.invoke(null);
-        assertTrue(((String[])res).length == 1);
-        assertTrue(((String[])res)[0].equals("239"));
+        assertEquals(1, ((String[]) res).length);
+        assertEquals("239", ((String[]) res)[0]);
     }
 
     public void testArrayT() throws InvocationTargetException, IllegalAccessException {
         loadText("fun test() = _array(2, 4); fun <T> _array(vararg elements : T) = elements");
         Method main = generateFunction("test");
         Object res = main.invoke(null);
-        assertTrue(((Integer[])res).length == 2);
-        assertTrue(((Integer[])res)[0].equals(2));
-        assertTrue(((Integer[])res)[1].equals(4));
+        assertEquals(2, ((Integer[]) res).length);
+        assertEquals(2, (int) ((Integer[]) res)[0]);
+        assertEquals(4, (int) ((Integer[]) res)[1]);
     }
 
     public void testArrayAsVararg() throws InvocationTargetException, IllegalAccessException {
         loadText("private fun asList(vararg elems: String) = elems; fun test(ts: Array<String>) = asList(*ts); ");
         Method main = generateFunction("test");
         String[] args = {"mama", "papa"};
-        String[] result = (String []) main.invoke(null, new Object[] {args});
-        assertTrue(args != result);
+        String[] result = (String[]) main.invoke(null, new Object[] {args});
+        assertNotSame(args, result);
         assertTrue(Arrays.equals(args, result));
     }
 

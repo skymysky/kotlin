@@ -23,28 +23,36 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings;
 import org.jetbrains.kotlin.descriptors.CallableDescriptor;
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor;
 import org.jetbrains.kotlin.resolve.BindingTrace;
-import org.jetbrains.kotlin.resolve.calls.callUtil.CallUtilKt;
+import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
+import org.jetbrains.kotlin.resolve.calls.util.CallUtilKt;
 import org.jetbrains.kotlin.resolve.calls.context.CallResolutionContext;
 import org.jetbrains.kotlin.resolve.calls.context.CheckArgumentTypesMode;
 import org.jetbrains.kotlin.resolve.calls.model.MutableResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.tasks.TracingStrategy;
 import org.jetbrains.kotlin.resolve.calls.tower.TowerUtilsKt;
+import org.jetbrains.kotlin.resolve.descriptorUtil.AnnotationsForResolveKt;
+import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner;
+import org.jetbrains.kotlin.util.CancellationChecker;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.jetbrains.kotlin.resolve.calls.results.ResolutionStatus.*;
 
 public class ResolutionResultsHandler {
 
-    private final OverloadingConflictResolver<MutableResolvedCall<?>> overloadingConflictResolver;
+    private final OverloadingConflictResolver<ResolvedCall<?>> overloadingConflictResolver;
 
     public ResolutionResultsHandler(
             @NotNull KotlinBuiltIns builtIns,
             @NotNull ModuleDescriptor module,
-            @NotNull TypeSpecificityComparator specificityComparator
+            @NotNull TypeSpecificityComparator specificityComparator,
+            @NotNull PlatformOverloadsSpecificityComparator platformOverloadsSpecificityComparator,
+            @NotNull CancellationChecker cancellationChecker,
+            @NotNull KotlinTypeRefiner kotlinTypeRefiner
     ) {
         overloadingConflictResolver = FlatSignatureForResolvedCallKt.createOverloadingConflictResolver(
-                builtIns, module, specificityComparator
+                builtIns, module, specificityComparator, platformOverloadsSpecificityComparator, cancellationChecker, kotlinTypeRefiner
         );
     }
 
@@ -94,7 +102,7 @@ public class ResolutionResultsHandler {
 
     @NotNull
     private <D extends CallableDescriptor> OverloadResolutionResultsImpl<D> computeSuccessfulResult(
-            @NotNull CallResolutionContext context,
+            @NotNull CallResolutionContext<?> context,
             @NotNull TracingStrategy tracing,
             @NotNull Set<MutableResolvedCall<D>> successfulCandidates,
             @NotNull Set<MutableResolvedCall<D>> incompleteCandidates,
@@ -105,7 +113,7 @@ public class ResolutionResultsHandler {
         successfulAndIncomplete.addAll(successfulCandidates);
         successfulAndIncomplete.addAll(incompleteCandidates);
         OverloadResolutionResultsImpl<D> results = chooseAndReportMaximallySpecific(
-                successfulAndIncomplete, true, context.isDebuggerContext, checkArgumentsMode, languageVersionSettings);
+                successfulAndIncomplete, true, checkArgumentsMode, languageVersionSettings);
         if (results.isSingleResult()) {
             MutableResolvedCall<D> resultingCall = results.getResultingCall();
             resultingCall.getTrace().moveAllMyDataTo(context.trace);
@@ -160,7 +168,7 @@ public class ResolutionResultsHandler {
                     return recordFailedInfo(tracing, trace, myResolver.filterOutEquivalentCalls(new LinkedHashSet<>(thisLevel)));
                 }
                 OverloadResolutionResultsImpl<D> results = chooseAndReportMaximallySpecific(
-                        thisLevel, false, false, checkArgumentsMode, languageVersionSettings);
+                        thisLevel, false, checkArgumentsMode, languageVersionSettings);
                 return recordFailedInfo(tracing, trace, results.getResultingCalls());
             }
         }
@@ -192,10 +200,10 @@ public class ResolutionResultsHandler {
     }
 
     @NotNull
+    @SuppressWarnings("unchecked")
     private <D extends CallableDescriptor> OverloadResolutionResultsImpl<D> chooseAndReportMaximallySpecific(
             @NotNull Set<MutableResolvedCall<D>> candidates,
             boolean discriminateGenerics,
-            boolean isDebuggerContext,
             @NotNull CheckArgumentTypesMode checkArgumentsMode,
             @NotNull LanguageVersionSettings languageVersionSettings
     ) {
@@ -216,7 +224,15 @@ public class ResolutionResultsHandler {
         }
 
         Set<MutableResolvedCall<D>> specificCalls =
-                myResolver.chooseMaximallySpecificCandidates(refinedCandidates, checkArgumentsMode, discriminateGenerics, isDebuggerContext);
+                myResolver.chooseMaximallySpecificCandidates(refinedCandidates, checkArgumentsMode, discriminateGenerics);
+
+        if (specificCalls.size() > 1) {
+            specificCalls = specificCalls.stream()
+                    .filter((call) ->
+                                    !call.getCandidateDescriptor().getAnnotations().hasAnnotation(
+                                            AnnotationsForResolveKt.getOVERLOAD_RESOLUTION_BY_LAMBDA_ANNOTATION_FQ_NAME())
+                    ).collect(Collectors.toSet());
+        }
 
         if (specificCalls.size() == 1) {
             return OverloadResolutionResultsImpl.success(specificCalls.iterator().next());

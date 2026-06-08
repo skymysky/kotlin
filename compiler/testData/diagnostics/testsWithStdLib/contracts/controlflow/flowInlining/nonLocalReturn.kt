@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -16,3 +16,6 @@ fun nonLocalReturnWithElvis(x: Int?): Int? {
     x?.myLet { return 42 }
     return x?.inc()
 }
+
+/* GENERATED_FIR_TAGS: contractCallsEffect, contracts, funWithExtensionReceiver, functionDeclaration, functionalType,
+inline, integerLiteral, lambdaLiteral, nullableType, safeCall, thisExpression, typeParameter */

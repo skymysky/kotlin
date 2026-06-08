@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
 // FILE: 1.kt
-// WITH_RUNTIME
 package test
 
 class A
@@ -35,21 +34,9 @@ fun box(): String {
     return "OK"
 }
 
-inline fun failTypeCast(s: () -> Unit) {
-    try {
-        s()
-    }
-    catch (e: TypeCastException) {
-
-    }
-}
-
 inline fun failClassCast(s: () -> Unit) {
     try {
         s()
-    }
-    catch (e: TypeCastException) {
-        throw e
     }
     catch (e: ClassCastException) {
 

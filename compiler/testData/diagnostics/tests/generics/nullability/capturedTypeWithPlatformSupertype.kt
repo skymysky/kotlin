@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: First.java
 
 public class First<T extends Sample> {
@@ -15,3 +16,5 @@ interface Sample
 fun test(s: SubFirst<*>) {
     First.bind(s)
 }
+
+/* GENERATED_FIR_TAGS: flexibleType, functionDeclaration, interfaceDeclaration, javaFunction, javaType, starProjection */

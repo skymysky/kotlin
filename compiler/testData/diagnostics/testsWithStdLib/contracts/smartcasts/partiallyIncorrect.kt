@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -12,10 +12,13 @@ fun isString(x: Any?): Boolean {
 }
 
 fun incorrectPartDoesntMatter(x: Any?) {
-    if (isString(x) && <!CONSTANT_EXPECTED_TYPE_MISMATCH!>1<!>) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+    if (isString(x) && <!CONDITION_TYPE_MISMATCH!>1<!>) {
+        x.length
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: andExpression, contractConditionalEffect, contracts, functionDeclaration, ifExpression,
+integerLiteral, isExpression, lambdaLiteral, nullableType, smartcast */

@@ -22,21 +22,29 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.descriptors.impl.*;
 import org.jetbrains.kotlin.name.Name;
+import org.jetbrains.kotlin.name.NameUtils;
+import org.jetbrains.kotlin.resolve.scopes.receivers.ContextClassReceiver;
+import org.jetbrains.kotlin.resolve.scopes.receivers.ContextReceiver;
 import org.jetbrains.kotlin.resolve.scopes.receivers.ExtensionReceiver;
-import org.jetbrains.kotlin.types.KotlinType;
-import org.jetbrains.kotlin.types.Variance;
+import org.jetbrains.kotlin.types.*;
 
 import java.util.Collections;
 
+import static org.jetbrains.kotlin.builtins.StandardNames.*;
+import static org.jetbrains.kotlin.resolve.DescriptorUtils.getContainingModule;
 import static org.jetbrains.kotlin.resolve.DescriptorUtils.getDefaultConstructorVisibility;
 import static org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.getBuiltIns;
 
 public class DescriptorFactory {
     private static class DefaultClassConstructorDescriptor extends ClassConstructorDescriptorImpl {
-        public DefaultClassConstructorDescriptor(@NotNull ClassDescriptor containingClass, @NotNull SourceElement source) {
+        public DefaultClassConstructorDescriptor(
+                @NotNull ClassDescriptor containingClass,
+                @NotNull SourceElement source,
+                boolean freedomForSealedInterfacesSupported
+        ) {
             super(containingClass, null, Annotations.Companion.getEMPTY(), true, Kind.DECLARATION, source);
             initialize(Collections.<ValueParameterDescriptor>emptyList(),
-                       getDefaultConstructorVisibility(containingClass));
+                       getDefaultConstructorVisibility(containingClass, freedomForSealedInterfacesSupported));
         }
     }
 
@@ -76,7 +84,7 @@ public class DescriptorFactory {
             boolean isDefault,
             boolean isExternal,
             boolean isInline,
-            @NotNull Visibility visibility,
+            @NotNull DescriptorVisibility visibility,
             @NotNull SourceElement sourceElement
     ) {
         PropertySetterDescriptorImpl setterDescriptor = new PropertySetterDescriptorImpl(
@@ -128,24 +136,28 @@ public class DescriptorFactory {
             @NotNull ClassDescriptor containingClass,
             @NotNull SourceElement source
     ) {
-        return new DefaultClassConstructorDescriptor(containingClass, source);
+        /*
+         * Language version settings are needed here only for computing default visibility of constructors of sealed classes
+         *   Since object can not be sealed class it's OK to pass default settings here
+         */
+        return new DefaultClassConstructorDescriptor(containingClass, source, false);
     }
 
     @NotNull
     public static SimpleFunctionDescriptor createEnumValuesMethod(@NotNull ClassDescriptor enumClass) {
         SimpleFunctionDescriptorImpl values =
-                SimpleFunctionDescriptorImpl.create(enumClass, Annotations.Companion.getEMPTY(), DescriptorUtils.ENUM_VALUES,
+                SimpleFunctionDescriptorImpl.create(enumClass, Annotations.Companion.getEMPTY(), ENUM_VALUES,
                                                     CallableMemberDescriptor.Kind.SYNTHESIZED, enumClass.getSource());
-        return values.initialize(null, null, Collections.<TypeParameterDescriptor>emptyList(),
+        return values.initialize(null, null, Collections.<ReceiverParameterDescriptor>emptyList(), Collections.<TypeParameterDescriptor>emptyList(),
                                  Collections.<ValueParameterDescriptor>emptyList(),
                                  getBuiltIns(enumClass).getArrayType(Variance.INVARIANT, enumClass.getDefaultType()),
-                                 Modality.FINAL, Visibilities.PUBLIC);
+                                 Modality.FINAL, DescriptorVisibilities.PUBLIC);
     }
 
     @NotNull
     public static SimpleFunctionDescriptor createEnumValueOfMethod(@NotNull ClassDescriptor enumClass) {
         SimpleFunctionDescriptorImpl valueOf =
-                SimpleFunctionDescriptorImpl.create(enumClass, Annotations.Companion.getEMPTY(), DescriptorUtils.ENUM_VALUE_OF,
+                SimpleFunctionDescriptorImpl.create(enumClass, Annotations.Companion.getEMPTY(), ENUM_VALUE_OF,
                                                     CallableMemberDescriptor.Kind.SYNTHESIZED, enumClass.getSource());
         ValueParameterDescriptor parameterDescriptor = new ValueParameterDescriptorImpl(
                 valueOf, null, 0, Annotations.Companion.getEMPTY(), Name.identifier("value"), getBuiltIns(enumClass).getStringType(),
@@ -155,17 +167,48 @@ public class DescriptorFactory {
                 null,
                 enumClass.getSource()
         );
-        return valueOf.initialize(null, null, Collections.<TypeParameterDescriptor>emptyList(),
+        return valueOf.initialize(null, null, Collections.<ReceiverParameterDescriptor>emptyList(), Collections.<TypeParameterDescriptor>emptyList(),
                                   Collections.singletonList(parameterDescriptor), enumClass.getDefaultType(),
-                                  Modality.FINAL, Visibilities.PUBLIC);
+                                  Modality.FINAL, DescriptorVisibilities.PUBLIC);
+    }
+
+    @Nullable
+    public static PropertyDescriptor createEnumEntriesProperty(@NotNull ClassDescriptor enumClass) {
+        ModuleDescriptor module = getContainingModule(enumClass);
+        StdlibClassFinder stdlibClassFinder = StdlibClassFinderKt.getStdlibClassFinder(module);
+        ClassDescriptor enumEntriesClass = stdlibClassFinder.findEnumEntriesClass(module);
+        if (enumEntriesClass == null) {
+            return null;
+        }
+        PropertyDescriptorImpl entries =
+                PropertyDescriptorImpl.create(enumClass, Annotations.Companion.getEMPTY(), Modality.FINAL, DescriptorVisibilities.PUBLIC,
+                                              /* isVar = */ false, ENUM_ENTRIES, CallableMemberDescriptor.Kind.SYNTHESIZED,
+                                              enumClass.getSource(), /* lateinit = */ false, /* isConst = */ false, /* isExpect = */ false,
+                                              /* isActual = */ false, /* isExternal = */ false, /* isDelegated = */ false);
+        PropertyGetterDescriptorImpl getter = new PropertyGetterDescriptorImpl(
+                entries, Annotations.Companion.getEMPTY(), Modality.FINAL, DescriptorVisibilities.PUBLIC, /* isDefault = */ false,
+                /* isExternal = */ false, /* isInline = */ false, CallableMemberDescriptor.Kind.SYNTHESIZED,
+                /* original = */ null, enumClass.getSource()
+        );
+        entries.initialize(getter, /* setter = */ null);
+        entries.setType(
+                KotlinTypeFactory.simpleType(TypeAttributes.Companion.getEmpty(),
+                                             enumEntriesClass.getTypeConstructor(),
+                                             Collections.singletonList(new TypeProjectionImpl(enumClass.getDefaultType())),
+                                             /* isNullable = */ false),
+                Collections.<TypeParameterDescriptor>emptyList(), null, null,
+                Collections.<ReceiverParameterDescriptor>emptyList())
+        ;
+        getter.initialize(entries.getReturnType());
+        return entries;
     }
 
     public static boolean isEnumValuesMethod(@NotNull FunctionDescriptor descriptor) {
-        return descriptor.getName().equals(DescriptorUtils.ENUM_VALUES) && isEnumSpecialMethod(descriptor);
+        return descriptor.getName().equals(ENUM_VALUES) && isEnumSpecialMethod(descriptor);
     }
 
     public static boolean isEnumValueOfMethod(@NotNull FunctionDescriptor descriptor) {
-        return descriptor.getName().equals(DescriptorUtils.ENUM_VALUE_OF) && isEnumSpecialMethod(descriptor);
+        return descriptor.getName().equals(ENUM_VALUE_OF) && isEnumSpecialMethod(descriptor);
     }
 
     private static boolean isEnumSpecialMethod(@NotNull FunctionDescriptor descriptor) {
@@ -182,5 +225,33 @@ public class DescriptorFactory {
         return receiverParameterType == null
                ? null
                : new ReceiverParameterDescriptorImpl(owner, new ExtensionReceiver(owner, receiverParameterType, null), annotations);
+    }
+
+    @Nullable
+    public static ReceiverParameterDescriptor createContextReceiverParameterForCallable(
+            @NotNull CallableDescriptor owner,
+            @Nullable KotlinType receiverParameterType,
+            @Nullable Name customLabelName,
+            @NotNull Annotations annotations,
+            int index
+    ) {
+        return receiverParameterType == null
+               ? null
+               : new ReceiverParameterDescriptorImpl(owner, new ContextReceiver(owner, receiverParameterType, customLabelName, null), annotations,
+                                                     NameUtils.contextReceiverName(index));
+    }
+
+    @Nullable
+    public static ReceiverParameterDescriptor createContextReceiverParameterForClass(
+            @NotNull ClassDescriptor owner,
+            @Nullable KotlinType receiverParameterType,
+            @Nullable Name customLabelName,
+            @NotNull Annotations annotations,
+            int index
+    ) {
+        return receiverParameterType == null
+               ? null
+               : new ReceiverParameterDescriptorImpl(owner, new ContextClassReceiver(owner, receiverParameterType, customLabelName, null),
+                                                     annotations, NameUtils.contextReceiverName(index));
     }
 }

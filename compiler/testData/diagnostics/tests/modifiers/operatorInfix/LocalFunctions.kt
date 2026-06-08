@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 class Example
 
@@ -10,31 +10,35 @@ operator infix fun Example.times(other: Example) = 0
 fun Example.div(other: Example) = 0
 
 fun a() {
-    with (Example()) {
+    <!CANNOT_INFER_PARAMETER_TYPE!>with<!> (Example()) {
         operator infix fun Example.plus(other: Example) = ""
         fun Example.minus(other: Example) = ""
 
         operator infix fun Example.times(other: Example) = ""
         fun Example.div(other: Example) = ""
 
-        with (Example()) {
+        <!CANNOT_INFER_PARAMETER_TYPE!>with<!> (Example()) {
             val a = Example()
             val b = Example()
 
             consumeString(a + b)
-            consumeInt(<!NI;TYPE_MISMATCH!>a <!NI;OPERATOR_MODIFIER_REQUIRED!>-<!> b<!>)
+            consumeInt(a - b)
 
             consumeString(a plus b)
             consumeInt(a minus b)
 
             a * b
-            a <!OPERATOR_MODIFIER_REQUIRED!>/<!> b
+            a <!NONE_APPLICABLE!>/<!> b
 
             a times b
-            a <!INFIX_MODIFIER_REQUIRED!>div<!> b
+            a <!NONE_APPLICABLE!>div<!> b
         }
     }
 }
 
 fun consumeInt(i: Int) {}
 fun consumeString(s: String) {}
+
+/* GENERATED_FIR_TAGS: additiveExpression, classDeclaration, funWithExtensionReceiver, functionDeclaration, infix,
+integerLiteral, lambdaLiteral, localFunction, localProperty, multiplicativeExpression, operator, propertyDeclaration,
+stringLiteral */

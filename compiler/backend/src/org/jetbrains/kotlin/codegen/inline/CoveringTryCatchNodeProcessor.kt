@@ -20,6 +20,7 @@ import com.google.common.collect.LinkedListMultimap
 import org.jetbrains.kotlin.codegen.optimization.common.isMeaningful
 import org.jetbrains.org.objectweb.asm.tree.*
 import java.util.*
+import kotlin.math.max
 
 abstract class CoveringTryCatchNodeProcessor(parameterSize: Int) {
     val tryBlocksMetaInfo: IntervalMetaInfo<TryCatchBlockNodeInfo> = IntervalMetaInfo(this)
@@ -40,7 +41,7 @@ abstract class CoveringTryCatchNodeProcessor(parameterSize: Int) {
         if (curInstr is VarInsnNode || curInstr is IincInsnNode) {
             val argSize = getLoadStoreArgSize(curInstr.opcode)
             val varIndex = if (curInstr is VarInsnNode) curInstr.`var` else (curInstr as IincInsnNode).`var`
-            nextFreeLocalIndex = Math.max(nextFreeLocalIndex, varIndex + argSize)
+            nextFreeLocalIndex = max(nextFreeLocalIndex, varIndex + argSize)
         }
 
         if (curInstr is LabelNode) {
@@ -90,6 +91,31 @@ class IntervalMetaInfo<T : SplittableInterval<T>>(private val processor: Coverin
     val allIntervals: ArrayList<T> = arrayListOf()
     val currentIntervals: MutableSet<T> = linkedSetOf()
 
+    fun intersection(instructions: InsnList, interval: T, other: Interval): T? {
+        val startIndex = instructions.indexOf(interval.startLabel)
+        val endIndex = instructions.indexOf(interval.endLabel)
+        val otherStartIndex = instructions.indexOf(other.startLabel)
+        val otherEndIndex = instructions.indexOf(other.endLabel)
+
+        // Two intervals [a,b] and [c,d] intersect if max(a,c) < min(b,d), and the intersection is [max(a,c), min(b,d))
+        val newStartIndex = maxOf(startIndex, otherStartIndex)
+        val newEndIndex = minOf(endIndex, otherEndIndex)
+
+        if (newStartIndex >= newEndIndex) {
+            // no intersection
+            return null
+        }
+
+        val newStartLabel = if (startIndex == newStartIndex) interval.startLabel else other.startLabel
+        val newEndLabel = if (endIndex == newEndIndex) interval.endLabel else other.endLabel
+        return interval.copyWithNewBounds(SimpleInterval(newStartLabel, newEndLabel))
+    }
+
+    fun copyIntervalsForRange(instructions: InsnList, startLabel: LabelNode, endLabel: LabelNode): List<T> {
+        val finallyInterval = SimpleInterval(startLabel, endLabel)
+        return allIntervals.mapNotNull { intersection(instructions, it, finallyInterval) }
+    }
+
     fun addNewInterval(newInfo: T) {
         newInfo.verify(processor)
         intervalStarts.put(newInfo.startLabel, newInfo)
@@ -114,7 +140,7 @@ class IntervalMetaInfo<T : SplittableInterval<T>>(private val processor: Coverin
     }
 
     fun splitAndRemoveCurrentIntervals(by: Interval, keepStart: Boolean) {
-        currentIntervals.map { splitAndRemoveInterval(it, by, keepStart) }
+        currentIntervals.toList().forEach { splitAndRemoveIntervalFromCurrents(it, by, keepStart) }
     }
 
     fun processCurrent(curIns: LabelNode, directOrder: Boolean) {
@@ -133,15 +159,14 @@ class IntervalMetaInfo<T : SplittableInterval<T>>(private val processor: Coverin
         val split = interval.split(by, keepStart)
         if (!keepStart) {
             remapStartLabel(split.newPart.startLabel, split.patchedPart)
-        }
-        else {
+        } else {
             remapEndLabel(split.newPart.endLabel, split.patchedPart)
         }
         addNewInterval(split.newPart)
         return split
     }
 
-    fun splitAndRemoveInterval(interval: T, by: Interval, keepStart: Boolean): SplitPair<T> {
+    fun splitAndRemoveIntervalFromCurrents(interval: T, by: Interval, keepStart: Boolean): SplitPair<T> {
         val splitPair = split(interval, by, keepStart)
         val removed = currentIntervals.remove(splitPair.patchedPart)
         assert(removed) { "Wrong interval structure: $splitPair" }
@@ -149,7 +174,7 @@ class IntervalMetaInfo<T : SplittableInterval<T>>(private val processor: Coverin
     }
 
     private fun getInterval(curIns: LabelNode, isOpen: Boolean) =
-            if (isOpen) intervalStarts.get(curIns) else intervalEnds.get(curIns)
+        if (isOpen) intervalStarts.get(curIns) else intervalEnds.get(curIns)
 }
 
 fun TryCatchBlockNode.isMeaningless() = SimpleInterval(start, end).isMeaningless()
@@ -190,16 +215,25 @@ class LocalVarNodeWrapper(val node: LocalVariableNode) : Interval, SplittableInt
         val newPartInterval = if (keepStart) {
             val oldEnd = endLabel
             node.end = splitBy.startLabel
-            Pair(splitBy.endLabel, oldEnd)
-        }
-        else {
+            SimpleInterval(splitBy.endLabel, oldEnd)
+        } else {
             val oldStart = startLabel
             node.start = splitBy.endLabel
-            Pair(oldStart, splitBy.startLabel)
+            SimpleInterval(oldStart, splitBy.startLabel)
         }
 
-        return SplitPair(this, LocalVarNodeWrapper(
-                LocalVariableNode(node.name, node.desc, node.signature, newPartInterval.first, newPartInterval.second, node.index)
-        ))
+        return SplitPair(this, copyWithNewBounds(newPartInterval))
+    }
+
+    override fun copyWithNewBounds(newBounds: Interval): LocalVarNodeWrapper =
+        LocalVarNodeWrapper(LocalVariableNode(node.name, node.desc, node.signature, newBounds.startLabel, newBounds.endLabel, node.index))
+
+    fun remapLabel(oldLabel: LabelNode, newLabel: LabelNode) {
+        if (node.start == oldLabel) {
+            node.start = newLabel
+        }
+        if (node.end == oldLabel) {
+            node.end = newLabel
+        }
     }
 }

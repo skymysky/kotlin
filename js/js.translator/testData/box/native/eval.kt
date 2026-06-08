@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JS_IR
-// SKIP_MINIFICATION
-package foo
+// DONT_TARGET_EXACT_BACKEND: WASM_JS
+// WASM_MUTE_REASON: UNSUPPORTED_JS_INTEROP
 
 val top = "TOP LEVEL"
 
@@ -10,9 +9,6 @@ fun box(): String {
     // assertEquals(3, eval("v + 2"))
 
     assertEquals(5, eval("3 + 2"))
-
-    val PACKAGE = "JS_TESTS.foo"
-    assertEquals(top, eval("$PACKAGE.top"))
 
     return "OK"
 }

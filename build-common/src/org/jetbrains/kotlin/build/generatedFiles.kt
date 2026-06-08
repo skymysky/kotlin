@@ -17,20 +17,26 @@
 package org.jetbrains.kotlin.build
 
 import org.jetbrains.kotlin.incremental.LocalFileKotlinClass
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.metadata.jvm.deserialization.ModuleMapping
 import org.jetbrains.kotlin.utils.sure
 import java.io.File
 
 open class GeneratedFile(
-    val sourceFiles: Collection<File>,
+    sourceFiles: Collection<File>,
     val outputFile: File
-)
+) {
+    val sourceFiles = sourceFiles.filter { it.exists() }.sortedBy { it.path }
 
-class GeneratedJvmClass (
-        sourceFiles: Collection<File>,
-        outputFile: File
+    override fun toString(): String = "${this::class.java.simpleName}: $outputFile"
+}
+
+class GeneratedJvmClass(
+    sourceFiles: Collection<File>,
+    outputFile: File,
+    metadataVersionFromLanguageVersion: MetadataVersion
 ) : GeneratedFile(sourceFiles, outputFile) {
-    val outputClass = LocalFileKotlinClass.create(outputFile).sure {
+    val outputClass = LocalFileKotlinClass.create(outputFile, metadataVersionFromLanguageVersion).sure {
         "Couldn't load KotlinClass from $outputFile; it may happen because class doesn't have valid Kotlin annotations"
     }
 }

@@ -1,6 +1,15 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 // MODULE: m1-common
 // FILE: common.kt
+import kotlin.reflect.KProperty
+
+fun <T> lazy(initializer: () -> T): Lazy<T> = TODO()
+
+interface Lazy<out T> {
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T = TODO()
+}
 
 expect class OuterClass {
     class NestedClass {
@@ -8,6 +17,8 @@ expect class OuterClass {
             class Another {
                 fun f(s: String)
                 val p: Int
+                val c: Int = <!EXPECTED_PROPERTY_INITIALIZER!>1<!>
+                val a: Int by <!EXPECTED_DELEGATED_PROPERTY!>lazy { 1 }<!>
             }
         }
     }
@@ -28,7 +39,9 @@ expect object OuterObject {
     object NestedObject
 }
 
-// MODULE: m2-jvm(m1-common)
+fun TODO(): Nothing = null!!
+
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual class OuterClass {
@@ -37,6 +50,8 @@ actual class OuterClass {
             actual class Another {
                 actual fun f(s: String) {}
                 actual val p: Int = 42
+                actual val c: Int = 2
+                actual val a: Int = 3
             }
         }
     }
@@ -56,3 +71,7 @@ actual class OuterClassWithNamedCompanion {
 actual object OuterObject {
     actual object NestedObject
 }
+
+/* GENERATED_FIR_TAGS: actual, checkNotNullCall, classDeclaration, companionObject, expect, functionDeclaration,
+functionalType, inner, integerLiteral, interfaceDeclaration, lambdaLiteral, nestedClass, nullableType, objectDeclaration,
+operator, out, propertyDeclaration, propertyDelegate, starProjection, stringLiteral, typeParameter */

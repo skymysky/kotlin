@@ -1,8 +1,8 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // KT-5362 Compiler crashes on access to extension method from nested class
 class Outer {
     class Nested{
-        fun foo(s: String) = s.<!UNRESOLVED_REFERENCE!>extension<!>()
+        fun foo(s: String) = s.<!INACCESSIBLE_OUTER_CLASS_RECEIVER!>extension<!>()
     }
 
     private fun String.extension(): String = this
@@ -12,7 +12,7 @@ class Outer {
 fun Activity.toast() = Unit
 class Activity(){
     class Fragment{
-        fun call() = <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, UNRESOLVED_REFERENCE_WRONG_RECEIVER!>toast<!>()
+        fun call() = <!INACCESSIBLE_OUTER_CLASS_RECEIVER!>toast<!>()
     }
 }
 
@@ -25,7 +25,10 @@ public class Manager {
 
     class Task(val callback: Manager.() -> Unit) : Runnable {
         override public fun run() {
-            callback(<!NO_VALUE_FOR_PARAMETER!>)<!> // Manager is not accessible here, but no error is shown
+            <!INACCESSIBLE_OUTER_CLASS_RECEIVER!>callback<!>() // Manager is not accessible here, but no error is shown
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType, localProperty,
+nestedClass, override, primaryConstructor, propertyDeclaration, thisExpression, typeWithExtension */

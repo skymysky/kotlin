@@ -1,53 +1,97 @@
-group 'com.example'
-version '1.0'
-
-buildscript {
-	repositories {
-		mavenLocal()
-		jcenter()
-	}
-	dependencies {
-		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-	}
+plugins {
+    id("org.jetbrains.kotlin.multiplatform")
+    id("maven-publish")
+    //id("org.jetbrains.kotlin.plugin.allopen")
+    //id("org.jetbrains.kotlin.plugin.noarg")
+    //id("com.gradleup.shadow")
+    //id("application")
+    //id("org.jetbrains.kotlin.kapt")
 }
 
-apply plugin: 'kotlin-multiplatform'
+group = "com.example"
+version = "1.0"
 
-repositories {
-    mavenLocal()
-    jcenter()
-    maven { url  "http://dl.bintray.com/kotlin/kotlinx.html/" }
-}
+def shouldBeJs = true
 
 kotlin {
-    targets {
-        fromPreset(presets.jvm, 'jvm6')
-        fromPreset(presets.js, 'nodeJs')
-        fromPreset(presets.wasm32, 'wasm32')
-        fromPreset(presets.linuxX64, 'linux64')
-        fromPreset(presets.mingwX64, 'mingw64')
-        fromPreset(presets.macosX64, 'macos64')
+    jvm("jvm6") {}
+    jvm("jvm6") { println targetName } // access existing target
+
+    if (shouldBeJs) {
+        js("nodeJs") {
+            nodejs()
+        }
+        wasmJs()
     }
-    sourceSets {
-        jvm6Main {
-            dependencies {
-                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.23.4'
+
+    targets {
+        linuxX64('linux64')
+        mingwX64('mingw64')
+        macosX64('macos64')
+        macosArm64('macosArm64')
+
+        // Check the DSL constructs in the Groovy DSL:
+        jvm('jvm6') {
+            println "Configuring $targetName"
+            compilations.main {
+                kotlinOptions {
+                    println "jvmTarget = " + jvmTarget
+                }
+                defaultSourceSet {
+                    println "Kotlin srcDirs: " + kotlin.srcDirs
+                }
             }
         }
-        nodeJsMain {
-        	dependencies {
-        		implementation 'org.jetbrains.kotlinx:kotlinx-html-js:0.6.11'
-        	}
+
+        all {
+            mavenPublication {
+                pom.withXml {
+                    asNode().appendNode("name", "Sample MPP library")
+                }
+            }
+        }
+    }
+
+    sourceSets {
+        commonTest {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+        jvm6Main {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.23.4")
+            }
+        }
+        jvm6Test {
+            dependencies {
+                implementation(kotlin("test-junit"))
+            }
+        }
+
+        nativeMain { dependsOn commonMain }
+        linux64Main { dependsOn nativeMain }
+        macos64Main { dependsOn nativeMain }
+        macosArm64Main { dependsOn nativeMain }
+    }
+}
+
+kotlin.sourceSets.each { println(it.kotlin.srcDirs) }
+
+// Check that a compilation may be created after project evaluation, KT-28896:
+afterEvaluate {
+    kotlin {
+        jvm("jvm6").compilations.create("benchmark") {
+            tasks.named("assemble") { dependsOn(compileTaskProvider) }
         }
     }
 }
 
-kotlin.sourceSets.each { println it.kotlin.srcDirs }
-
-apply plugin: 'maven-publish'
-
 publishing {
-	repositories {
-		maven { url "file://${projectDir.absolutePath.replace('\\', '/')}/repo" }
-	}
+    repositories {
+        maven {
+            name = "LocalRepo"
+            url = uri("<localRepo>")
+        }
+    }
 }

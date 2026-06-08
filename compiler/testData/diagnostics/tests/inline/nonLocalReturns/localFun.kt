@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE -NOTHING_TO_INLINE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE -NOTHING_TO_INLINE
 
 inline fun <R> inlineFunOnlyLocal(crossinline p: () -> R) {
     <!NOT_YET_SUPPORTED_IN_INLINE!>fun<!> a() {
@@ -13,3 +14,6 @@ inline fun <R> inlineFun(p: () -> R) {
     }
     a()
 }
+
+/* GENERATED_FIR_TAGS: crossinline, functionDeclaration, functionalType, inline, localFunction, localProperty,
+nullableType, propertyDeclaration, typeParameter */

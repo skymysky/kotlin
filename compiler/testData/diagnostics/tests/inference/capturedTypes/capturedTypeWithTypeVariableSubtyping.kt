@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun takeCovArray(a: Array<out Number>) {}
 fun takeInArray(a: Array<in Number>) {}
@@ -20,3 +21,5 @@ fun test() {
     takeCovArray(arrayOutId(foo()))
     takeInArray(arrayInId(bar()))
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, inProjection, nullableType, outProjection, typeParameter */

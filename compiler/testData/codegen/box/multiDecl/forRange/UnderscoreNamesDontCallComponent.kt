@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JS_IR
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
 class A {
     operator fun component1() = "O"
     operator fun component2(): String = throw RuntimeException("fail 0")
@@ -8,7 +8,7 @@ class A {
 fun box(): String {
     val aA = Array(1) { A() }
 
-    for ((x, _, z) in aA) {
+    for ([x, _, z] in aA) {
         return x + z
     }
 

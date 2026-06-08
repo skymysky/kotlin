@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1819
+// KJS_WITH_FULL_RUNTIME
 // MODULE: lib1
 // FILE: lib1.kt
 package lib1
@@ -20,7 +19,7 @@ interface B {
     fun bar() = foo()
 }
 
-// MODULE: main(lib1,lib2)
+// MODULE: main(lib1, lib2)
 // FILE: main.kt
 package main
 
@@ -42,9 +41,6 @@ fun box(): String {
 
     val b = Derived2()
     if (b.bar() != "B.foo") return "fail2: ${b.bar()}"
-
-    checkJsNames("foo", a)
-    checkJsNames("foo", b)
 
     return "OK"
 }

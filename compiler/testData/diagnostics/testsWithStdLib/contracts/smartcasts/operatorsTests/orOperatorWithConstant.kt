@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -30,7 +30,7 @@ fun annotatedTrueOrTrue(x: Any?) {
 
 fun annotatedTrueOrFalse(x: Any?) {
     if (trueWhenString(x) || false) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
@@ -43,7 +43,7 @@ fun annotatedFalseOrTrue(x: Any?) {
     }
     else {
         // Unreachable
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
 }
 
@@ -52,6 +52,9 @@ fun annotatedFalseOrFalse(x: Any?) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        x.length
     }
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, disjunctionExpression, functionDeclaration, ifExpression,
+isExpression, lambdaLiteral, nullableType, smartcast */

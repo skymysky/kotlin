@@ -2,11 +2,7 @@ description = "Kotlin metadata manipulation library"
 
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
 }
-
-jvmTarget = "1.6"
-javaHome = rootProject.extra["JDK_16"] as String
 
 sourceSets {
     "main" { projectDefault() }
@@ -14,7 +10,14 @@ sourceSets {
 }
 
 dependencies {
-    compile(project(":kotlin-stdlib"))
+    api(kotlinStdlib())
     compileOnly(project(":core:metadata"))
     compileOnly(protobufLite())
+}
+
+kotlin {
+    explicitApi()
+    compilerOptions {
+        freeCompilerArgs.add("-Xallow-kotlin-package")
+    }
 }

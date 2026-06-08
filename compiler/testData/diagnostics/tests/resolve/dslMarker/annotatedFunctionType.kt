@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 @Target(AnnotationTarget.TYPE)
 @DslMarker
@@ -20,11 +21,11 @@ fun baz4(x: @MyDsl B.() -> Unit) {}
 fun @MyDsl A.baz5() {
     baz4 {
         bar()
-        <!DSL_SCOPE_VIOLATION_WARNING!>foo<!>()
+        <!DSL_SCOPE_VIOLATION!>foo<!>()
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     baz1 {
         baz2 {
             bar()
@@ -35,22 +36,25 @@ fun main(args: Array<String>) {
     baz3 {
         baz2 {
             bar()
-            <!DSL_SCOPE_VIOLATION_WARNING!>foo<!>()
+            <!DSL_SCOPE_VIOLATION!>foo<!>()
         }
     }
 
     baz1 {
         baz4 {
             bar()
-            <!DSL_SCOPE_VIOLATION_WARNING!>foo<!>()
+            <!DSL_SCOPE_VIOLATION!>foo<!>()
         }
     }
 
     baz3 {
         baz4 {
             bar()
-            <!DSL_SCOPE_VIOLATION_WARNING!>foo<!>()
+            <!DSL_SCOPE_VIOLATION!>foo<!>()
         }
     }
 
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType,
+interfaceDeclaration, lambdaLiteral, typeWithExtension */

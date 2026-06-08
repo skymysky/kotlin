@@ -1,4 +1,5 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: BACKEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -6,7 +7,7 @@ expect abstract class Base {
     abstract fun foo()
 }
 
-expect class DerivedImplicit : Base
+expect <!ABSTRACT_CLASS_MEMBER_NOT_IMPLEMENTED{METADATA}!>class DerivedImplicit<!> : Base
 
 expect class DerivedExplicit : Base {
     override fun foo()
@@ -16,7 +17,7 @@ expect class DerivedExplicitCheck : Base {
     override fun foo()
 }
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual abstract class Base {
@@ -34,3 +35,5 @@ actual class DerivedExplicit : Base() {
 actual class DerivedExplicitCheck : Base() {
     override fun <!ACTUAL_MISSING!>foo<!>() {}
 }
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, expect, functionDeclaration, override */

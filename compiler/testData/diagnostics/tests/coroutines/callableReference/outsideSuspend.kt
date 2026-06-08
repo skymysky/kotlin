@@ -1,7 +1,5 @@
-// !CHECK_TYPE
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
 import kotlin.reflect.KSuspendFunction0
 
@@ -10,3 +8,6 @@ suspend fun foo() {}
 fun test() {
     ::foo checkType { _<KSuspendFunction0<Unit>>() }
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, infix, lambdaLiteral, nullableType, suspend, typeParameter, typeWithExtension */

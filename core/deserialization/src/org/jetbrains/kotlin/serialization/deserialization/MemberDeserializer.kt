@@ -1,11 +1,10 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.serialization.deserialization
 
-import org.jetbrains.kotlin.builtins.isSuspendFunctionType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.FieldDescriptorImpl
@@ -16,25 +15,25 @@ import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.*
 import org.jetbrains.kotlin.protobuf.MessageLite
 import org.jetbrains.kotlin.resolve.DescriptorFactory
-import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameOrNull
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedMemberDescriptor.CoroutinesCompatibilityMode
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.UnwrappedType
-import org.jetbrains.kotlin.types.typeUtil.contains
 
 class MemberDeserializer(private val c: DeserializationContext) {
     private val annotationDeserializer = AnnotationDeserializer(c.components.moduleDescriptor, c.components.notFoundClasses)
 
-    fun loadProperty(proto: ProtoBuf.Property): PropertyDescriptor {
+    fun loadProperty(proto: ProtoBuf.Property, loadAnnotationsFromMetadata: Boolean = false): PropertyDescriptor {
         val flags = if (proto.hasFlags()) proto.flags else loadOldFlags(proto.oldFlags)
+
+        val annotationsFromMetadata = if (loadAnnotationsFromMetadata) Annotations.create(
+            proto.annotationList.map { annotationDeserializer.deserializeAnnotation(it, c.nameResolver) }
+        ) else null
 
         val property = DeserializedPropertyDescriptor(
             c.containingDeclaration, null,
-            getAnnotations(proto, flags, AnnotatedCallableKind.PROPERTY),
+            annotationsFromMetadata ?: getAnnotations(proto, flags, AnnotatedCallableKind.PROPERTY),
             ProtoEnumFlags.modality(Flags.MODALITY.get(flags)),
-            ProtoEnumFlags.visibility(Flags.VISIBILITY.get(flags)),
+            ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(flags)),
             Flags.IS_VAR.get(flags),
             c.nameResolver.getName(proto.name),
             ProtoEnumFlags.memberKind(Flags.MEMBER_KIND.get(flags)),
@@ -61,10 +60,14 @@ class MemberDeserializer(private val c: DeserializationContext) {
         property.setType(
             local.typeDeserializer.type(proto.returnType(c.typeTable)),
             local.typeDeserializer.ownTypeParameters,
-            getDispatchReceiverParameter(),
-            proto.receiverType(c.typeTable)?.let(local.typeDeserializer::type)?.let { receiverType ->
-                DescriptorFactory.createExtensionReceiverParameterForCallable(property, receiverType, receiverAnnotations)
-            }
+            getDispatchReceiverParameter()?.takeUnless { Flags.IS_STATIC_PROPERTY.get(flags) },
+            proto.receiverType(c.typeTable)?.takeUnless { Flags.IS_STATIC_PROPERTY.get(flags) }?.let(local.typeDeserializer::type)
+                ?.let { receiverType ->
+                    DescriptorFactory.createExtensionReceiverParameterForCallable(property, receiverType, receiverAnnotations)
+                },
+            local.memberDeserializer.contextReceivers(
+                proto.contextReceiverTypes(c.typeTable), proto.contextParameterList, proto, AnnotatedCallableKind.PROPERTY_GETTER,
+            ),
         )
 
         // Per documentation on Property.getter_flags in metadata.proto, if an accessor flags field is absent, its value should be computed
@@ -87,7 +90,7 @@ class MemberDeserializer(private val c: DeserializationContext) {
                     property,
                     annotations,
                     ProtoEnumFlags.modality(Flags.MODALITY.get(getterFlags)),
-                    ProtoEnumFlags.visibility(Flags.VISIBILITY.get(getterFlags)),
+                    ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(getterFlags)),
                     /* isDefault = */ !isNotDefault,
                     /* isExternal = */ isExternal,
                     isInline,
@@ -113,7 +116,7 @@ class MemberDeserializer(private val c: DeserializationContext) {
                     property,
                     annotations,
                     ProtoEnumFlags.modality(Flags.MODALITY.get(setterFlags)),
-                    ProtoEnumFlags.visibility(Flags.VISIBILITY.get(setterFlags)),
+                    ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(setterFlags)),
                     /* isDefault = */ !isNotDefault,
                     /* isExternal = */ isExternal,
                     isInline,
@@ -136,119 +139,55 @@ class MemberDeserializer(private val c: DeserializationContext) {
         }
 
         if (Flags.HAS_CONSTANT.get(flags)) {
-            property.setCompileTimeInitializer(
+            property.setCompileTimeInitializerFactory {
                 c.storageManager.createNullableLazyValue {
                     val container = c.containingDeclaration.asProtoContainer()!!
                     c.components.annotationAndConstantLoader.loadPropertyConstant(container, proto, property.returnType)
                 }
-            )
+            }
+        }
+
+        if ((c.containingDeclaration as? ClassDescriptor)?.kind == ClassKind.ANNOTATION_CLASS) {
+            property.setCompileTimeInitializerFactory {
+                c.storageManager.createNullableLazyValue {
+                    val container = c.containingDeclaration.asProtoContainer()!!
+                    c.components.annotationAndConstantLoader.loadAnnotationDefaultValue(container, proto, property.returnType)
+                }
+            }
         }
 
         property.initialize(
             getter, setter,
             FieldDescriptorImpl(getPropertyFieldAnnotations(proto, isDelegate = false), property),
-            FieldDescriptorImpl(getPropertyFieldAnnotations(proto, isDelegate = true), property),
-            property.checkExperimentalCoroutine(local.typeDeserializer)
+            FieldDescriptorImpl(getPropertyFieldAnnotations(proto, isDelegate = true), property)
         )
 
         return property
     }
 
-    private fun DeserializedMemberDescriptor.checkExperimentalCoroutine(
-        typeDeserializer: TypeDeserializer
-    ): DeserializedMemberDescriptor.CoroutinesCompatibilityMode {
-        if (!versionAndReleaseCoroutinesMismatch()) return CoroutinesCompatibilityMode.COMPATIBLE
-
-        forceUpperBoundsComputation(typeDeserializer)
-
-        return if (typeDeserializer.experimentalSuspendFunctionTypeEncountered)
-            CoroutinesCompatibilityMode.INCOMPATIBLE
-        else
-            CoroutinesCompatibilityMode.COMPATIBLE
-    }
-
-    private fun forceUpperBoundsComputation(typeDeserializer: TypeDeserializer) {
-        typeDeserializer.ownTypeParameters.forEach { it.upperBounds }
-    }
-
     private fun DeserializedSimpleFunctionDescriptor.initializeWithCoroutinesExperimentalityStatus(
         extensionReceiverParameter: ReceiverParameterDescriptor?,
         dispatchReceiverParameter: ReceiverParameterDescriptor?,
+        contextReceiverParameters: List<ReceiverParameterDescriptor>,
         typeParameters: List<TypeParameterDescriptor>,
         unsubstitutedValueParameters: List<ValueParameterDescriptor>,
         unsubstitutedReturnType: KotlinType?,
         modality: Modality?,
-        visibility: Visibility,
-        userDataMap: Map<out CallableDescriptor.UserDataKey<*>, *>,
-        isSuspend: Boolean
+        visibility: DescriptorVisibility,
+        userDataMap: Map<out CallableDescriptor.UserDataKey<*>, *>
     ) {
         initialize(
             extensionReceiverParameter,
             dispatchReceiverParameter,
+            contextReceiverParameters,
             typeParameters,
             unsubstitutedValueParameters,
             unsubstitutedReturnType,
             modality,
             visibility,
-            userDataMap,
-            computeExperimentalityModeForFunctions(
-                extensionReceiverParameter,
-                unsubstitutedValueParameters,
-                typeParameters,
-                unsubstitutedReturnType,
-                isSuspend
-            )
+            userDataMap
         )
     }
-
-    private fun DeserializedCallableMemberDescriptor.computeExperimentalityModeForFunctions(
-        extensionReceiverParameter: ReceiverParameterDescriptor?,
-        parameters: Collection<ValueParameterDescriptor>,
-        typeParameters: Collection<TypeParameterDescriptor>,
-        returnType: KotlinType?,
-        isSuspend: Boolean
-    ): DeserializedMemberDescriptor.CoroutinesCompatibilityMode {
-        if (!versionAndReleaseCoroutinesMismatch()) return CoroutinesCompatibilityMode.COMPATIBLE
-        if (fqNameOrNull() == KOTLIN_SUSPEND_BUILT_IN_FUNCTION_FQ_NAME) return CoroutinesCompatibilityMode.COMPATIBLE
-
-        val types = parameters.map { it.type } + listOfNotNull(extensionReceiverParameter?.type)
-
-        if (returnType?.containsSuspendFunctionType() == true) return CoroutinesCompatibilityMode.INCOMPATIBLE
-        if (typeParameters.any { typeParameter -> typeParameter.upperBounds.any { it.containsSuspendFunctionType() } }) {
-            return CoroutinesCompatibilityMode.INCOMPATIBLE
-        }
-
-        val maxFromParameters = types.map { type ->
-            when {
-                type.isSuspendFunctionType && type.arguments.size <= 3 ->
-                    if (type.arguments.any { it.type.containsSuspendFunctionType() })
-                        CoroutinesCompatibilityMode.INCOMPATIBLE
-                    else
-                        CoroutinesCompatibilityMode.NEEDS_WRAPPER
-
-                type.containsSuspendFunctionType() -> CoroutinesCompatibilityMode.INCOMPATIBLE
-
-                else -> CoroutinesCompatibilityMode.COMPATIBLE
-            }
-        }.max() ?: CoroutinesCompatibilityMode.COMPATIBLE
-
-        return maxOf(
-            if (isSuspend)
-                CoroutinesCompatibilityMode.NEEDS_WRAPPER
-            else
-                CoroutinesCompatibilityMode.COMPATIBLE,
-            maxFromParameters
-        )
-    }
-
-
-    private fun KotlinType.containsSuspendFunctionType() = contains(UnwrappedType::isSuspendFunctionType)
-
-
-    private fun DeserializedMemberDescriptor.versionAndReleaseCoroutinesMismatch(): Boolean =
-        c.components.configuration.releaseCoroutines && versionRequirements.none {
-            it.version == VersionRequirement.Version(1, 3) && it.kind == ProtoBuf.VersionRequirement.VersionKind.LANGUAGE_VERSION
-        }
 
     private fun loadOldFlags(oldFlags: Int): Int {
         val lowSixBits = oldFlags and 0x3f
@@ -272,20 +211,24 @@ class MemberDeserializer(private val c: DeserializationContext) {
             ProtoEnumFlags.memberKind(Flags.MEMBER_KIND.get(flags)), proto, c.nameResolver, c.typeTable, versionRequirementTable,
             c.containerSource
         )
+
         val local = c.childContext(function, proto.typeParameterList)
 
         function.initializeWithCoroutinesExperimentalityStatus(
-            proto.receiverType(c.typeTable)?.let(local.typeDeserializer::type)?.let { receiverType ->
-                DescriptorFactory.createExtensionReceiverParameterForCallable(function, receiverType, receiverAnnotations)
-            },
-            getDispatchReceiverParameter(),
+            proto.receiverType(c.typeTable)?.takeUnless { Flags.IS_STATIC_FUNCTION.get(flags) }?.let(local.typeDeserializer::type)
+                ?.let { receiverType ->
+                    DescriptorFactory.createExtensionReceiverParameterForCallable(function, receiverType, receiverAnnotations)
+                },
+            getDispatchReceiverParameter()?.takeUnless { Flags.IS_STATIC_FUNCTION.get(flags) },
+            local.memberDeserializer.contextReceivers(
+                proto.contextReceiverTypes(c.typeTable), proto.contextParameterList, proto, AnnotatedCallableKind.FUNCTION,
+            ),
             local.typeDeserializer.ownTypeParameters,
             local.memberDeserializer.valueParameters(proto.valueParameterList, proto, AnnotatedCallableKind.FUNCTION),
             local.typeDeserializer.type(proto.returnType(c.typeTable)),
             ProtoEnumFlags.modality(Flags.MODALITY.get(flags)),
-            ProtoEnumFlags.visibility(Flags.VISIBILITY.get(flags)),
-            emptyMap<CallableDescriptor.UserDataKey<*>, Any?>(),
-            Flags.IS_SUSPEND.get(flags)
+            ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(flags)),
+            emptyMap<CallableDescriptor.UserDataKey<*>, Any?>()
         )
         function.isOperator = Flags.IS_OPERATOR.get(flags)
         function.isInfix = Flags.IS_INFIX.get(flags)
@@ -294,9 +237,10 @@ class MemberDeserializer(private val c: DeserializationContext) {
         function.isTailrec = Flags.IS_TAILREC.get(flags)
         function.isSuspend = Flags.IS_SUSPEND.get(flags)
         function.isExpect = Flags.IS_EXPECT_FUNCTION.get(flags)
+        function.setHasStableParameterNames(!Flags.IS_FUNCTION_WITH_NON_STABLE_PARAMETER_NAMES.get(flags))
 
         val mapValueForContract =
-            c.components.contractDeserializer.deserializeContractFromFunction(proto, function, c.typeTable, c.typeDeserializer)
+            c.components.contractDeserializer.deserializeContractFromFunction(proto, function, c.typeTable, local.typeDeserializer)
         if (mapValueForContract != null) {
             function.putInUserDataMap(mapValueForContract.first, mapValueForContract.second)
         }
@@ -309,7 +253,7 @@ class MemberDeserializer(private val c: DeserializationContext) {
             proto.annotationList.map { annotationDeserializer.deserializeAnnotation(it, c.nameResolver) }
         )
 
-        val visibility = ProtoEnumFlags.visibility(Flags.VISIBILITY.get(proto.flags))
+        val visibility = ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(proto.flags))
         val typeAlias = DeserializedTypeAliasDescriptor(
             c.storageManager, c.containingDeclaration, annotations, c.nameResolver.getName(proto.name),
             visibility, proto, c.nameResolver, c.typeTable, c.versionRequirementTable, c.containerSource
@@ -318,9 +262,8 @@ class MemberDeserializer(private val c: DeserializationContext) {
         val local = c.childContext(typeAlias, proto.typeParameterList)
         typeAlias.initialize(
             local.typeDeserializer.ownTypeParameters,
-            local.typeDeserializer.simpleType(proto.underlyingType(c.typeTable)),
-            local.typeDeserializer.simpleType(proto.expandedType(c.typeTable)),
-            typeAlias.checkExperimentalCoroutine(local.typeDeserializer)
+            local.typeDeserializer.simpleType(proto.underlyingType(c.typeTable), expandTypeAliases = false),
+            local.typeDeserializer.simpleType(proto.expandedType(c.typeTable), expandTypeAliases = false)
         )
 
         return typeAlias
@@ -337,25 +280,15 @@ class MemberDeserializer(private val c: DeserializationContext) {
             isPrimary, CallableMemberDescriptor.Kind.DECLARATION, proto, c.nameResolver, c.typeTable, c.versionRequirementTable,
             c.containerSource
         )
+
         val local = c.childContext(descriptor, listOf())
         descriptor.initialize(
             local.memberDeserializer.valueParameters(proto.valueParameterList, proto, AnnotatedCallableKind.FUNCTION),
-            ProtoEnumFlags.visibility(Flags.VISIBILITY.get(proto.flags))
+            ProtoEnumFlags.descriptorVisibility(Flags.VISIBILITY.get(proto.flags))
         )
         descriptor.returnType = classDescriptor.defaultType
-
-        val doesClassContainIncompatibility =
-            (c.containingDeclaration as? DeserializedClassDescriptor)
-                ?.c?.typeDeserializer?.experimentalSuspendFunctionTypeEncountered == true
-                    && descriptor.versionAndReleaseCoroutinesMismatch()
-
-        descriptor.coroutinesExperimentalCompatibilityMode =
-                if (doesClassContainIncompatibility)
-                    CoroutinesCompatibilityMode.INCOMPATIBLE
-                else descriptor.computeExperimentalityModeForFunctions(
-                    null, descriptor.valueParameters, descriptor.typeParameters,
-                    descriptor.returnType, isSuspend = false
-                )
+        descriptor.isExpect = classDescriptor.isExpect
+        descriptor.setHasStableParameterNames(!Flags.IS_CONSTRUCTOR_WITH_NON_STABLE_PARAMETER_NAMES.get(proto.flags))
 
         return descriptor
     }
@@ -428,5 +361,33 @@ class MemberDeserializer(private val c: DeserializationContext) {
         is PackageFragmentDescriptor -> ProtoContainer.Package(fqName, c.nameResolver, c.typeTable, c.containerSource)
         is DeserializedClassDescriptor -> thisAsProtoContainer
         else -> null // TODO: support annotations on lambdas and their parameters
+    }
+
+    private fun contextReceivers(
+        contextReceiverTypes: List<ProtoBuf.Type>,
+        contextParameters: List<ProtoBuf.ValueParameter>,
+        callable: MessageLite,
+        kind: AnnotatedCallableKind
+    ): List<ReceiverParameterDescriptor> {
+        val callableDescriptor = c.containingDeclaration as CallableDescriptor
+        val containerOfCallable = callableDescriptor.containingDeclaration.asProtoContainer()
+        return contextReceiverTypes.mapIndexedNotNull { index, type ->
+            // We load annotations on context _parameters_ from the bytecode and put them on the corresponding context _receivers_.
+            // This is not exactly correct because annotations on receivers are usually TYPE-targeted, but in reality it does not affect
+            // anything because this is K1 code which is used only in kotlin-reflect, where the annotations are unwrapped on access to
+            // `KParameter.annotations` anyway.
+            val parameterProto = contextParameters.getOrNull(index)
+            val flags = if (parameterProto?.hasFlags() == true) parameterProto.flags else 0
+            val annotations = if (containerOfCallable != null && Flags.HAS_ANNOTATIONS.get(flags)) {
+                NonEmptyDeserializedAnnotations(c.storageManager) {
+                    c.components.annotationAndConstantLoader
+                        .loadContextParameterAnnotations(containerOfCallable, callable, kind, index, parameterProto)
+                        .toList()
+                }
+            } else Annotations.EMPTY
+            DescriptorFactory.createContextReceiverParameterForCallable(
+                callableDescriptor, c.typeDeserializer.type(type), /* customLabelName = */ null, annotations, index,
+            )
+        }
     }
 }

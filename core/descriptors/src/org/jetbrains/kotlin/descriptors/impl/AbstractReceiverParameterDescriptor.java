@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.name.Name;
+import org.jetbrains.kotlin.name.SpecialNames;
 import org.jetbrains.kotlin.resolve.scopes.receivers.TransientReceiver;
 import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.TypeSubstitutor;
@@ -31,10 +32,13 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class AbstractReceiverParameterDescriptor extends DeclarationDescriptorImpl implements ReceiverParameterDescriptor {
-    private static final Name RECEIVER_PARAMETER_NAME = Name.special("<this>");
 
     public AbstractReceiverParameterDescriptor(@NotNull Annotations annotations) {
-        super(annotations, RECEIVER_PARAMETER_NAME);
+        super(annotations, SpecialNames.THIS);
+    }
+
+    public AbstractReceiverParameterDescriptor(@NotNull Annotations annotations, @NotNull Name name) {
+        super(annotations, name);
     }
 
     @Nullable
@@ -64,6 +68,12 @@ public abstract class AbstractReceiverParameterDescriptor extends DeclarationDes
     @Override
     public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
         return visitor.visitReceiverParameterDescriptor(this, data);
+    }
+
+    @NotNull
+    @Override
+    public List<ReceiverParameterDescriptor> getContextReceiverParameters() {
+        return Collections.emptyList();
     }
 
     @Nullable
@@ -120,8 +130,8 @@ public abstract class AbstractReceiverParameterDescriptor extends DeclarationDes
 
     @NotNull
     @Override
-    public Visibility getVisibility() {
-        return Visibilities.LOCAL;
+    public DescriptorVisibility getVisibility() {
+        return DescriptorVisibilities.LOCAL;
     }
 
     @NotNull

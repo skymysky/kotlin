@@ -18,12 +18,17 @@ package org.jetbrains.kotlin.js.resolve
 
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.js.config.ModuleKind
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 import org.jetbrains.kotlin.resolve.scopes.LexicalScope
-import org.jetbrains.kotlin.serialization.js.ModuleKind
 import org.jetbrains.kotlin.util.slicedMap.BasicWritableSlice
 import org.jetbrains.kotlin.util.slicedMap.RewritePolicy
 
-@JvmField val MODULE_KIND = BasicWritableSlice<ModuleDescriptor, ModuleKind>(RewritePolicy.DO_NOTHING)
+@JvmField
+val MODULE_KIND = BasicWritableSlice<ModuleDescriptor, ModuleKind>(RewritePolicy.DO_NOTHING).apply { setDebugName("MODULE_KIND") }
 
-@JvmField val LEXICAL_SCOPE_FOR_JS = BasicWritableSlice<ResolvedCall<out FunctionDescriptor>, LexicalScope>(RewritePolicy.DO_NOTHING)
+@JvmField
+val LEXICAL_SCOPE_FOR_JS =
+    BasicWritableSlice<ResolvedCall<out FunctionDescriptor>, LexicalScope>(RewritePolicy.DO_NOTHING).apply {
+        setDebugName("LEXICAL_SCOPE_FOR_JS")
+    }

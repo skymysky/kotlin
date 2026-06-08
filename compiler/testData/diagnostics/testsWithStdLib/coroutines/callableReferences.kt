@@ -1,6 +1,6 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
+
 suspend fun foo() {}
 
 class A {
@@ -28,3 +28,6 @@ suspend fun test2(a: A) {
     val z1 = a::ext
     val z2 = A::ext
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, funWithExtensionReceiver, functionDeclaration, localProperty,
+propertyDeclaration, suspend */

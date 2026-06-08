@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.psi.KtModifierListOwner
-import org.jetbrains.kotlin.resolve.BindingContext
 
 interface DeclarationAttributeAltererExtension {
     companion object : ProjectExtensionDescriptor<DeclarationAttributeAltererExtension>(
@@ -36,23 +35,8 @@ interface DeclarationAttributeAltererExtension {
         declaration: DeclarationDescriptor?,
         containingDeclaration: DeclarationDescriptor?,
         currentModality: Modality,
-        bindingContext: BindingContext,
         isImplicitModality: Boolean
     ): Modality? = null
-
-    @Deprecated(
-        "Use refineDeclarationModality(modifierListOwner, declaration, containingDeclaration, currentModality, bindingContext, isImplicitModality)",
-        ReplaceWith("refineDeclarationModality(modifierListOwner, declaration, containingDeclaration, currentModality, bindingContext, false)")
-    )
-    fun refineDeclarationModality(
-        modifierListOwner: KtModifierListOwner,
-        declaration: DeclarationDescriptor?,
-        containingDeclaration: DeclarationDescriptor?,
-        currentModality: Modality,
-        bindingContext: BindingContext
-    ): Modality? {
-        return refineDeclarationModality(modifierListOwner, declaration, containingDeclaration, currentModality, bindingContext, false)
-    }
 
     fun shouldConvertFirstSAMParameterToReceiver(function: FunctionDescriptor): Boolean = false
 }

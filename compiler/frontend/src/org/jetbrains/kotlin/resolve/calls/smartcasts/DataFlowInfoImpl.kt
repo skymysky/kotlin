@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.resolve.calls.smartcasts
 
 import com.google.common.collect.LinkedHashMultimap
 import com.google.common.collect.SetMultimap
-import javaslang.Tuple2
+import io.vavr.Tuple2
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -27,7 +27,8 @@ import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.NewCapturedTypeConstructor
 import org.jetbrains.kotlin.types.typeUtil.contains
 import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
-import org.jetbrains.kotlin.util.javaslang.*
+import org.jetbrains.kotlin.types.typeUtil.makeNotNullable
+import org.jetbrains.kotlin.util.vavr.*
 import org.jetbrains.kotlin.utils.newLinkedHashSetWithExpectedSize
 import java.util.*
 
@@ -142,7 +143,7 @@ internal class DataFlowInfoImpl private constructor(
 
     private fun KotlinType.canBeDefinitelyNotNullOrNotNull(settings: LanguageVersionSettings): Boolean {
         return if (settings.supportsFeature(LanguageFeature.NewInference))
-            this.isMarkedNullable || DefinitelyNotNullType.makesSenseToBeDefinitelyNotNull(this.unwrap())
+            TypeUtils.isNullableType(this)
         else
             this.isMarkedNullable
     }
@@ -250,7 +251,14 @@ internal class DataFlowInfoImpl private constructor(
         if (!value.type.isFlexible() && value.type.isSubtypeOf(type)) return this
 
         val nullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
-        if (!type.isMarkedNullable) {
+
+        val isTypeNotNull =
+            if (languageVersionSettings.supportsFeature(LanguageFeature.NewInference))
+                !TypeUtils.isNullableType(type)
+            else
+                !type.isMarkedNullable
+
+        if (isTypeNotNull) {
             putNullabilityAndTypeInfo(nullabilityInfo, value, NOT_NULL, languageVersionSettings)
         }
 
@@ -269,7 +277,7 @@ internal class DataFlowInfoImpl private constructor(
         assert(other is DataFlowInfoImpl) { "Unknown DataFlowInfo type: " + other }
 
         val resultNullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
-        for ((key, otherFlags) in other.completeNullabilityInfo) {
+        for ([key, otherFlags] in other.completeNullabilityInfo) {
             val thisFlags = getCollectedNullability(key)
             val flags = thisFlags.and(otherFlags)
             if (flags != thisFlags) {
@@ -295,8 +303,24 @@ internal class DataFlowInfoImpl private constructor(
         when {
             this == null -> other ?: ImmutableLinkedHashSet.empty()
             other == null -> this
-            else -> this.intersect(other)
+            else -> {
+                // Here we cover the case when "this" has T?!! type and "other" has T
+                val thisApproximated = approximateDefinitelyNotNullableTypes(this)
+                val otherApproximated = approximateDefinitelyNotNullableTypes(other)
+                if (thisApproximated == null && otherApproximated == null ||
+                    thisApproximated != null && otherApproximated != null
+                ) {
+                    this.intersect(other)
+                } else {
+                    (thisApproximated ?: this).intersect(otherApproximated ?: other)
+                }
+            }
         }
+
+    private fun approximateDefinitelyNotNullableTypes(set: ImmutableSet<KotlinType>): ImmutableSet<KotlinType>? {
+        if (!set.any { it.isDefinitelyNotNullType }) return null
+        return set.map { if (it is DefinitelyNotNullType) it.original.makeNotNullable() else it }
+    }
 
     override fun or(other: DataFlowInfo): DataFlowInfo {
         if (other === DataFlowInfo.EMPTY) return DataFlowInfo.EMPTY
@@ -306,7 +330,7 @@ internal class DataFlowInfoImpl private constructor(
         assert(other is DataFlowInfoImpl) { "Unknown DataFlowInfo type: " + other }
 
         val resultNullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
-        for ((key, otherFlags) in other.completeNullabilityInfo) {
+        for ([key, otherFlags] in other.completeNullabilityInfo) {
             val thisFlags = getCollectedNullability(key)
             resultNullabilityInfo.put(key, thisFlags.or(otherFlags))
         }
@@ -364,7 +388,7 @@ internal class DataFlowInfoImpl private constructor(
             val resultingNullabilityInfo =
                 updatedNullabilityInfo.entries.fold(
                     parent?.completeNullabilityInfo ?: EMPTY_NULLABILITY_INFO
-                ) { result, (dataFlowValue, nullability) ->
+                ) { result, [dataFlowValue, nullability] ->
                     if (dataFlowValue.immanentNullability != nullability)
                         result.put(dataFlowValue, nullability)
                     else
@@ -377,7 +401,7 @@ internal class DataFlowInfoImpl private constructor(
                 resultingTypeInfo = resultingTypeInfo.remove(it)
             }
 
-            for ((value, types) in updatedTypeInfo) {
+            for ([value, types] in updatedTypeInfo) {
                 for (type in types) {
                     if (value.type == type || type.contains { it.constructor is NewCapturedTypeConstructor }) continue
                     resultingTypeInfo = resultingTypeInfo.put(value, type)

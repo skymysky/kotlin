@@ -1,0 +1,349 @@
+/*
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+package org.jetbrains.kotlin.test
+
+import com.intellij.testFramework.TestDataFile
+import org.jetbrains.kotlin.cli.common.disposeRootInWriteAction
+import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
+import org.jetbrains.kotlin.test.directives.model.RegisteredDirectivesImpl
+import org.jetbrains.kotlin.test.model.AnalysisHandler
+import org.jetbrains.kotlin.test.model.ResultingArtifact
+import org.jetbrains.kotlin.test.model.TestModule
+import org.jetbrains.kotlin.test.services.*
+import org.jetbrains.kotlin.util.PrivateForInline
+import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import java.io.File
+import java.io.IOException
+
+sealed class TestRunner<Step : TestStep<*, *>, Configuration : TestConfiguration<Step>>(val testConfiguration: Configuration) {
+    val testServices: TestServices get() = testConfiguration.testServices
+    val failuresInterceptor = FailuresInterceptor(testConfiguration)
+
+    open fun runTestPreprocessing() {
+        testServices.registerArtifactsProvider(ArtifactsProvider())
+
+        val moduleStructure = testServices.moduleStructure
+        testConfiguration.preAnalysisHandlers.forEach { preprocessor ->
+            preprocessor.preprocessModuleStructure(moduleStructure)
+        }
+
+        testConfiguration.preAnalysisHandlers.forEach { preprocessor ->
+            failuresInterceptor.withAssertionCatching(WrappedException::FromPreAnalysisHandler) {
+                preprocessor.prepareSealedClassInheritors(moduleStructure)
+            }
+        }
+    }
+
+    fun finalizeAndDispose(beforeDispose: (Configuration) -> Unit = {}) {
+        try {
+            testConfiguration.testServices.temporaryDirectoryManager.cleanupTemporaryDirectories()
+        } catch (e: IOException) {
+            println("Failed to clean temporary directories:")
+            e.printStackTrace()
+        }
+        beforeDispose(testConfiguration)
+        disposeRootInWriteAction(testConfiguration.rootDisposable)
+    }
+
+    protected fun interface RunStep<Step : TestStep<*, *>> {
+        fun run(
+            step: Step,
+            inputArtifact: ResultingArtifact<*>,
+            thereWereCriticalExceptionsOnPreviousSteps: Boolean
+        ): TestStep.StepResult<*>
+    }
+
+    protected fun runPipelineOnSingleUnit(
+        produceStartingArtifact: () -> ResultingArtifact<*>,
+        shouldRunStep: (Step, ResultingArtifact<*>) -> Boolean,
+        runStep: RunStep<Step>,
+        onArtifactResult: (ResultingArtifact<*>) -> Unit,
+        onHandlersResult: (Step) -> Unit
+    ): Boolean {
+        var inputArtifact = produceStartingArtifact()
+
+        for (step in testConfiguration.steps) {
+            if (!shouldRunStep(step, inputArtifact)) continue
+
+            val thereWereCriticalExceptionsOnPreviousSteps = failuresInterceptor.allFailedExceptions.any { it.failureDisablesNextSteps }
+            when (val result = runStep.run(step, inputArtifact, thereWereCriticalExceptionsOnPreviousSteps)) {
+                is TestStep.StepResult.Artifact<*> -> {
+                    checkTestInfrastructure(step is TestStep.FacadeStep<*, *>) { "Step must be FacadeStep" }
+                    onArtifactResult(result.outputArtifact)
+                    inputArtifact = result.outputArtifact
+                }
+                is TestStep.StepResult.ErrorFromFacade -> {
+                    @OptIn(PrivateForInline::class)
+                    failuresInterceptor._allFailedExceptions += result.exception
+                    return false
+                }
+                is TestStep.StepResult.HandlersResult -> {
+                    val (exceptionsFromHandlers, shouldRunNextSteps) = result
+                    @OptIn(PrivateForInline::class)
+                    failuresInterceptor._allFailedExceptions += exceptionsFromHandlers
+                    onHandlersResult(step)
+                    if (!shouldRunNextSteps) {
+                        return false
+                    }
+                }
+                is TestStep.StepResult.NoArtifactFromFacade -> return false
+            }
+        }
+        return true
+    }
+
+    class FailuresInterceptor(val testConfiguration: TestConfiguration<*>) {
+        @OptIn(PrivateForInline::class)
+        val allFailedExceptions: List<WrappedException> get() = _allFailedExceptions
+
+        @Suppress("PropertyName")
+        @PrivateForInline
+        @PublishedApi
+        internal val _allFailedExceptions: MutableList<WrappedException> = mutableListOf()
+
+        val hasFailures: Boolean get() = allFailedExceptions.isNotEmpty()
+
+        /**
+         * @return true if there were any failures from any steps, even if they were suppressed by [FailuresInterceptor]s
+         */
+        fun reportFailures(checkForUnmuting: Boolean): Boolean {
+            val filteredFailedAssertions = when {
+                hasFailures -> filterFailedExceptions(allFailedExceptions)
+                checkForUnmuting -> {
+                    for (suppressor in testConfiguration.failureSuppressors) {
+                        withAssertionCatching(WrappedException::FromFailingTestSuppressor) {
+                            suppressor.checkIfTestShouldBeUnmuted()
+                        }
+                    }
+                    allFailedExceptions.map { it.cause }
+                }
+                else -> emptyList()
+            }
+            filteredFailedAssertions.firstIsInstanceOrNull<WrappedException.FromFacade>()?.let {
+                throw it
+            }
+            testConfiguration.testServices.assertions.failAll(filteredFailedAssertions)
+            return hasFailures
+        }
+
+        /*
+         * Returns true if there was an exception in block
+         */
+        inline fun withAssertionCatching(exceptionWrapper: (Throwable) -> WrappedException, block: () -> Unit): Boolean {
+            return try {
+                block()
+                false
+            } catch (e: Throwable) {
+                @OptIn(PrivateForInline::class)
+                testConfiguration.testServices.assertions.unfoldException(e).mapTo(_allFailedExceptions) { exceptionWrapper(it) }
+                true
+            }
+        }
+
+        fun filterFailedExceptions(failedExceptions: List<WrappedException>): List<Throwable> {
+            // Failures coming from the test infrastructure itself must never be suppressed (e.g. by IGNORE_BACKEND),
+            // otherwise an infra problem would be masked as a green test, hiding the real (unknown) test status.
+            val [infrastructureFailures, suppressableFailures] = failedExceptions.partition { it.isTestInfrastructureFailure }
+            val notSuppressedFailures = testConfiguration.failureSuppressors
+                .fold(suppressableFailures) { assertions, suppressor ->
+                    if (assertions.isEmpty()) return@fold assertions
+                    suppressor.suppressIfNeeded(assertions)
+                }
+            return (infrastructureFailures + notSuppressedFailures)
+                .sorted()
+                .map { it.cause }
+        }
+
+        operator fun plusAssign(other: FailuresInterceptor) {
+            @OptIn(PrivateForInline::class)
+            _allFailedExceptions += other.allFailedExceptions
+        }
+    }
+}
+
+class NonGroupingTestRunner(
+    testConfiguration: NonGroupingStageTestConfiguration
+) : TestRunner<TestStep.NonGroupingStep<*, *>, NonGroupingStageTestConfiguration>(testConfiguration) {
+    companion object {
+        fun AnalysisHandler<*>.shouldRun(thereWasAnException: Boolean): Boolean {
+            return !(doNotRunIfThereWerePreviousFailures && thereWasAnException)
+        }
+    }
+
+    private val allRanHandlers = mutableSetOf<AnalysisHandler<*>>()
+
+    fun runTest(@TestDataFile testDataFileName: String, beforeDispose: (NonGroupingStageTestConfiguration) -> Unit = {}) {
+        try {
+            prepareModuleStructure(testDataFileName) ?: return
+            runTestPipeline()
+        } finally {
+            finalizeAndDispose(beforeDispose)
+        }
+    }
+
+    fun prepareModuleStructure(testDataFileName: String): TestModuleStructure? {
+        val services = testServices
+
+        @Suppress("NAME_SHADOWING")
+        val testDataFileName = testConfiguration.metaTestConfigurators.fold(testDataFileName) { fileName, configurator ->
+            configurator.transformTestDataPath(fileName)
+        }
+
+        val moduleStructure = try {
+            testConfiguration.moduleStructureExtractor.splitTestDataByModules(
+                testDataFileName,
+                testConfiguration.directives,
+            ).also {
+                services.register(TestModuleStructure::class, it)
+            }
+        } catch (e: ExceptionFromModuleStructureTransformer) {
+            services.register(TestModuleStructure::class, e.alreadyParsedModuleStructure)
+            val exception = failuresInterceptor.filterFailedExceptions(
+                listOf(WrappedException.FromModuleStructureTransformer(e.cause))
+            ).firstOrNull() ?: return null
+            throw exception
+        }
+
+        testConfiguration.metaTestConfigurators.forEach {
+            services.assertions.assumeFalse(it.shouldSkipTest()) { "Test skipped by ${it::class.simpleName}" }
+        }
+        return moduleStructure
+    }
+
+    fun runTestPipeline() {
+        runTestPreprocessing()
+        runSteps()
+        failuresInterceptor.reportFailures(checkForUnmuting = true)
+    }
+
+    override fun runTestPreprocessing() {
+        super.runTestPreprocessing()
+        val globalMetadataInfoHandler = testServices.globalMetadataInfoHandler
+        globalMetadataInfoHandler.parseExistingMetadataInfosFromAllSources()
+    }
+
+    fun runSteps() {
+        val services = testConfiguration.testServices
+        val moduleStructure = services.moduleStructure
+
+        for (module in moduleStructure.modules) {
+            val shouldProcessNextModules = processModule(module, services.artifactsProvider)
+            if (!shouldProcessNextModules) break
+        }
+
+        for (handler in allRanHandlers) {
+            val wrapperFactory: (Throwable) -> WrappedException = { WrappedException.FromHandler(it, failedModule = null, handler) }
+            failuresInterceptor.withAssertionCatching(wrapperFactory) {
+                val thereWasAnException = failuresInterceptor.hasFailures
+                if (handler.shouldRun(thereWasAnException)) {
+                    handler.processAfterAllModules(thereWasAnException)
+                }
+            }
+        }
+
+        if (testConfiguration.metaInfoHandlerEnabled) {
+            failuresInterceptor.withAssertionCatching(WrappedException::FromMetaInfoHandler) {
+                services.globalMetadataInfoHandler.compareAllMetaDataInfos()
+            }
+        }
+
+        testConfiguration.afterAnalysisCheckers.forEach {
+            failuresInterceptor.withAssertionCatching(WrappedException::FromAfterAnalysisChecker) {
+                it.check(thereWereFailures = failuresInterceptor.hasFailures)
+            }
+        }
+    }
+
+    /*
+     * Returns false if next modules should be not processed
+     */
+    fun processModule(
+        module: TestModule,
+        artifactsProvider: ArtifactsProvider,
+    ): Boolean {
+        return runPipelineOnSingleUnit(
+            produceStartingArtifact = { testConfiguration.startingArtifactFactory.invoke(module) },
+            shouldRunStep = { step, inputArtifact -> step.shouldProcessModule(module, inputArtifact) },
+            runStep = { step, inputArtifact, thereWereCriticalExceptionsOnPreviousSteps ->
+                step.hackyProcessModule(module, inputArtifact, thereWereCriticalExceptionsOnPreviousSteps)
+            },
+            onArtifactResult = { artifactsProvider.registerArtifact(module, it) },
+            onHandlersResult = { step ->
+                checkTestInfrastructure(step is TestStep.NonGroupingStep.HandlersStep<*>) { "Step must be HandlersStep" }
+                allRanHandlers += step.handlers
+            }
+        )
+    }
+
+    // -------------------------------------- hacks --------------------------------------
+
+    private fun TestStep.NonGroupingStep<*, *>.hackyProcessModule(
+        module: TestModule,
+        inputArtifact: ResultingArtifact<*>,
+        thereWereExceptionsOnPreviousSteps: Boolean,
+    ): TestStep.StepResult<*> {
+        @Suppress("UNCHECKED_CAST")
+        return (this as TestStep.NonGroupingStep<ResultingArtifact.Source, *>)
+            .processModule(module, inputArtifact as ResultingArtifact<ResultingArtifact.Source>, thereWereExceptionsOnPreviousSteps)
+    }
+
+    private fun <I : ResultingArtifact<I>> TestStep.NonGroupingStep<I, *>.processModule(
+        module: TestModule,
+        artifact: ResultingArtifact<I>,
+        thereWereExceptionsOnPreviousSteps: Boolean,
+    ): TestStep.StepResult<*> {
+        @Suppress("UNCHECKED_CAST")
+        return processModule(module, artifact as I, thereWereExceptionsOnPreviousSteps)
+    }
+}
+
+class GroupingTestRunner(
+    testConfiguration: GroupingStageTestConfiguration
+) : TestRunner<TestStep.GroupingStageStep<*, *>, GroupingStageTestConfiguration>(testConfiguration) {
+    init {
+        testServices.register(TestModuleStructure::class, EmptyModuleStructure)
+    }
+
+    fun run(nonGroupingStageOutputs: List<NonGroupingStageOutput>) {
+        testServices.register(GroupingStageInputsHolder::class, GroupingStageInputsHolder(nonGroupingStageOutputs))
+        val merger = GroupingStageInputsMerger(testServices, testConfiguration.mergerWorkers)
+        runPipelineOnSingleUnit(
+            produceStartingArtifact = { merger.merge(nonGroupingStageOutputs) },
+            shouldRunStep = { _, _ -> true },
+            runStep = { step, input, thereWereCriticalExceptionsOnPreviousSteps ->
+                step.hackyProcess(input, thereWereCriticalExceptionsOnPreviousSteps)
+            },
+            onArtifactResult = {},
+            onHandlersResult = {}
+        )
+    }
+
+    private object EmptyModuleStructure : TestModuleStructure() {
+        override val modules: List<TestModule>
+            get() = emptyList()
+        override val allDirectives: RegisteredDirectives
+            get() = RegisteredDirectivesImpl(emptyList(), emptyMap(), emptyMap())
+        override val originalTestDataFiles: List<File>
+            get() = emptyList()
+    }
+
+    private fun TestStep.GroupingStageStep<*, *>.hackyProcess(
+        inputArtifact: ResultingArtifact<*>,
+        thereWereExceptionsOnPreviousSteps: Boolean,
+    ): TestStep.StepResult<*> {
+        @Suppress("UNCHECKED_CAST")
+        return (this as TestStep.GroupingStageStep<GroupingStageInputArtifact, *>)
+            .process(inputArtifact as ResultingArtifact<GroupingStageInputArtifact>, thereWereExceptionsOnPreviousSteps)
+    }
+
+    private fun <I : ResultingArtifact<I>> TestStep.GroupingStageStep<I, *>.process(
+        artifact: ResultingArtifact<I>,
+        thereWereExceptionsOnPreviousSteps: Boolean,
+    ): TestStep.StepResult<*> {
+        @Suppress("UNCHECKED_CAST")
+        return this.process(artifact as I, thereWereExceptionsOnPreviousSteps)
+    }
+}

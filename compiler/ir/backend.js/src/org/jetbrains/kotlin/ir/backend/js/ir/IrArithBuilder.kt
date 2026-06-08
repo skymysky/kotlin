@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.ir
@@ -8,23 +8,23 @@ package org.jetbrains.kotlin.ir.backend.js.ir
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.utils.OperatorNames
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.types.toKotlinType
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.name.Name
 
 class JsIrArithBuilder(val context: JsIrBackendContext) {
 
-    val symbols = context.ir.symbols
+    val symbols = context.symbols
 
     private fun buildBinaryOperator(name: Name, l: IrExpression, r: IrExpression): IrExpression {
-        val symbol = context.getOperatorByName(name, l.type.toKotlinType())
+        val symbol = context.getOperatorByName(name, l.type as IrSimpleType, r.type as IrSimpleType)
         return JsIrBuilder.buildCall(symbol!!).apply {
-            dispatchReceiver = l
-            putValueArgument(0, r)
+            arguments[0] = l
+            arguments[1] = r
         }
     }
 
     private fun buildUnaryOperator(name: Name, v: IrExpression): IrExpression {
-        val symbol = context.getOperatorByName(name, v.type.toKotlinType())!!
+        val symbol = context.getOperatorByName(name, v.type as IrSimpleType, null)!!
         return JsIrBuilder.buildCall(symbol).apply { dispatchReceiver = v }
     }
 
@@ -32,7 +32,7 @@ class JsIrArithBuilder(val context: JsIrBackendContext) {
     fun sub(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.SUB, l, r)
     fun mul(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.MUL, l, r)
     fun div(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.DIV, l, r)
-    fun mod(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.MOD, l, r)
+    fun rem(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.REM, l, r)
     fun and(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.AND, l, r)
     fun or(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.OR, l, r)
     fun shl(l: IrExpression, r: IrExpression) = buildBinaryOperator(OperatorNames.SHL, l, r)

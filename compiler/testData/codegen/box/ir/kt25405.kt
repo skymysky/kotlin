@@ -1,4 +1,3 @@
-
 fun <T> tableView(init: Table<T>.() -> Unit) {
     Table<T>().init()
 }

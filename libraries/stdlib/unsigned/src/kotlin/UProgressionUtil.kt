@@ -1,9 +1,8 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:UseExperimental(ExperimentalUnsignedTypes::class)
 package kotlin.internal
 
 // (a - b) mod c
@@ -37,6 +36,7 @@ private fun differenceModulo(a: ULong, b: ULong, c: ULong): ULong {
  */
 @PublishedApi
 @SinceKotlin("1.3")
+@UsedFromCompilerGeneratedCode
 internal fun getProgressionLastElement(start: UInt, end: UInt, step: Int): UInt = when {
     step > 0 -> if (start >= end) end else end - differenceModulo(end, start, step.toUInt())
     step < 0 -> if (start <= end) end else end + differenceModulo(start, end, (-step).toUInt())
@@ -61,6 +61,7 @@ internal fun getProgressionLastElement(start: UInt, end: UInt, step: Int): UInt 
  */
 @PublishedApi
 @SinceKotlin("1.3")
+@UsedFromCompilerGeneratedCode
 internal fun getProgressionLastElement(start: ULong, end: ULong, step: Long): ULong = when {
     step > 0 -> if (start >= end) end else end - differenceModulo(end, start, step.toULong())
     step < 0 -> if (start <= end) end else end + differenceModulo(start, end, (-step).toULong())

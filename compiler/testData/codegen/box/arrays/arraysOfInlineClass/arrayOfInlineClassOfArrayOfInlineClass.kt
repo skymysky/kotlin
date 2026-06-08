@@ -1,6 +1,5 @@
-// !LANGUAGE: +InlineClasses
-// WITH_UNSIGNED
-// IGNORE_BACKEND: JVM_IR, JS_IR
+
+// WITH_STDLIB
 
 inline class Data(val data: Array<UInt>)
 

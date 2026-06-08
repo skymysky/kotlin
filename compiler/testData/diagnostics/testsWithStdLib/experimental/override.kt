@@ -1,9 +1,11 @@
-// !USE_EXPERIMENTAL: kotlin.Experimental
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.RequiresOptIn
 // FILE: api.kt
 
 package api
 
-@Experimental(Experimental.Level.WARNING)
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+@Retention(AnnotationRetention.BINARY)
 annotation class E
 
 open class Base {
@@ -12,7 +14,7 @@ open class Base {
 }
 
 class DerivedInSameModule : Base() {
-    override fun <!EXPERIMENTAL_OVERRIDE!>foo<!>() {}
+    override fun <!OPT_IN_OVERRIDE!>foo<!>() {}
 }
 
 // FILE: usage-propagate.kt
@@ -40,5 +42,7 @@ package usage2
 import api.*
 
 class Derived : Base() {
-    override fun <!EXPERIMENTAL_OVERRIDE!>foo<!>() {}
+    override fun <!OPT_IN_OVERRIDE!>foo<!>() {}
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, functionDeclaration, override */

@@ -1,7 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -17,11 +16,11 @@ fun testNullWhenNull(x: Int?) {
         x<!UNSAFE_CALL!>.<!>dec()
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.dec()
+        x.dec()
     }
 
     if (nullWhenNull(x) != null) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.dec()
+        x.dec()
     }
     else {
         x<!UNSAFE_CALL!>.<!>dec()
@@ -40,7 +39,7 @@ fun notNullWhenNotNull (x: Int?): Int? {
 
 fun testNotNullWhenNotNull (x: Int?) {
     if (notNullWhenNotNull(x) == null) {
-        <!SENSELESS_COMPARISON!><!DEBUG_INFO_CONSTANT!>x<!> == null<!>
+        <!SENSELESS_COMPARISON!>x == null<!>
     }
     else {
         x<!UNSAFE_CALL!>.<!>dec()
@@ -50,8 +49,11 @@ fun testNotNullWhenNotNull (x: Int?) {
         x<!UNSAFE_CALL!>.<!>dec()
     }
     else {
-        <!SENSELESS_COMPARISON!><!DEBUG_INFO_CONSTANT!>x<!> == null<!>
+        <!SENSELESS_COMPARISON!>x == null<!>
     }
 
     x<!UNSAFE_CALL!>.<!>dec()
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, equalityExpression, functionDeclaration, ifExpression,
+lambdaLiteral, nullableType, safeCall, smartcast */

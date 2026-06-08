@@ -1,8 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo(val z: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val z: String)
 
 var f = Foo("zzz")
 

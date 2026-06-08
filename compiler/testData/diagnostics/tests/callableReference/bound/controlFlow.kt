@@ -1,3 +1,7 @@
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: +UNUSED_EXPRESSION
+// WITH_EXTRA_CHECKERS
+
 fun unusedExpression(s: String) {
     <!UNUSED_EXPRESSION!>s::hashCode<!>
     <!UNUSED_EXPRESSION!>s::class<!>
@@ -9,14 +13,17 @@ fun noUnusedParameter(s: String): Int {
 }
 
 fun unreachableCode(): Int {
-    (if (true) return 1 else return 0)<!UNREACHABLE_CODE!>::toString<!>
+    <!UNREACHABLE_CODE!>(if (<!>true<!UNREACHABLE_CODE!>)<!> return 1 <!UNREACHABLE_CODE!>else<!> return 0<!UNREACHABLE_CODE!>)::toString<!>
     <!UNREACHABLE_CODE!>return 0<!>
 }
 
 fun unreachableCodeInLoop(): Int {
     while (true) {
-        (break)<!UNREACHABLE_CODE!>::toString<!>
+        <!UNREACHABLE_CODE!>(<!>break<!UNREACHABLE_CODE!>)::toString<!>
         <!UNREACHABLE_CODE!>return 1<!>
     }
     return 2
 }
+
+/* GENERATED_FIR_TAGS: break, callableReference, classReference, functionDeclaration, ifExpression, integerLiteral,
+localProperty, propertyDeclaration, whileLoop */

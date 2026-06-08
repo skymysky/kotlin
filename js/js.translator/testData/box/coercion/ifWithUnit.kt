@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1283
 var log = ""
 
 fun foo() {

@@ -1,5 +1,4 @@
-// WITH_UNSIGNED
-// IGNORE_BACKEND: JVM_IR, JS_IR
+// WITH_STDLIB
 
 val xs = Array(2) { 42u }
 

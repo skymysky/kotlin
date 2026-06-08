@@ -1,6 +1,5 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// LANGUAGE: -ParseLambdaWithSuspendModifier
 
 fun <R> suspend(block: R) = block
 
@@ -37,7 +36,7 @@ fun bar() {
 
     suspend<Nothing?>(null)
 
-    val <!UNUSED_VARIABLE!>w<!>: (Any?) -> Any? = ::suspend
+    val w: (Any?) -> Any? = ::suspend
 
     A().<!MODIFIER_FORM_FOR_NON_BUILT_IN_SUSPEND!>suspend<!> {
         println()
@@ -83,3 +82,6 @@ fun bar() {
 
     A() suspend ""
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, callableReference, classDeclaration, functionDeclaration, functionalType,
+infix, lambdaLiteral, localProperty, nullableType, propertyDeclaration, stringLiteral, suspend, typeParameter */

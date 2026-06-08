@@ -1,13 +1,17 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo(val a: String) {
+// FILE: lib.kt
+inline fun inlineFun(): String = "K"
+
+// FILE: main.kt
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val a: String) {
     fun test(): String {
         return a + inlineFun()
     }
 }
-
-inline fun inlineFun(): String = "K"
 
 fun box(): String {
     val f = Foo("O")

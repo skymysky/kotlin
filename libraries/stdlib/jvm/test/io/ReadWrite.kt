@@ -1,10 +1,12 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.io
 
+import test.collections.behaviors.sequenceBehavior
+import test.collections.compare
 import kotlin.test.*
 import java.io.File
 import java.io.Reader
@@ -12,7 +14,7 @@ import java.io.StringReader
 import java.net.URL
 import java.util.ArrayList
 
-fun sample(): Reader = StringReader("Hello\nWorld");
+private fun sample(): Reader = StringReader("Hello\nWorld");
 
 class ReadWriteTest {
     @Test fun testAppendText() {
@@ -47,9 +49,13 @@ class ReadWriteTest {
 
         assertEquals(listOf("Hello", "World"), sample().readLines())
 
-        sample().useLines {
-            assertEquals(listOf("Hello", "World"), it.toList())
+        val lines: List<String>
+        val linesResult = sample().useLines {
+            lines = it.toList()
+            lines
         }
+        assertEquals(listOf("Hello", "World"), lines)
+        assertEquals(lines, linesResult)
 
 
         var reader = StringReader("")
@@ -84,7 +90,7 @@ class ReadWriteTest {
         //file.replaceText("Hello\nWorld")
         file.forEachBlock { arr: ByteArray, size: Int ->
             assertTrue(size >= 11 && size <= 12, size.toString())
-            assertTrue(arr.contains('W'.toByte()))
+            assertTrue(arr.contains('W'.code.toByte()))
         }
         val list = ArrayList<String>()
         file.forEachLine(Charsets.UTF_8, {
@@ -94,9 +100,13 @@ class ReadWriteTest {
 
         assertEquals(arrayListOf("Hello", "World"), file.readLines())
 
-        file.useLines {
-            assertEquals(arrayListOf("Hello", "World"), it.toList())
+        val lines: List<String>
+        val linesResult = file.useLines {
+            lines = it.toList()
+            lines
         }
+        assertEquals(listOf("Hello", "World"), lines)
+        assertEquals(lines, linesResult)
 
         val text = file.inputStream().reader().readText()
         assertTrue(text.contains("Hello"))
@@ -124,40 +134,17 @@ class ReadWriteTest {
         file.deleteOnExit()
     }
 
-
-
-    @Test fun testUse() {
-        val list = ArrayList<String>()
-        val reader = sample().buffered()
-
-        reader.use {
-            while (true) {
-                val line = it.readLine()
-                if (line != null)
-                    list.add(line)
-                else
-                    break
-            }
-        }
-
-        assertEquals(arrayListOf("Hello", "World"), list)
-    }
-
-    @Test fun testPlatformNullUse() {
-        fun <T> platformNull() = @Suppress("UNCHECKED_CAST") java.util.Collections.singleton(null as T).first()
-        val resource = platformNull<java.io.Closeable>()
-        val result = resource.use {
-            "ok"
-        }
-        assertEquals("ok", result)
-    }
-
     @Test fun testURL() {
-        val url = URL("http://kotlinlang.org")
-        val text = url.readText()
-        assertFalse(text.isEmpty())
-        val text2 = url.readText(charset("UTF8"))
-        assertFalse(text2.isEmpty())
+        val file = File.createTempFile("temp", System.nanoTime().toString())
+        file.deleteOnExit()
+        val fileText = "Test Text"
+        file.writeText(fileText)
+
+        val url: URL = file.toURI().toURL()
+        val textDefault = url.readText()
+        assertEquals(fileText, textDefault)
+        val textUTF8 = url.readText(charset("UTF8"))
+        assertEquals(fileText, textUTF8)
     }
 }
 
@@ -199,5 +186,10 @@ class LineIteratorTest {
         reader = StringReader(" \n ").buffered()
         assertEquals(listOf(" ", " "), reader.lineSequence().toList())
         reader.close()
+
+        reader = StringReader("a\nb\nc").buffered()
+        compare(listOf("a", "b", "c").asSequence().constrainOnce(), reader.lineSequence()) {
+            sequenceBehavior(isConstrainOnce = true)
+        }
     }
 }

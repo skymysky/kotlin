@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNREACHABLE_CODE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNREACHABLE_CODE
 
 fun TODO(): Nothing = throw java.lang.IllegalStateException()
 
@@ -8,12 +9,12 @@ abstract class AbstractClass
 interface Interface
 
 fun test() {
-    TODO() <!USELESS_CAST!>as Any<!>
-    TODO() <!USELESS_CAST!>as Any?<!>
-    TODO() <!USELESS_CAST!>as OpenClass<!>
-    TODO() <!USELESS_CAST!>as FinalClass<!>
-    TODO() <!USELESS_CAST!>as AbstractClass<!>
-    TODO() <!USELESS_CAST!>as Interface<!>
+    TODO() as Any
+    TODO() as Any?
+    TODO() as OpenClass
+    TODO() as FinalClass
+    TODO() as AbstractClass
+    TODO() as Interface
 
     val a = TODO() as Any
     val b = TODO() as Any?
@@ -29,3 +30,6 @@ fun c() = TODO() as OpenClass
 fun d() = TODO() as FinalClass
 fun e() = TODO() as AbstractClass
 fun f() = TODO() as Interface
+
+/* GENERATED_FIR_TAGS: asExpression, classDeclaration, functionDeclaration, interfaceDeclaration, javaFunction,
+localProperty, nullableType, propertyDeclaration */

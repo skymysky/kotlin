@@ -1,41 +1,76 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.types.impl
 
-import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
-
-abstract class IrTypeBase(
-    val kotlinType: KotlinType?,
-    override val annotations: List<IrCall>,
-    override val variance: Variance
-) : IrType, IrTypeProjection {
-
-    override val type: IrType get() = this
-
-}
+import org.jetbrains.kotlin.types.model.CaptureStatus
+import org.jetbrains.kotlin.types.model.CapturedTypeConstructorMarker
+import org.jetbrains.kotlin.types.model.CapturedTypeMarker
 
 class IrErrorTypeImpl(
-    kotlinType: KotlinType?,
-    annotations: List<IrCall>,
-    variance: Variance
-) : IrTypeBase(kotlinType, annotations, variance), IrErrorType
+    override val originalKotlinType: KotlinType?,
+    override val annotations: List<IrAnnotation>,
+    override val variance: Variance,
+    isMarkedNullable: Boolean = false
+) : IrErrorType(IrErrorClassImpl.symbol, isMarkedNullable) {
+    override fun equals(other: Any?): Boolean = other is IrErrorTypeImpl
 
-class IrDynamicTypeImpl(
-    kotlinType: KotlinType?,
-    annotations: List<IrCall>,
-    variance: Variance
-) : IrTypeBase(kotlinType, annotations, variance), IrDynamicType, IrTypeProjection
+    override fun hashCode(): Int = IrErrorTypeImpl::class.java.hashCode()
+}
 
+open class IrDynamicTypeImpl(
+    override val annotations: List<IrAnnotation>,
+    override val variance: Variance,
+) : IrDynamicType() {
+    override fun equals(other: Any?): Boolean = other is IrDynamicTypeImpl
 
-val IrType.originalKotlinType: KotlinType?
-    get() = safeAs<IrTypeBase>()?.kotlinType
+    override fun hashCode(): Int = IrDynamicTypeImpl::class.java.hashCode()
+}
 
+class IrDynamicTypeWithOriginalKotlinTypeImpl(
+    override val originalKotlinType: KotlinType,
+    annotations: List<IrAnnotation>,
+    variance: Variance,
+) : IrDynamicTypeImpl(annotations, variance)
 
-object IrStarProjectionImpl : IrStarProjection
+data object IrStarProjectionImpl : IrStarProjection
+
+// Please note this type is not denotable which means it could only exist inside type system
+class IrCapturedType(
+    val captureStatus: CaptureStatus,
+    val lowerType: IrType?,
+    projection: IrTypeArgument,
+    typeParameter: IrTypeParameter,
+    override val nullability: SimpleTypeNullability,
+    override val annotations: List<IrAnnotation>,
+) : IrSimpleType(), CapturedTypeMarker {
+    class Constructor(val argument: IrTypeArgument, val typeParameter: IrTypeParameter) : CapturedTypeConstructorMarker {
+        var superTypes: List<IrType> = emptyList()
+            private set
+
+        fun initSuperTypes(superTypes: List<IrType>) {
+            this.superTypes = superTypes
+        }
+    }
+
+    val constructor: Constructor = Constructor(projection, typeParameter)
+
+    override val classifier: IrClassifierSymbol get() = error("Captured Type does not have a classifier")
+
+    override val arguments: List<IrTypeArgument> get() = emptyList()
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+
+    override fun toString(): String = render()
+}

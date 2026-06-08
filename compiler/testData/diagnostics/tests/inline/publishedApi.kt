@@ -1,8 +1,10 @@
-// !DIAGNOSTICS: -EXPOSED_PARAMETER_TYPE -NOTHING_TO_INLINE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -EXPOSED_PARAMETER_TYPE -NOTHING_TO_INLINE
+
 inline fun call(a: A) {
     a.test()
     publishedTopLevel()
-    
+
     a.publishedVar
     a.publishedVar = 1
 
@@ -23,7 +25,7 @@ inline var inlineVar: Int
         publishedVarTopLevel = 1
         return 1
     }
-    set(<!UNUSED_PARAMETER!>value<!>) {
+    set(value) {
         val a = A()
         a.test()
         publishedTopLevel()
@@ -88,7 +90,7 @@ internal class A {
             return 1
         }
 
-        set(<!UNUSED_PARAMETER!>value<!>) {
+        set(value) {
             publicFun()
             <!NON_PUBLIC_CALL_FROM_PUBLIC_INLINE!>internalFun<!>()
             <!NON_PUBLIC_CALL_FROM_PUBLIC_INLINE!>privateFun<!>()
@@ -147,7 +149,7 @@ inline internal var publishedVarTopLevel: Int
         return 1
     }
 
-    set(<!UNUSED_PARAMETER!>value<!>) {
+    set(value) {
         publicFun()
         <!NON_PUBLIC_CALL_FROM_PUBLIC_INLINE!>internalFun<!>()
         <!NON_PUBLIC_CALL_FROM_PUBLIC_INLINE!>privateFun<!>()
@@ -173,3 +175,6 @@ var publicVarTopLevel = 1
 internal var internalVarTopLevel = 1
 
 private var privateVarTopLevel = 1
+
+/* GENERATED_FIR_TAGS: assignment, classDeclaration, functionDeclaration, getter, inline, integerLiteral, localProperty,
+propertyDeclaration, setter */

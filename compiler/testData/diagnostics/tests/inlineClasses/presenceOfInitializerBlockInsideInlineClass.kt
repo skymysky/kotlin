@@ -1,10 +1,13 @@
-// !LANGUAGE: +InlineClasses
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +InlineClasses
+// DIAGNOSTICS: -UNUSED_VARIABLE, -INLINE_CLASS_DEPRECATED
 
 inline class Foo(val x: Int) {
-    <!INLINE_CLASS_WITH_INITIALIZER!>init<!> {}
+    init {}
 
-    <!INLINE_CLASS_WITH_INITIALIZER!>init<!> {
+    init {
         val f = 1
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, init, integerLiteral, localProperty, primaryConstructor, propertyDeclaration */

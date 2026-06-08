@@ -1,5 +1,5 @@
 // IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1328
+// IGNORE_BACKEND: JS_IR_ES6
 package foo
 
 import kotlin.reflect.KClass
@@ -14,7 +14,7 @@ fun check(k: KClass<*>, j: JsClass<*>) {
     assertSame(k, k.js.kotlin)
 }
 
-fun jsClassbyName(name: String) = js("JS_TESTS").foo[name]
+fun jsClassbyName(name: String) = js("main").foo[name]
 
 fun box(): String {
     check(A::class, jsClassbyName("A"))

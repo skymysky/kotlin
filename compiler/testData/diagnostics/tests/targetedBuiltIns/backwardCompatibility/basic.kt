@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -PLATFORM_CLASS_MAPPED_TO_KOTLIN
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -PLATFORM_CLASS_MAPPED_TO_KOTLIN
 
 abstract class Test1 : Map<String, String> {
     fun <!VIRTUAL_MEMBER_HIDDEN!>containsKey<!>(key: String): Boolean = TODO()
@@ -16,3 +17,4 @@ abstract class Test3 : java.util.AbstractMap<String, String>() {
     fun replace(key: String, value: String): String? = TODO()
 }
 
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, nullableType, override */

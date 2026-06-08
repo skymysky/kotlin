@@ -1,5 +1,4 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
 val flag = true
 
 // type of a was checked by txt
@@ -10,12 +9,14 @@ val a = run { // () -> Unit
 // Unit
 val b = run {
     if (flag) return@run
-    <!UNUSED_EXPRESSION!>5<!>
+    5
 }
 
 // Unit
 val c = run {
     if (flag) return@run
 
-    return@run <!OI;RETURN_TYPE_MISMATCH!>4<!>
+    return@run <!RETURN_TYPE_MISMATCH!>4<!>
 }
+
+/* GENERATED_FIR_TAGS: ifExpression, integerLiteral, lambdaLiteral, propertyDeclaration */

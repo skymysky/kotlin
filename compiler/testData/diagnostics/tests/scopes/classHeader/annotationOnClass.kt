@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 import kotlin.reflect.*
 
@@ -19,11 +20,11 @@ annotation class Ann(
         <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>Inner<!>::class<!>,
         <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>Interface<!>::class<!>,
         <!UNRESOLVED_REFERENCE!>CONST<!>,
-        <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>Companion<!>.<!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>CONST<!><!>,
-        <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>Nested<!>.<!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>CONST<!><!>,
-        <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>Interface<!>.<!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>CONST<!><!>,
+        <!UNRESOLVED_REFERENCE!>Companion<!>.CONST,
+        <!UNRESOLVED_REFERENCE!>Nested<!>.CONST,
+        <!UNRESOLVED_REFERENCE!>Interface<!>.CONST,
         <!UNRESOLVED_REFERENCE!>a<!>,
-        <!UNRESOLVED_REFERENCE!>b<!>()
+        <!ANNOTATION_ARGUMENT_MUST_BE_CONST!><!UNRESOLVED_REFERENCE!>b<!>()<!>
 )
 class A {
 
@@ -49,3 +50,7 @@ class A {
         fun foo(): Nested = null!!
     }
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, checkNotNullCall, classDeclaration, classReference, companionObject, const,
+functionDeclaration, inner, integerLiteral, interfaceDeclaration, nestedClass, objectDeclaration, primaryConstructor,
+propertyDeclaration, starProjection */

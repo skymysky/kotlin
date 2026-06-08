@@ -1,10 +1,6 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
-// COMMON_COROUTINES_TEST
+// WITH_STDLIB
 // WITH_COROUTINES
-import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+// FILE: lib.kt
 
 interface Consumer { fun consume(s: String) }
 
@@ -16,19 +12,20 @@ inline fun crossInlineBuilderConsumer(crossinline block: (String) -> Unit) = obj
 
 inline fun inlineBuilder(block: () -> Consumer) = block()
 
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
+
 fun builder(c: suspend () -> Unit) {
     c.startCoroutine(EmptyContinuation)
 }
 
 fun builderConsumer(c: suspend () -> Consumer): Consumer {
     var res: Consumer? = null
-    c.startCoroutine(object : ContinuationAdapter<Consumer>() {
-        override fun resume(value: Consumer) {
-            res = value
-        }
-
-        override fun resumeWithException(e: Throwable) {
-            throw e
+    c.startCoroutine(object : Continuation<Consumer> {
+        override fun resumeWith(value: Result<Consumer>) {
+            res = value.getOrThrow()
         }
 
         override val context = EmptyCoroutineContext

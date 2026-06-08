@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun create(): Map<String, String> = null!!
 
 operator fun <K, V> Map<K, V>.iterator(): Iterator<Map.Entry<K, V>> = null!!
@@ -13,8 +13,12 @@ class MyClass {
         var res = 0
         m = create()
         // See KT-7428
-        for ((k, v) in <!SMARTCAST_IMPOSSIBLE!>m<!>)
-            res <!NI;OVERLOAD_RESOLUTION_AMBIGUITY!>+=<!> (<!NI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>k<!>.<!NI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>length<!> <!NI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>+<!> <!NI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>v<!>.<!NI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>length<!>)
+        for ((key, value) in <!ITERATOR_ON_NULLABLE!>m<!>)
+            res += (key.length + value.length)
         return res
     }
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, assignment, checkNotNullCall, classDeclaration, forLoop,
+funWithExtensionReceiver, functionDeclaration, integerLiteral, localProperty, nullableType, operator,
+propertyDeclaration, typeParameter */

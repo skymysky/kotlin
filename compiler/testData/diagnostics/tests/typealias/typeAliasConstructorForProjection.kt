@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
+// ISSUE: KT-60305
 
 class C<T>
 
@@ -8,8 +8,11 @@ typealias CIn = C<in Int>
 typealias COut = C<out Int>
 typealias CT<T> = C<T>
 
-val test1 = <!OI;EXPANDED_TYPE_CANNOT_BE_CONSTRUCTED!>CStar()<!>
-val test2 = <!OI;EXPANDED_TYPE_CANNOT_BE_CONSTRUCTED!>CIn()<!>
-val test3 = <!OI;EXPANDED_TYPE_CANNOT_BE_CONSTRUCTED!>COut()<!>
+val test1 = <!CONSTRUCTOR_OR_SUPERTYPE_ON_TYPEALIAS_WITH_TYPE_PROJECTION_ERROR!>CStar()<!>
+val test2 = <!CONSTRUCTOR_OR_SUPERTYPE_ON_TYPEALIAS_WITH_TYPE_PROJECTION_ERROR!>CIn()<!>
+val test3 = <!CONSTRUCTOR_OR_SUPERTYPE_ON_TYPEALIAS_WITH_TYPE_PROJECTION_ERROR!>COut()<!>
 val test4 = CT<<!PROJECTION_ON_NON_CLASS_TYPE_ARGUMENT!>*<!>>()
 val test5 = CT<CT<*>>()
+
+/* GENERATED_FIR_TAGS: capturedType, classDeclaration, inProjection, nullableType, outProjection, propertyDeclaration,
+starProjection, typeAliasDeclaration, typeAliasDeclarationWithTypeParameter, typeParameter */

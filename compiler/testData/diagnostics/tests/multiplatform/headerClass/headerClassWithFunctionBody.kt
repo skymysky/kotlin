@@ -1,16 +1,14 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: FIR2IR
 // MODULE: m1-common
 // FILE: common.kt
-expect class Foo(
-        <!EXPECTED_CLASS_CONSTRUCTOR_PROPERTY_PARAMETER!>val constructorProperty: String<!>,
-        constructorParameter: String
-) {
+<!NO_ACTUAL_FOR_EXPECT{JVM}!>expect<!> class Foo {
     <!EXPECTED_DECLARATION_WITH_BODY!>init<!> {
-        <!UNUSED_EXPRESSION, UNUSED_EXPRESSION!>"no"<!>
+        "no"
     }
 
     <!EXPECTED_DECLARATION_WITH_BODY!>constructor(s: String)<!> {
-        <!UNUSED_EXPRESSION!>"no"<!>
+        "no"
     }
 
     constructor() : <!EXPECTED_CLASS_CONSTRUCTOR_DELEGATION_CALL!>this<!>("no")
@@ -19,9 +17,14 @@ expect class Foo(
 
     var getSet: String
         <!EXPECTED_DECLARATION_WITH_BODY!>get()<!> = "no"
-        <!EXPECTED_DECLARATION_WITH_BODY!>set(<!UNUSED_PARAMETER!>value<!>)<!> {}
+        <!EXPECTED_DECLARATION_WITH_BODY!>set(value)<!> {}
 
     <!EXPECTED_DECLARATION_WITH_BODY!>fun functionWithBody(x: Int): Int<!> {
         return x + 1
     }
 }
+
+// MODULE: m1-jvm()()(m1-common)
+
+/* GENERATED_FIR_TAGS: additiveExpression, classDeclaration, expect, functionDeclaration, getter, init, integerLiteral,
+propertyDeclaration, secondaryConstructor, setter, stringLiteral */

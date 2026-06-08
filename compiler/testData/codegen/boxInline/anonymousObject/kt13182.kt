@@ -1,11 +1,10 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 
 package test
 
 inline fun test(cond: Boolean, crossinline cif: () -> String): String {
     return if (cond) {
-        { cif() }()
+        { cif() }.let { it() }
     }
     else {
         cif()
@@ -20,7 +19,6 @@ fun box(): String {
     return test(true) {
         {
             s
-        }()
+        }.let { it() }
     }
 }
-

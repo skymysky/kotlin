@@ -16,32 +16,32 @@
 
 package org.jetbrains.kotlin.cli.common;
 
-import com.intellij.util.containers.ContainerUtil;
-import kotlin.jvm.JvmClassMappingKt;
-import kotlin.reflect.KCallable;
-import kotlin.reflect.KClass;
-import kotlin.reflect.KProperty1;
+import com.intellij.openapi.util.SystemInfo;
 import kotlin.text.StringsKt;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.cli.common.arguments.Argument;
-import org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments;
-import org.jetbrains.kotlin.cli.common.arguments.ParseCommandLineArgumentsKt;
-import org.jetbrains.kotlin.cli.common.arguments.PreprocessCommandLineArgumentsKt;
+import org.jetbrains.kotlin.cli.common.arguments.*;
+
+import java.lang.reflect.Field;
 
 public class Usage {
+    public static final String BAT_DELIMITER_CHARACTERS_NOTE =
+            "Note: on Windows, arguments that contain delimiter characters (whitespace, =, ;, ,) need to be surrounded with double quotes (\").";
+
     // The magic number 29 corresponds to the similar padding width in javac and scalac command line compilers
     private static final int OPTION_NAME_PADDING_WIDTH = 29;
 
     @NotNull
-    public static <A extends CommonToolArguments> String render(@NotNull CLITool<A> tool, @NotNull A arguments) {
+    public static <A extends CommonCompilerArguments> String render(@NotNull CLICompiler<A> compiler, @NotNull A arguments) {
         boolean extraHelp = arguments.getExtraHelp();
         StringBuilder sb = new StringBuilder();
-        appendln(sb, "Usage: " + tool.executableScriptFileName() + " <options> <source files>");
+        appendln(sb, "Usage: " + compiler.executableScriptFileName() + " <options> <source files>");
         appendln(sb, "where " + (extraHelp ? "advanced" : "possible") + " options include:");
-        KClass<? extends CommonToolArguments> kClass = JvmClassMappingKt.getKotlinClass(arguments.getClass());
-        for (KCallable<?> callable : kClass.getMembers()) {
-            if (!(callable instanceof KProperty1)) continue;
-            propertyUsage(sb, (KProperty1) callable, extraHelp);
+        Class<?> klass = arguments.getClass();
+        while (klass != Object.class) {
+            for (Field field : klass.getDeclaredFields()) {
+                fieldUsage(sb, field, extraHelp);
+            }
+            klass = klass.getSuperclass();
         }
 
         if (extraHelp) {
@@ -49,16 +49,29 @@ public class Usage {
             appendln(sb, "Advanced options are non-standard and may be changed or removed without any notice.");
         }
         else {
+            renderOptionJUsage(sb);
             renderArgfileUsage(sb);
+        }
+
+        if (SystemInfo.isWindows) {
+            appendln(sb, "");
+            appendln(sb, BAT_DELIMITER_CHARACTERS_NOTE);
+        }
+
+        if (!extraHelp) {
+            appendln(sb, "");
+            appendln(sb, "For details, see https://kotl.in/cli");
         }
 
         return sb.toString();
     }
 
-    private static void propertyUsage(@NotNull StringBuilder sb, @NotNull KProperty1 property, boolean extraHelp) {
-        Argument argument = ContainerUtil.findInstance(property.getAnnotations(), Argument.class);
+    private static void fieldUsage(@NotNull StringBuilder sb, @NotNull Field field, boolean extraHelp) {
+        Argument argument = field.getAnnotation(Argument.class);
         if (argument == null) return;
 
+        if (argument.isObsolete()) return;
+        if (ParseCommandLineArgumentsKt.isInternal(argument)) return;
         if (extraHelp != ParseCommandLineArgumentsKt.isAdvanced(argument)) return;
 
         int startLength = sb.length();
@@ -89,6 +102,15 @@ public class Usage {
         appendln(sb, argument.description().replace("\n", "\n" + StringsKt.repeat(" ", OPTION_NAME_PADDING_WIDTH)));
     }
 
+    private static void renderOptionJUsage(@NotNull StringBuilder sb) {
+        int descriptionStart = sb.length() + OPTION_NAME_PADDING_WIDTH;
+        sb.append("  -J<option>");
+        while (sb.length() < descriptionStart) {
+            sb.append(" ");
+        }
+        appendln(sb, "Pass an option directly to JVM.");
+    }
+
     private static void renderArgfileUsage(@NotNull StringBuilder sb) {
         int descriptionStart = sb.length() + OPTION_NAME_PADDING_WIDTH;
         sb.append("  ");
@@ -97,11 +119,11 @@ public class Usage {
         while (sb.length() < descriptionStart) {
             sb.append(" ");
         }
-        appendln(sb, "Expand compiler arguments from the given file, containing one argument or file path per line");
+        appendln(sb, "Read compiler arguments and file paths from the given file.");
     }
 
     private static void appendln(@NotNull StringBuilder sb, @NotNull String string) {
         sb.append(string);
-        StringsKt.appendln(sb);
+        sb.append('\n');
     }
 }

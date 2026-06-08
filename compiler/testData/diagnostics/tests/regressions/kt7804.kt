@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: BACKEND
 // See also KT-7804 (Wrong type inference of kotlin.Any? was for 'a' without explicit type)
 fun <T> foo(a: T) = a
 
@@ -21,7 +21,7 @@ fun <T> test2(v: T): T {
         foo(v) <!USELESS_CAST!>as T<!>
     }
     else {
-        v <!USELESS_CAST!>as T<!>
+        v as T
     }
 
     val t: T = a
@@ -63,3 +63,6 @@ fun <T> test5(v: T): T {
     val t: T = a
     return t
 }
+
+/* GENERATED_FIR_TAGS: asExpression, classDeclaration, functionDeclaration, ifExpression, intersectionType, isExpression,
+localProperty, nullableType, propertyDeclaration, smartcast, typeParameter */

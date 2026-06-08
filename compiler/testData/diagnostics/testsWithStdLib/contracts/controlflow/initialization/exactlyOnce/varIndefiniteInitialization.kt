@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -31,7 +31,7 @@ fun branchingIndetermineFlow(a: Any) {
     var x: Int
 
     if (a is String) {
-        repeat(<!DEBUG_INFO_SMARTCAST!>a<!>.length) {
+        repeat(a.length) {
             myRun { x = 42 }
         }
     }
@@ -49,3 +49,6 @@ fun nestedIndefiniteAssignment() {
     funWithUnknownInvocations { myRun { <!CAPTURED_VAL_INITIALIZATION!>x<!> = 42 } }
     <!UNINITIALIZED_VARIABLE!>x<!>.inc()
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, functionDeclaration, functionalType, ifExpression,
+integerLiteral, isExpression, lambdaLiteral, localProperty, nullableType, propertyDeclaration, smartcast, typeParameter */

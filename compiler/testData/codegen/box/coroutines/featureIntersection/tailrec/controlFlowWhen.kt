@@ -1,11 +1,7 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-
 import helpers.*
-import COROUTINES_PACKAGE.*
+import kotlin.coroutines.*
 
 class CompilerKillingIterator<T, out R>(private val underlying: Iterator<T>, private val transform: suspend (e: T) -> Iterator<R>) {
     private var currentIt: Iterator<R> = object : Iterator<R> {
@@ -35,7 +31,7 @@ fun builder(c: suspend () -> Unit) {
 fun box(): String {
     var res = ""
     builder {
-        val iter = CompilerKillingIterator("ok".asIterable().iterator()) { ("" + it.toUpperCase()).asIterable().iterator() }
+        val iter = CompilerKillingIterator("ok".asIterable().iterator()) { ("" + it.uppercaseChar()).asIterable().iterator() }
         while (iter.hasNext()) {
             res += iter.next()
         }

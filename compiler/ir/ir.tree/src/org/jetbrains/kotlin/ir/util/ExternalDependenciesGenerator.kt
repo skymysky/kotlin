@@ -13,57 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.jetbrains.kotlin.ir.util
 
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
-import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.ir.IrProvider
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.symbols.IrSymbol
 
 class ExternalDependenciesGenerator(
-    moduleDescriptor: ModuleDescriptor,
-    val symbolTable: SymbolTable,
-    val irBuiltIns: IrBuiltIns
+    private val symbolTable: SymbolTable,
+    private val irProviders: List<IrProvider>
 ) {
-    private val stubGenerator = DeclarationStubGenerator(
-        moduleDescriptor, symbolTable, IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB, irBuiltIns.languageVersionSettings
-    )
+    @OptIn(ObsoleteDescriptorBasedAPI::class)
+    fun generateUnboundSymbolsAsDependencies() {
+        // There should be at most one DeclarationStubGenerator (none in closed world?)
+        irProviders.filterIsInstance<DeclarationStubGenerator>().singleOrNull()?.run { unboundSymbolGeneration = true }
 
-    fun generateUnboundSymbolsAsDependencies(irModule: IrModuleFragment, bindingContext: BindingContext? = null) {
-        DependencyGenerationTask(irModule, bindingContext).run()
-    }
-
-    private inner class DependencyGenerationTask(val irModule: IrModuleFragment, val bindingContext: BindingContext?) {
-
-        fun run() {
-            stubGenerator.unboundSymbolGeneration = true
-            ArrayList(symbolTable.unboundClasses).forEach {
-                stubGenerator.generateClassStub(it.descriptor)
+        // Deserializing a reference may lead to new unbound references, so we loop until none are left.
+        var unbound = emptySet<IrSymbol>()
+        do {
+            val prevUnbound = unbound
+            unbound = symbolTable.descriptorExtension.allUnboundSymbols
+            for (symbol in unbound) {
+                // Symbol could get bound as a side effect of deserializing other symbols.
+                if (!symbol.isBound) {
+                    irProviders.firstNotNullOfOrNull { provider -> provider.getDeclaration(symbol) }
+                }
             }
-            ArrayList(symbolTable.unboundConstructors).forEach {
-                stubGenerator.generateConstructorStub(it.descriptor)
-            }
-            ArrayList(symbolTable.unboundEnumEntries).forEach {
-                stubGenerator.generateEnumEntryStub(it.descriptor)
-            }
-            ArrayList(symbolTable.unboundFields).forEach {
-                stubGenerator.generatePropertyStub(it.descriptor, bindingContext)
-            }
-            ArrayList(symbolTable.unboundSimpleFunctions).forEach {
-                stubGenerator.generateFunctionStub(it.descriptor)
-            }
-            ArrayList(symbolTable.unboundTypeParameters).forEach {
-                stubGenerator.generateOrGetTypeParameterStub(it.descriptor)
-            }
-
-            assert(symbolTable.unboundClasses.isEmpty())
-            assert(symbolTable.unboundConstructors.isEmpty())
-            assert(symbolTable.unboundEnumEntries.isEmpty())
-            assert(symbolTable.unboundFields.isEmpty())
-            assert(symbolTable.unboundSimpleFunctions.isEmpty())
-            assert(symbolTable.unboundTypeParameters.isEmpty())
-        }
+            // We wait for the unbound to stabilize on fake overrides.
+        } while (unbound != prevUnbound)
     }
 }

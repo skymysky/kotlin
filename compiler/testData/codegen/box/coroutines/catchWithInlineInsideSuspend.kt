@@ -1,16 +1,7 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
-
-class Controller {
-    var result = "FAIL"
-}
-
-fun faz(): String { throw IllegalStateException("OK") }
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
 
 inline fun exceptionGet(a: () -> String): String {
     try {
@@ -19,6 +10,17 @@ inline fun exceptionGet(a: () -> String): String {
         return e.message!!
     }
 }
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
+
+class Controller {
+    var result = "FAIL"
+}
+
+fun faz(): String { throw IllegalStateException("OK") }
 
 suspend fun baz() {}
 

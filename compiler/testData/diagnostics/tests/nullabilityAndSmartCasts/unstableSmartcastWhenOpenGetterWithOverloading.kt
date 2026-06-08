@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface Ctx
 class CtxImpl : Ctx {
@@ -13,3 +14,6 @@ open class Test(open val ctx: Ctx) {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, integerLiteral, interfaceDeclaration, isExpression,
+primaryConstructor, propertyDeclaration, smartcast, whenExpression, whenWithSubject */

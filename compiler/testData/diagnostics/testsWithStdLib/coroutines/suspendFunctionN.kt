@@ -1,8 +1,9 @@
-// !LANGUAGE: +Coroutines
-// !DIAGNOSTICS: -USELESS_IS_CHECK
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -USELESS_IS_CHECK
 
 fun test() {
     suspend {} is <!UNRESOLVED_REFERENCE!>SuspendFunction0<!><*>
     suspend {} is kotlin.coroutines.SuspendFunction0<*>
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, isExpression, lambdaLiteral, starProjection */

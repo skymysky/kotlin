@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
+// NO_CHECK_LAMBDA_INLINING
 // FILE: 1.kt
 
 package test
@@ -11,7 +11,7 @@ class A {
     inline fun inlineFun(arg: String, crossinline f: (String) -> Unit) {
         {
             f(arg + addParam)
-        }()
+        }.let { it() }
     }
 
 
@@ -19,7 +19,7 @@ class A {
         inlineFun("2") { a ->
             {
                 result = param + a
-            }()
+            }.let { it() }
         }
         return if (result == "start2_additional_") "OK" else "fail: $result"
     }
@@ -28,7 +28,6 @@ class A {
 
 // FILE: 2.kt
 
-//NO_CHECK_LAMBDA_INLINING
 import test.*
 
 fun box(): String {

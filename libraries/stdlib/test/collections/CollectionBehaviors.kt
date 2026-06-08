@@ -1,11 +1,12 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.collections.behaviors
 
 import test.collections.CompareContext
+import kotlin.collections.contains
 
 public fun <T> CompareContext<List<T>>.listBehavior() {
     equalityBehavior()
@@ -19,10 +20,22 @@ public fun <T> CompareContext<List<T>>.listBehavior() {
     for (index in expected.indices)
         propertyEquals { this[index] }
 
-    propertyFails { this[size] }
+    propertyFailsWith<IndexOutOfBoundsException> { this[size] }
 
     propertyEquals { indexOf(elementAtOrNull(0)) }
     propertyEquals { lastIndexOf(elementAtOrNull(0)) }
+
+    for (element in expected) {
+        propertyEquals { this.indexOf(element) }
+        propertyEquals { this.lastIndexOf(element) }
+    }
+
+    val nonExisting = object {}
+    propertyEquals { this.indexOf(nonExisting as Any?) }
+    propertyEquals { this.lastIndexOf(nonExisting as Any?) }
+
+    propertyEquals { this.indexOf(null as Any?) }
+    propertyEquals { this.lastIndexOf(null as Any?) }
 
     propertyFails { subList(0, size + 1) }
     propertyFails { subList(-1, 0) }
@@ -103,6 +116,15 @@ public fun <T> CompareContext<Collection<T>>.collectionBehavior(objectName: Stri
     (object {}).let { propertyEquals { contains(it as Any?) } }
     propertyEquals { contains(firstOrNull()) }
     propertyEquals { containsAll(this) }
+    (object {}).let { propertyEquals { containsAll(listOf<Any?>(it)) } }
+    propertyEquals { containsAll(listOf<Any?>(null)) }
 }
 
-
+public fun <T> CompareContext<Sequence<T>>.sequenceBehavior(isConstrainOnce: Boolean = false) {
+    compareProperty({ iterator() }, { iteratorBehavior() })
+    if (isConstrainOnce) {
+        propertyFailsWith<IllegalStateException> { iterator() }
+    } else {
+        compareProperty({ iterator() }, { iteratorBehavior() })
+    }
+}

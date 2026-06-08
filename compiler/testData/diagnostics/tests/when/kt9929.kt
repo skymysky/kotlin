@@ -1,10 +1,13 @@
-// !WITH_NEW_INFERENCE
-val test: Int = <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!>if (true) {
+// RUN_PIPELINE_TILL: FRONTEND
+val test: Int <!INITIALIZER_TYPE_MISMATCH!>=<!> if (true) {
     when (2) {
         1 -> 1
-        else -> <!OI;NULL_FOR_NONNULL_TYPE!>null<!>
+        else -> null
     }
 }
 else {
     2
-}<!>
+}
+
+/* GENERATED_FIR_TAGS: equalityExpression, ifExpression, integerLiteral, propertyDeclaration, whenExpression,
+whenWithSubject */

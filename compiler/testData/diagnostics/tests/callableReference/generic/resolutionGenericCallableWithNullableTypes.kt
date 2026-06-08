@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
 
 fun foo(x: Int?) {}
 fun foo(y: String?) {}
@@ -17,7 +17,10 @@ fun test1() {
     baz<String>(::foo).checkType { _<String?>() }
     baz<Boolean>(::foo).checkType { _<Boolean?>() }
 
-    val b1: Int = <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>baz(::<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>foo<!>)<!>
-    val b2: String = <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>baz(::<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>foo<!>)<!>
-    val b3: Boolean = <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>baz(::<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>foo<!>)<!>
+    val b1: Int = <!CANNOT_INFER_PARAMETER_TYPE!>baz<!>(::<!OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>)
+    val b2: String = <!CANNOT_INFER_PARAMETER_TYPE!>baz<!>(::<!OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>)
+    val b3: Boolean = <!CANNOT_INFER_PARAMETER_TYPE!>baz<!>(::<!OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>)
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, infix, lambdaLiteral, localProperty, nullableType, propertyDeclaration, typeParameter, typeWithExtension */

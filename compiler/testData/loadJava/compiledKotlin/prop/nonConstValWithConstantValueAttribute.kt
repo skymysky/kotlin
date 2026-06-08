@@ -1,4 +1,4 @@
-// !LANGUAGE: -NoConstantValueAttributeForNonConstVals
+// NO_CHECK_SOURCE_VS_BINARY
 //ALLOW_AST_ACCESS
 
 package test

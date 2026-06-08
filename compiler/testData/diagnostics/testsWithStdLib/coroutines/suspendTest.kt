@@ -1,4 +1,5 @@
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// ALLOW_KOTLIN_PACKAGE
 // FILE: test.kt
 
 package kotlin.test
@@ -13,8 +14,10 @@ import kotlin.test.Test
 
 class A {
     @Test
-    <!UNSUPPORTED!>suspend<!> fun test() {}
+    <!UNSUPPORTED_SUSPEND_TEST!>suspend<!> fun test() {}
 }
 
 @Test
-<!UNSUPPORTED!>suspend<!> fun test() {}
+<!UNSUPPORTED_SUSPEND_TEST!>suspend<!> fun test() {}
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, functionDeclaration, suspend, typeAliasDeclaration */

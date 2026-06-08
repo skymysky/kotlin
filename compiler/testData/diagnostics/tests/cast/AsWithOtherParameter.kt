@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // See also: KT-6611 (cast can never succeed: Class<T> -> Class<Any>)
 
 class Class<T>(val name: String, val instance: T)
@@ -32,3 +33,5 @@ fun checkArrays3() {
 
 fun println(s: String) = s
 
+/* GENERATED_FIR_TAGS: asExpression, classDeclaration, functionDeclaration, integerLiteral, intersectionType,
+localProperty, nullableType, primaryConstructor, propertyDeclaration, smartcast, stringLiteral, typeParameter */

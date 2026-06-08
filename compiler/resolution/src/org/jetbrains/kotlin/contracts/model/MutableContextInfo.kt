@@ -92,7 +92,7 @@ class MutableContextInfo private constructor(
     private fun <D> Map<ESValue, MutableSet<D>>.union(that: Map<ESValue, MutableSet<D>>): MutableMap<ESValue, MutableSet<D>> {
         val result = mutableMapOf<ESValue, MutableSet<D>>()
         result.putAll(this)
-        that.entries.forEach { (thatKey, thatValue) ->
+        that.entries.forEach { [thatKey, thatValue] ->
             val oldValue = result[thatKey] ?: mutableSetOf()
             oldValue.addAll(thatValue)
             result[thatKey] = oldValue
@@ -112,16 +112,16 @@ class MutableContextInfo private constructor(
         val info = this@MutableContextInfo
 
         fun <D> Map<ESValue, Set<D>>.printMapEntriesWithSeparator(separator: String) {
-            this.entries.filter { it.value.isNotEmpty() }.forEach { (key, value) ->
+            this.entries.filter { it.value.isNotEmpty() }.forEach { [key, value] ->
                 append(key.toString())
                 append(" $separator ")
-                appendln(value.toString())
+                appendLine(value.toString())
             }
         }
 
         append("Fired effects: ")
         append(info.firedEffects.joinToString(separator = ", "))
-        appendln("")
+        appendLine("")
 
         subtypes.printMapEntriesWithSeparator("is")
 

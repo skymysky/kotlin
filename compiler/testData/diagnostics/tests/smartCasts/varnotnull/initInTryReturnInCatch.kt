@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // JAVAC_EXPECTED_FILE
 // See also KT-10735
 fun test() {
@@ -9,7 +9,7 @@ fun test() {
     catch (e: Exception) {
         return
     }
-    <!DEBUG_INFO_SMARTCAST!>a<!>.hashCode() // a is never null here
+    a.hashCode() // a is never null here
 }
 class A: Exception()
 class B: Exception()
@@ -24,7 +24,7 @@ fun test2() {
     catch (e: B) {
         return
     }
-    <!DEBUG_INFO_SMARTCAST!>a<!>.hashCode() // a is never null here
+    a.hashCode() // a is never null here
 }
 fun test3() {
     var a: Int? = null
@@ -55,7 +55,7 @@ fun test4() {
 fun test5() {
     var a: Int?// = null
     try {
-        <!UNUSED_VALUE!>a =<!> 3
+        a = 3
     }
     catch (e: Exception) {
         return
@@ -63,12 +63,12 @@ fun test5() {
     finally {
         a = 5
     }
-    <!DEBUG_INFO_SMARTCAST!>a<!>.hashCode() // a is never null here
+    a.hashCode() // a is never null here
 }
 fun test6() {
     var a: Int?// = null
     try {
-        <!UNUSED_VALUE!>a =<!> 3
+        a = 3
     }
     catch (e: Exception) {
         return
@@ -76,5 +76,8 @@ fun test6() {
     finally {
         a = null
     }
-    <!OI;DEBUG_INFO_CONSTANT!>a<!><!UNSAFE_CALL!>.<!>hashCode() // a is null here
+    a<!UNSAFE_CALL!>.<!>hashCode() // a is null here
 }
+
+/* GENERATED_FIR_TAGS: assignment, classDeclaration, functionDeclaration, integerLiteral, localProperty, nullableType,
+propertyDeclaration, smartcast, tryExpression */

@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.numbers
@@ -24,7 +24,7 @@ class MathJVMTest {
                 doubleArrayOf( 3.75, -1.25),
                 doubleArrayOf( 4.0,  -1.0)
         )
-        for ((a, r) in data) {
+        for ([a, r] in data) {
             assertEquals(r, a.IEEErem(2.5), "($a).IEEErem(2.5)")
         }
 

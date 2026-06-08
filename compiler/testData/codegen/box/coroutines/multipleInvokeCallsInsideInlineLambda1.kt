@@ -1,10 +1,10 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
+// NO_CHECK_LAMBDA_INLINING
+// FILE: main.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     var lastSuspension: Continuation<String>? = null
@@ -59,10 +59,6 @@ private fun runControllers(controller1: Controller, controller2: Controller) {
     if (controller2.result != "OK") throw RuntimeException("fail 4")
 }
 
-inline fun run(b: () -> Unit) {
-    b()
-}
-
 fun box(): String {
     // with capture and params
 
@@ -91,4 +87,9 @@ fun box(): String {
     }
 
     return "OK"
+}
+
+// FILE: lib.kt
+inline fun run(b: () -> Unit) {
+    b()
 }

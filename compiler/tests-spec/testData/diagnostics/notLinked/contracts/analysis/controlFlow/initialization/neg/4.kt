@@ -1,30 +1,29 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !WITH_CONTRACT_FUNCTIONS
-// SKIP_TXT
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 /*
- KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
-
- SECTION: contracts
- CATEGORY: analysis, controlFlow, initialization
- NUMBER: 4
- DESCRIPTION: CallsInPlace contract functions with name shadowing and wrong invocation kind
+ * KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
+ *
+ * SECTIONS: contracts, analysis, controlFlow, initialization
+ * NUMBER: 4
+ * DESCRIPTION: CallsInPlace contract functions with name shadowing and wrong invocation kind
+ * HELPERS: contractFunctions
  */
 
+// TESTCASE NUMBER: 1
 fun case_1() {
     val value_1: Int
     funWithExactlyOnceCallsInPlace {
-        val <!NAME_SHADOWING!>value_1<!> = 10
+        val value_1 = 10
         value_1.inc()
     }
     <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
+// TESTCASE NUMBER: 2
 fun case_2() {
     val value_1: Int
     funWithExactlyOnceCallsInPlace {
-        val <!NAME_SHADOWING!>value_1<!>: Int
+        val value_1: Int
         funWithExactlyOnceCallsInPlace {
             value_1 = 10
         }
@@ -36,17 +35,18 @@ fun case_2() {
     <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
+// TESTCASE NUMBER: 3
 fun case_3() {
     val value_1: Int
     funWithAtLeastOnceCallsInPlace {
-        val <!NAME_SHADOWING!>value_1<!>: Int
+        val value_1: Int
         funWithAtMostOnceCallsInPlace {
             value_1 = 10
         }
         funWithAtMostOnceCallsInPlace {
             <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
-        value_1.inc()
+        <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
     }
     funWithAtMostOnceCallsInPlace {
         value_1 = 10
@@ -54,10 +54,11 @@ fun case_3() {
     <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
-fun case_6() {
+// TESTCASE NUMBER: 4
+fun case_4() {
     var value_1: Int
     funWithAtLeastOnceCallsInPlace {
-        val <!NAME_SHADOWING!>value_1<!>: Int
+        val value_1: Int
         funWithExactlyOnceCallsInPlace {
             value_1 = 10
         }
@@ -72,10 +73,11 @@ fun case_6() {
     <!UNINITIALIZED_VARIABLE!>value_1<!>.dec()
 }
 
-fun case_7() {
+// TESTCASE NUMBER: 5
+fun case_5() {
     val value_1: Int
     funWithUnknownCallsInPlace {
-        var <!NAME_SHADOWING!>value_1<!>: Int
+        var value_1: Int
         funWithAtLeastOnceCallsInPlace {
             value_1 = 10
         }

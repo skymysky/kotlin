@@ -1,2 +1,5 @@
-class A private <!MISSING_CONSTRUCTOR_BRACKETS!>constructor<!><!SYNTAX!><!> {
+// RUN_PIPELINE_TILL: FRONTEND
+class A private constructor<!SYNTAX!><!> {
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, primaryConstructor */

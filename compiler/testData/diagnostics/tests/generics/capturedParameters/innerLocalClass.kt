@@ -1,6 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 private class Outer<E> {
     private inner class Inner<out F> {
         private fun <G> foo() = {
@@ -20,7 +19,7 @@ private class Outer<E> {
         private var doubleStringInt = Outer<Double>().Inner<String>().foo<Int>()()
 
         private fun bar() {
-            doubleCharSequenceInt = <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>doubleStringNumber<!>
+            doubleCharSequenceInt <!ASSIGNMENT_TYPE_MISMATCH!>=<!> doubleStringNumber
             doubleCharSequenceInt = doubleStringInt
 
             doubleStringInt = Outer<Double>().Inner<String>().foo<Int>()()
@@ -33,3 +32,7 @@ private class Outer<E> {
 }
 
 fun <T> magic(): T = null!!
+
+/* GENERATED_FIR_TAGS: assignment, checkNotNullCall, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, infix, inner, lambdaLiteral, localClass, localFunction, nullableType, out, propertyDeclaration,
+typeParameter, typeWithExtension */

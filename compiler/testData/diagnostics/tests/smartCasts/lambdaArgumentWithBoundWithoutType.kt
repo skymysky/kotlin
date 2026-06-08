@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 interface Foo
 interface Bar : Foo
 
@@ -10,17 +10,20 @@ fun <T : Bar> run(f: () -> T): T = f()
 val foo: Foo = run {
     val x = bar()
     if (x == null) throw Exception()
-    <!DEBUG_INFO_SMARTCAST!>x<!>
+    x
 }
 
-val foofoo: Foo = <!OI;TYPE_INFERENCE_UPPER_BOUND_VIOLATED!>run<!> {
+val foofoo: Foo = run {
     val x = foo()
     if (x == null) throw Exception()
-    <!NI;TYPE_MISMATCH, DEBUG_INFO_SMARTCAST!>x<!>
+    <!RETURN_TYPE_MISMATCH!>x<!>
 }
 
-val bar: Bar = <!NI;TYPE_MISMATCH!><!OI;TYPE_INFERENCE_CONFLICTING_SUBSTITUTIONS!>run<!> {
+val bar: Bar = run {
     val x = foo()
     if (x == null) throw Exception()
-    <!NI;DEBUG_INFO_SMARTCAST, TYPE_MISMATCH!>x<!>
-}<!>
+    <!RETURN_TYPE_MISMATCH!>x<!>
+}
+
+/* GENERATED_FIR_TAGS: equalityExpression, functionDeclaration, functionalType, ifExpression, interfaceDeclaration,
+lambdaLiteral, localProperty, nullableType, propertyDeclaration, smartcast, typeConstraint, typeParameter */

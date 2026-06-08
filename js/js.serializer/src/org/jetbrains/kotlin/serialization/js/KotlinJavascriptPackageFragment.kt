@@ -28,7 +28,9 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.serialization.deserialization.*
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerAbiStability
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.PreReleaseInfo
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.storage.getValue
 import org.jetbrains.kotlin.utils.JsMetadataVersion
@@ -45,7 +47,7 @@ class KotlinJavascriptPackageFragment(
     fqName, storageManager, module, proto, metadataVersion, JsContainerSource(fqName, header, configuration)
 ) {
     val fileMap: Map<Int, FileHolder> =
-        proto.getExtension(JsProtoBuf.packageFragmentFiles).fileList.withIndex().associate { (index, file) ->
+        proto.getExtension(JsProtoBuf.packageFragmentFiles).fileList.withIndex().associate { [index, file] ->
             (if (file.hasId()) file.id else index) to FileHolder(file.annotationList)
         }
 
@@ -91,8 +93,11 @@ class KotlinJavascriptPackageFragment(
         override val incompatibility: IncompatibleVersionErrorData<*>?
             get() = null
 
-        override val isPreReleaseInvisible: Boolean =
-            configuration.reportErrorsOnPreReleaseDependencies && (header.flags and 1) != 0
+        override val preReleaseInfo: PreReleaseInfo =
+            PreReleaseInfo(isInvisible = configuration.reportErrorsOnPreReleaseDependencies && (header.flags and 1) != 0)
+
+        override val abiStability: DeserializedContainerAbiStability
+            get() = DeserializedContainerAbiStability.STABLE
 
         override val presentableString: String
             get() = "Package '$fqName'"

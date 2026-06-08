@@ -1,4 +1,5 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: BACKEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -6,15 +7,15 @@ interface Foo {
     fun foo()
 }
 
-expect class ImplicitFoo : Foo
+expect <!ABSTRACT_MEMBER_NOT_IMPLEMENTED{METADATA}!>class ImplicitFoo<!> : Foo
 
 expect class ExplicitFoo : Foo {
     override fun foo()
 }
 
-expect class ImplicitFooCheck : Foo
+expect <!ABSTRACT_MEMBER_NOT_IMPLEMENTED{METADATA}!>class ImplicitFooCheck<!> : Foo
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual class ImplicitFoo : Foo {
@@ -26,3 +27,5 @@ actual class ExplicitFoo : Foo {
 }
 
 actual <!ABSTRACT_MEMBER_NOT_IMPLEMENTED!>class ImplicitFooCheck<!> : Foo
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, expect, functionDeclaration, interfaceDeclaration, override */

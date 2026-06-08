@@ -1,3 +1,5 @@
+// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +AllowSuperCallToJavaInterface
 // FILE: JavaInterfaceBase.java
 
 public interface JavaInterfaceBase {
@@ -24,8 +26,8 @@ import JavaInterface.testStatic
 
 interface KotlinInterface : JavaInterface {
     fun fooo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+        testStatic()
+        super.test()
         test()
         testOverride()
     }
@@ -37,8 +39,8 @@ interface KotlinInterface : JavaInterface {
 
 interface KotlinInterfaceIndirectInheritance : KotlinInterface {
     fun foooo() {
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER!>test<!>()
+        testStatic()
+        super.test()
         testOverride()
         super.testOverride()
     }
@@ -46,15 +48,15 @@ interface KotlinInterfaceIndirectInheritance : KotlinInterface {
 
 open class KotlinClass : JavaInterface {
     fun foo(){
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testOverride<!>()
+        testStatic()
+        super.test()
+        super.testOverride()
     }
 }
 
 class KotlinClassIndirectInheritance : KotlinClass() {
     fun foo2(){
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
+        testStatic()
         super.test()
         super.testOverride()
     }
@@ -62,14 +64,14 @@ class KotlinClassIndirectInheritance : KotlinClass() {
 
 class KotlinClassIndirectInheritance2 : KotlinInterfaceIndirectInheritance {
     fun foo(){
-        <!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>test<!>()
+        testStatic()
+        super.test()
         super.testOverride()
     }
 }
 
 fun test() {
-    JavaInterface.<!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>testStatic<!>()
+    JavaInterface.testStatic()
     KotlinClass().foo()
     KotlinClassIndirectInheritance2().foo()
 
@@ -77,3 +79,6 @@ fun test() {
     KotlinClass().testOverride()
     KotlinClassIndirectInheritance().testOverride()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, functionDeclaration, interfaceDeclaration, javaFunction, javaType,
+override, stringLiteral, superExpression */

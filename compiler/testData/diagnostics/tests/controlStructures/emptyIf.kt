@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 fun foo(x: Unit) = x
 
 fun test() {
@@ -14,3 +15,6 @@ fun test() {
 
     return <!INVALID_IF_AS_EXPRESSION!>if<!> (true);
 }
+
+/* GENERATED_FIR_TAGS: equalityExpression, functionDeclaration, ifExpression, integerLiteral, lambdaLiteral,
+localProperty, propertyDeclaration */

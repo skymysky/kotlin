@@ -1,5 +1,5 @@
-// !LANGUAGE: +VariableDeclarationInWhenSubject
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 sealed class Either
 class Left : Either()
@@ -18,3 +18,6 @@ fun testSmartcastToSealedInSubjectInitializer2(x: Any?) {
         is Right -> "R"
     }
 }
+
+/* GENERATED_FIR_TAGS: asExpression, classDeclaration, functionDeclaration, isExpression, localProperty, nullableType,
+propertyDeclaration, sealed, smartcast, stringLiteral, whenExpression, whenWithSubject */

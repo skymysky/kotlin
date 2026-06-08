@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 package test
 import kotlin.reflect.KClass
 
@@ -10,3 +11,6 @@ class MyClass {
     }
 
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, classReference, companionObject, objectDeclaration,
+primaryConstructor, propertyDeclaration, starProjection */

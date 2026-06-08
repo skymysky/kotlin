@@ -1,10 +1,9 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 package test
 
 inline fun inline1(crossinline action: () -> Unit) {
     action();
-    { action() }()
+    { action() }.let { it() }
 }
 
 inline fun inline2(crossinline action: () -> Unit) = { action() }
@@ -19,4 +18,3 @@ fun box(): String {
 
     return result
 }
-

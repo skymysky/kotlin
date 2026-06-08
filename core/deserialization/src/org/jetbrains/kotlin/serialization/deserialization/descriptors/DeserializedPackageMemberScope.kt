@@ -34,12 +34,13 @@ import org.jetbrains.kotlin.serialization.deserialization.DeserializationCompone
 
 open class DeserializedPackageMemberScope(
     private val packageDescriptor: PackageFragmentDescriptor,
-    proto: ProtoBuf.Package,
+    val proto: ProtoBuf.Package,
     nameResolver: NameResolver,
     metadataVersion: BinaryVersion,
     containerSource: DeserializedContainerSource?,
     components: DeserializationComponents,
-    classNames: () -> Collection<Name>
+    private val debugName: String,
+    classNames: () -> Collection<Name>,
 ) : DeserializedMemberScope(
     components.createContext(
         packageDescriptor, nameResolver, TypeTable(proto.typeTable),
@@ -69,8 +70,11 @@ open class DeserializedPackageMemberScope(
 
     override fun getNonDeclaredFunctionNames(): Set<Name> = emptySet()
     override fun getNonDeclaredVariableNames(): Set<Name> = emptySet()
+    override fun getNonDeclaredClassifierNames(): Set<Name>? = emptySet()
 
     override fun addEnumEntryDescriptors(result: MutableCollection<DeclarationDescriptor>, nameFilter: (Name) -> Boolean) {
         // Do nothing
     }
+
+    override fun toString(): String = debugName
 }

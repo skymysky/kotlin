@@ -1,5 +1,5 @@
-// WITH_RUNTIME
-// CHECK_CASES_COUNT: function=bar count=3
+// WITH_STDLIB
+// CHECK_CASES_COUNT: function=bar count=4
 // CHECK_IF_COUNT: function=bar count=0
 
 import kotlin.test.assertEquals

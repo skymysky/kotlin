@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 class Foo {
     <!NON_FINAL_MEMBER_IN_FINAL_CLASS!>open<!> fun openFoo() {}
     fun finalFoo() {}
@@ -26,3 +27,5 @@ abstract class A2 {
 class C2 : <!FINAL_SUPERTYPE!>B2<!>() {
     override fun foo() {}
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, override */

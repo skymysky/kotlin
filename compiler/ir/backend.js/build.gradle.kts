@@ -1,25 +1,30 @@
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
 }
-
-jvmTarget = "1.6"
 
 dependencies {
-    compile(project(":compiler:util"))
-    compile(project(":compiler:frontend"))
-    compile(project(":compiler:backend-common"))
-    compile(project(":compiler:ir.tree"))
-    compile(project(":compiler:ir.psi2ir"))
-    compile(project(":compiler:ir.backend.common"))
-    compile(project(":js:js.ast"))
-    compile(project(":js:js.frontend"))
+    api(project(":compiler:cli-base"))
+    api(project(":compiler:util"))
+    api(project(":compiler:frontend"))
+    api(project(":compiler:ir.tree"))
+    api(project(":compiler:ir.backend.common"))
+    api(project(":compiler:ir.inline"))
+    api(project(":compiler:ir.serialization.common"))
+    api(project(":compiler:ir.serialization.js"))
+    api(project(":js:js.ast"))
+    api(project(":js:js.sourcemap"))
+    implementation(project(":js:js.translator"))
 
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
+    // TODO(KT-79631): Remove these dependencies when we rewrite TS export to Analysis API
+    api(project(":js:typescript-export-model"))
+    api(project(":js:typescript-printer"))
+
+    compileOnly(intellijCore())
 }
+
+optInToUnsafeDuringIrConstructionAPI()
 
 sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
-

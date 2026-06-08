@@ -1,6 +1,5 @@
-// !LANGUAGE: +ProperForInArrayLoopRangeVariableAssignmentSemantic
-// !DIAGNOSTICS: -UNUSED_VALUE
-// SKIP_TXT
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_VALUE
 
 fun testObjectArray() {
     var xs = arrayOf("a", "b", "c")
@@ -17,3 +16,6 @@ fun testPrimitiveArray() {
         xs = intArrayOf(4, 5, 6)
     }
 }
+
+/* GENERATED_FIR_TAGS: assignment, forLoop, functionDeclaration, integerLiteral, localProperty, propertyDeclaration,
+stringLiteral */

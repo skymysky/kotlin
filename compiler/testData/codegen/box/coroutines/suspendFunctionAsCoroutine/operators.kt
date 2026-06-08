@@ -1,10 +1,9 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 import kotlin.reflect.KProperty
 
 suspend fun suspendThere(v: String): String = suspendCoroutineUninterceptedOrReturn { x ->
@@ -77,7 +76,7 @@ var a = A("O")
 //}
 
 suspend fun foo2() {
-    val (y) = a
+    val [y] = a
     if (y != "OK") throw RuntimeException("fail 3")
 }
 

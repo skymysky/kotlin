@@ -1,12 +1,11 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -SUSPENSION_CALL_MUST_BE_USED_AS_RETURN_VALUE
-// COMMON_COROUTINES_TEST
-
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -SUSPENSION_CALL_MUST_BE_USED_AS_RETURN_VALUE
 interface SuperInterface {
     suspend fun superFun() {}
     suspend fun String.superExtFun() {}
 }
 
-@COROUTINES_PACKAGE.RestrictsSuspension
+@kotlin.coroutines.RestrictsSuspension
 open class RestrictedController : SuperInterface {
     suspend fun memberFun() {}
     suspend fun String.memberExtFun() {}
@@ -98,3 +97,5 @@ fun String.test() {
 
 }
 
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType,
+interfaceDeclaration, lambdaLiteral, localFunction, stringLiteral, suspend, typeWithExtension */

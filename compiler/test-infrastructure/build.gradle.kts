@@ -1,0 +1,27 @@
+plugins {
+    kotlin("jvm")
+    id("java-test-fixtures")
+}
+
+dependencies {
+    testFixturesApi(project(":compiler:fir:entrypoint"))
+    testFixturesApi(project(":compiler:cli"))
+    testFixturesApi(project(":compiler:cli-metadata"))
+    testFixturesApi(project(":native:native.config"))
+    testFixturesApi(intellijCore())
+
+    testFixturesApi(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter.api)
+    testFixturesApi(libs.junit.platform.launcher)
+    testFixturesApi(testFixtures(project(":compiler:test-infrastructure-utils")))
+
+    testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps.jna:jna"))
+}
+
+optInToExperimentalCompilerApi()
+
+sourceSets {
+    "main" { none() }
+    "test" { none() }
+    "testFixtures" { projectDefault() }
+}

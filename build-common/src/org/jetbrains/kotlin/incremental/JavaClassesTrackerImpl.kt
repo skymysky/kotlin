@@ -1,34 +1,24 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.incremental
 
 import com.intellij.psi.PsiJavaFile
 import com.intellij.util.io.DataExternalizer
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
 import org.jetbrains.kotlin.load.java.JavaClassesTracker
 import org.jetbrains.kotlin.load.java.descriptors.JavaClassDescriptor
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaClassDescriptor
+import org.jetbrains.kotlin.metadata.ExtensionRegistryLite
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.builtins.BuiltInsProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.metadata.java.JavaClassProtoBuf
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.protobuf.ExtensionRegistryLite
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.source.PsiSourceElement
@@ -45,7 +35,8 @@ val CONVERTING_JAVA_CLASSES_TO_PROTO = PerformanceCounter.create("Converting Jav
 
 class JavaClassesTrackerImpl(
         private val cache: IncrementalJvmCache,
-        private val untrackedJavaClasses: Set<ClassId>
+        private val untrackedJavaClasses: Set<ClassId>,
+        private val languageVersionSettings: LanguageVersionSettings,
 ) : JavaClassesTracker {
     private val classToSourceSerialized: MutableMap<ClassId, SerializedJavaClassWithSource> = hashMapOf()
 
@@ -76,10 +67,15 @@ class JavaClassesTrackerImpl(
                     "Duplicated JavaClassDescriptor $classId reported to IC"
                 }
                 classToSourceSerialized[classId] = CONVERTING_JAVA_CLASSES_TO_PROTO.time {
-                    classDescriptor.convertToProto()
+                    classDescriptor.convertToProto(languageVersionSettings)
                 }
             }
         }
+    }
+
+    override fun clear() {
+        classToSourceSerialized.clear()
+        classDescriptors.clear()
     }
 
     private fun JavaClassDescriptor.wasContentRequested() =
@@ -91,12 +87,14 @@ private val JavaClassDescriptor.javaSourceFile: File?
             ?.psi?.containingFile?.takeIf { it is PsiJavaFile }
             ?.virtualFile?.path?.let(::File)
 
-fun JavaClassDescriptor.convertToProto(): SerializedJavaClassWithSource {
+fun JavaClassDescriptor.convertToProto(languageVersionSettings: LanguageVersionSettings): SerializedJavaClassWithSource {
     val file = javaSourceFile.sure { "convertToProto should only be called for source based classes" }
 
     val extension = JavaClassesSerializerExtension()
     val classProto = try {
-        DescriptorSerializer.create(this, extension, null).classProto(this).build()
+        DescriptorSerializer.create(
+            this, extension, null, languageVersionSettings
+        ).classProto(this).build()
     } catch (e: Exception) {
         throw IllegalStateException(
             "Error during writing proto for descriptor: ${DescriptorRenderer.DEBUG_TEXT.render(this)}\n" +
@@ -105,7 +103,7 @@ fun JavaClassDescriptor.convertToProto(): SerializedJavaClassWithSource {
         )
     }
 
-    val (stringTable, qualifiedNameTable) = extension.stringTable.buildProto()
+    val [stringTable, qualifiedNameTable] = extension.stringTable.buildProto()
 
     return SerializedJavaClassWithSource(file, SerializedJavaClass(classProto, stringTable, qualifiedNameTable))
 }
@@ -127,10 +125,11 @@ data class SerializedJavaClassWithSource(
 fun SerializedJavaClass.toProtoData() = ClassProtoData(proto, NameResolverImpl(stringTable, qualifiedNameTable))
 
 val JAVA_CLASS_PROTOBUF_REGISTRY =
-        ExtensionRegistryLite.newInstance()
-                .also(JavaClassProtoBuf::registerAllExtensions)
-                // Built-ins extensions are used for annotations' serialization
-                .also(BuiltInsProtoBuf::registerAllExtensions)
+    ExtensionRegistryLite {
+        JavaClassProtoBuf.registerAllExtensions(this)
+        // Built-ins extensions are used for annotations' serialization
+        BuiltInsProtoBuf.registerAllExtensions(this)
+    }
 
 object JavaClassProtoMapValueExternalizer : DataExternalizer<SerializedJavaClass> {
     override fun save(output: DataOutput, value: SerializedJavaClass) {

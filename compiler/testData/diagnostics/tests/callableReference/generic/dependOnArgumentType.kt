@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 // FILE: A.java
 
@@ -16,15 +16,18 @@ fun <T> bar(s: T) {}
 fun <T> complex(t: T, f: (T) -> Unit) {}
 
 fun test1() {
-    foo(1, <!NI;TYPE_MISMATCH!>A::invokeLater<!>) // KT-24507 SAM conversion accidentally applied to callable reference and incorrectly handled via BE
+    foo(1, A::<!INAPPLICABLE_CANDIDATE!>invokeLater<!>) // KT-24507 SAM conversion accidentally applied to callable reference and incorrectly handled via BE
     foo(1, ::bar)
 
     complex(1, ::bar)
 }
 
 fun <R> test2(x: R) {
-    foo(x, <!NI;TYPE_MISMATCH!>A::invokeLater<!>) // KT-24507 SAM conversion accidentally applied to callable reference and incorrectly handled via BE
+    foo(x, A::<!INAPPLICABLE_CANDIDATE!>invokeLater<!>) // KT-24507 SAM conversion accidentally applied to callable reference and incorrectly handled via BE
     foo(x, ::bar)
 
     complex(x, ::bar)
 }
+
+/* GENERATED_FIR_TAGS: callableReference, functionDeclaration, functionalType, integerLiteral, nullableType,
+typeParameter */

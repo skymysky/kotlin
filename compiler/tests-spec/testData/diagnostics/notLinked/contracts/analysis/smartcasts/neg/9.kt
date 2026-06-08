@@ -1,37 +1,36 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !WITH_CONTRACT_FUNCTIONS
-// SKIP_TXT
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 /*
- KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
-
- SECTION: contracts
- CATEGORY: analysis, smartcasts
- NUMBER: 9
- DESCRIPTION: Smartcasts after non-null assertions or not-null value assignment in lambdas of contract function with 'exactly once' or 'at least once' CallsInPlace effects.
- UNEXPECTED BEHAVIOUR
- ISSUES: KT-26148
+ * KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
+ *
+ * SECTIONS: contracts, analysis, smartcasts
+ * NUMBER: 9
+ * DESCRIPTION: Check the lack of smartcasts after non-null assertions or not-null value assignment in lambdas of contract function with 'unknown' or 'at most once' CallsInPlace effects.
+ * HELPERS: contractFunctions
  */
 
+// TESTCASE NUMBER: 1
 fun case_1(arg: Int?) {
-    funWithExactlyOnceCallsInPlace { arg!! }
+    funWithAtMostOnceCallsInPlace { arg!! }
     arg<!UNSAFE_CALL!>.<!>inc()
 }
 
+// TESTCASE NUMBER: 2
 fun case_2(arg: Int?) {
-    funWithAtLeastOnceCallsInPlace { arg!! }
+    funWithUnknownCallsInPlace { arg!! }
     arg<!UNSAFE_CALL!>.<!>inc()
 }
 
+// TESTCASE NUMBER: 3
 fun case_3() {
     val value_1: Boolean?
-    funWithExactlyOnceCallsInPlace { value_1 = false }
-    value_1<!UNSAFE_CALL!>.<!>not()
+    funWithAtMostOnceCallsInPlace { value_1 = false }
+    <!UNINITIALIZED_VARIABLE!>value_1<!><!UNSAFE_CALL!>.<!>not()
 }
 
+// TESTCASE NUMBER: 4
 fun case_4() {
     val value_1: Boolean?
-    funWithAtLeastOnceCallsInPlace { <!VAL_REASSIGNMENT!>value_1<!> = true }
-    value_1<!UNSAFE_CALL!>.<!>not()
+    funWithUnknownCallsInPlace { <!VAL_REASSIGNMENT!>value_1<!> = true }
+    <!UNINITIALIZED_VARIABLE!>value_1<!><!UNSAFE_CALL!>.<!>not()
 }

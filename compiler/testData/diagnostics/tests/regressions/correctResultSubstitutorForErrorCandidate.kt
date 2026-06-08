@@ -1,10 +1,12 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun test(a: Int, b: Boolean) {
-    <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>bar<!>(a.<!OI;TYPE_INFERENCE_PARAMETER_CONSTRAINT_ERROR!>foo<!>(<!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>b<!>))
+    <!CANNOT_INFER_PARAMETER_TYPE!>bar<!>(a.<!CANNOT_INFER_PARAMETER_TYPE!>foo<!>(<!ARGUMENT_TYPE_MISMATCH!>b<!>))
 }
 
 fun <T, R> T.foo(l: (T) -> R): R = TODO()
 
 fun <S> bar(a: S) {}
+
+/* GENERATED_FIR_TAGS: funWithExtensionReceiver, functionDeclaration, functionalType, nullableType, typeParameter */

@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:JvmName("TimersKt")
@@ -79,7 +79,7 @@ public inline fun Timer.scheduleAtFixedRate(time: Date, period: Long, crossinlin
 
 // exposed as public
 @PublishedApi
-internal fun timer(name: String?, daemon: Boolean) = if (name == null) Timer(daemon) else Timer(name, daemon)
+internal fun timer(name: String?, daemon: Boolean): Timer = if (name == null) Timer(daemon) else Timer(name, daemon)
 
 /**
  * Creates a timer that executes the specified [action] periodically, starting after the specified [initialDelay]
@@ -92,7 +92,7 @@ internal fun timer(name: String?, daemon: Boolean) = if (name == null) Timer(dae
 @kotlin.internal.InlineOnly
 public inline fun timer(name: String? = null, daemon: Boolean = false, initialDelay: Long = 0.toLong(), period: Long, crossinline action: TimerTask.() -> Unit): Timer {
     val timer = timer(name, daemon)
-    timer.schedule(initialDelay, period, action)
+    val _ = timer.schedule(initialDelay, period, action)
     return timer
 }
 
@@ -106,7 +106,7 @@ public inline fun timer(name: String? = null, daemon: Boolean = false, initialDe
 @kotlin.internal.InlineOnly
 public inline fun timer(name: String? = null, daemon: Boolean = false, startAt: Date, period: Long, crossinline action: TimerTask.() -> Unit): Timer {
     val timer = timer(name, daemon)
-    timer.schedule(startAt, period, action)
+    val _ = timer.schedule(startAt, period, action)
     return timer
 }
 
@@ -121,7 +121,7 @@ public inline fun timer(name: String? = null, daemon: Boolean = false, startAt: 
 @kotlin.internal.InlineOnly
 public inline fun fixedRateTimer(name: String? = null, daemon: Boolean = false, initialDelay: Long = 0.toLong(), period: Long, crossinline action: TimerTask.() -> Unit): Timer {
     val timer = timer(name, daemon)
-    timer.scheduleAtFixedRate(initialDelay, period, action)
+    val _ = timer.scheduleAtFixedRate(initialDelay, period, action)
     return timer
 }
 
@@ -135,7 +135,7 @@ public inline fun fixedRateTimer(name: String? = null, daemon: Boolean = false, 
 @kotlin.internal.InlineOnly
 public inline fun fixedRateTimer(name: String? = null, daemon: Boolean = false, startAt: Date, period: Long, crossinline action: TimerTask.() -> Unit): Timer {
     val timer = timer(name, daemon)
-    timer.scheduleAtFixedRate(startAt, period, action)
+    val _ = timer.scheduleAtFixedRate(startAt, period, action)
     return timer
 }
 

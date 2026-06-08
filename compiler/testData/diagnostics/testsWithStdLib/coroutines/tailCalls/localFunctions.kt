@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 suspend fun baz() = 1
 suspend fun unit() {}
 
@@ -15,3 +16,5 @@ suspend fun foo() {
         return unit()
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, integerLiteral, localFunction, suspend */

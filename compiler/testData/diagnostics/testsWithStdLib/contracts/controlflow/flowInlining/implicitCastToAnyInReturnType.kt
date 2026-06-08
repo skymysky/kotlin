@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -13,8 +13,11 @@ fun <T> myRun(block: () -> T): T {
 
 fun functionWithSideEffects(x: Int): Int = x + 1 // ...and some other useful side-effects
 
-fun log(<!UNUSED_PARAMETER!>s<!>: String) = Unit // some logging or println or whatever returning Unit
+fun log(s: String) = Unit // some logging or println or whatever returning Unit
 
 fun implicitCastWithIf(s: String) {
     myRun { if (s == "") functionWithSideEffects(42) else log(s) }
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, contractCallsEffect, contracts, equalityExpression, functionDeclaration,
+functionalType, ifExpression, integerLiteral, lambdaLiteral, nullableType, stringLiteral, typeParameter */

@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE
 
 fun simple() = 1
 fun simple(a: Int = 3) = ""
@@ -55,5 +55,9 @@ fun test() {
 
     withGenericDefaults("")
 
-    <!OI;UNREACHABLE_CODE!><!OVERLOAD_RESOLUTION_AMBIGUITY!>wrong<!>(<!>null!!<!OI;UNREACHABLE_CODE!>)<!>
+    <!OVERLOAD_RESOLUTION_AMBIGUITY!>wrong<!>(null!!)
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, integerLiteral, lambdaLiteral, localProperty, nullableType, propertyDeclaration, stringLiteral, typeConstraint,
+typeParameter, typeWithExtension */

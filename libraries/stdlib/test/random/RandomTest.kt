@@ -1,11 +1,12 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.random
 
 import kotlin.math.*
+import kotlin.native.concurrent.ThreadLocal
 import kotlin.random.*
 import kotlin.test.*
 
@@ -64,7 +65,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextIntBound() {
+    fun nextIntUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextInt(0) }
         assertFailsWith<IllegalArgumentException> { subject.nextInt(-1) }
         assertFailsWith<IllegalArgumentException> { subject.nextInt(Int.MIN_VALUE) }
@@ -83,7 +84,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextUIntBound() {
+    fun nextUIntUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextUInt(UInt.MIN_VALUE) }
 
         repeat(1000) {
@@ -100,7 +101,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextIntOriginBound() {
+    fun nextIntFromUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextInt(0, 0) }
         assertFailsWith<IllegalArgumentException> { subject.nextInt(-1, -2) }
         assertFailsWith<IllegalArgumentException> { subject.nextInt(Int.MIN_VALUE, Int.MIN_VALUE) }
@@ -112,17 +113,17 @@ abstract class RandomSmokeTest {
             assertEquals(n, subject.nextInt(n, n + 1))
         }
 
-        for ((origin, bound) in listOf((0 to 2), (-1 to 5), (0 to 32), (0 to Int.MAX_VALUE), (-1 to Int.MAX_VALUE), (Int.MIN_VALUE to Int.MAX_VALUE))) {
+        for ([from, until] in listOf((0 to 2), (-1 to 5), (0 to 32), (0 to Int.MAX_VALUE), (-1 to Int.MAX_VALUE), (Int.MIN_VALUE to Int.MAX_VALUE))) {
             repeat(1000) {
-                val x = subject.nextInt(origin, bound)
-                if (x !in origin until bound)
-                    fail("Value $x must be in range [$origin, $bound)")
+                val x = subject.nextInt(from, until)
+                if (x !in from until until)
+                    fail("Value $x must be in range [$from, $until)")
             }
         }
     }
 
     @Test
-    fun nextUIntOriginBound() {
+    fun nextUIntFromUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextUInt(0u, 0u) }
         assertFailsWith<IllegalArgumentException> { subject.nextUInt((-1).toUInt(), (-2).toUInt()) }
         assertFailsWith<IllegalArgumentException> { subject.nextUInt(UInt.MIN_VALUE, UInt.MIN_VALUE) }
@@ -134,11 +135,11 @@ abstract class RandomSmokeTest {
             assertEquals(n, subject.nextUInt(n, n + 1u))
         }
 
-        for ((origin, bound) in listOf((0u to 2u), (1u to 6u), (0u to 32u), (0u to UInt.MAX_VALUE), (1u to (Int.MAX_VALUE.toUInt() + 1u)), (UInt.MIN_VALUE to UInt.MAX_VALUE))) {
+        for ([from, until] in listOf((0u to 2u), (1u to 6u), (0u to 32u), (0u to UInt.MAX_VALUE), (1u to (Int.MAX_VALUE.toUInt() + 1u)), (UInt.MIN_VALUE to UInt.MAX_VALUE))) {
             repeat(1000) {
-                val x = subject.nextUInt(origin, bound)
-                if (x !in origin until bound)
-                    fail("Value $x must be in range [$origin, $bound)")
+                val x = subject.nextUInt(from, until)
+                if (x !in from until until)
+                    fail("Value $x must be in range [$from, $until)")
             }
         }
     }
@@ -219,7 +220,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextLongBound() {
+    fun nextLongUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextLong(0) }
         assertFailsWith<IllegalArgumentException> { subject.nextLong(-1) }
         assertFailsWith<IllegalArgumentException> { subject.nextLong(Long.MIN_VALUE) }
@@ -228,7 +229,7 @@ abstract class RandomSmokeTest {
             assertEquals(0L, subject.nextLong(1))
         }
 
-        for (bound in listOf(2, 23, 32, 0x1_0000_0000, 0x4000_0000_0000_0000, Long.MAX_VALUE)) {
+        for (bound in listOf(2, 23, 32, 0x1_0000_0000, 0x4_0000_0000, 0x4000_0000_0000_0000, Long.MAX_VALUE)) {
             repeat(1000) {
                 val x = subject.nextLong(bound)
                 if (x !in 0L until bound)
@@ -238,14 +239,14 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextULongBound() {
+    fun nextULongUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextULong(ULong.MIN_VALUE) }
 
         repeat(1000) {
             assertEquals(0uL, subject.nextULong(1uL))
         }
 
-        for (bound in listOf(2uL, 23uL, 32uL, 0x1_0000_0000uL, 0x8000_0000_0000_000uL, ULong.MAX_VALUE)) {
+        for (bound in listOf(2uL, 23uL, 32uL, 0x1_0000_0000uL, 0x4_0000_0000uL, 0x8000_0000_0000_000uL, ULong.MAX_VALUE)) {
             repeat(1000) {
                 val x = subject.nextULong(bound)
                 if (x !in 0uL until bound) {
@@ -256,7 +257,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextLongOriginBound() {
+    fun nextLongFromUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextLong(0, 0) }
         assertFailsWith<IllegalArgumentException> { subject.nextLong(-1, -2) }
         assertFailsWith<IllegalArgumentException> { subject.nextLong(Long.MIN_VALUE, Long.MIN_VALUE) }
@@ -266,18 +267,18 @@ abstract class RandomSmokeTest {
             assertEquals(n, subject.nextLong(n, n + 1))
         }
 
-        for ((origin, bound) in listOf((0L to 32L), (-1L to 5L), (0L to 0x1_0000_0000),
-                                       (0L to Long.MAX_VALUE), (-1L to Long.MAX_VALUE), (Long.MIN_VALUE to Long.MAX_VALUE))) {
+        for ([from, until] in listOf((0L to 32L), (-1L to 5L), (0L to 0x1_0000_0000), (-0x10L to 0x3_FFFF_FFF0L),
+                                     (0L to Long.MAX_VALUE), (-1L to Long.MAX_VALUE), (Long.MIN_VALUE to Long.MAX_VALUE))) {
             repeat(1000) {
-                val x = subject.nextLong(origin, bound)
-                if (x !in origin until bound)
-                    fail("Value $x must be in range [$origin, $bound)")
+                val x = subject.nextLong(from, until)
+                if (x !in from until until)
+                    fail("Value $x must be in range [$from, $until)")
             }
         }
     }
 
     @Test
-    fun nextULongOriginBound() {
+    fun nextULongFromUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextULong(0uL, 0uL) }
         assertFailsWith<IllegalArgumentException> { subject.nextULong((-1).toULong(), (-2).toULong()) }
 
@@ -286,16 +287,17 @@ abstract class RandomSmokeTest {
             assertEquals(n, subject.nextULong(n, n + 1uL))
         }
 
-        for ((origin, bound) in listOf(
+        for ([from, until] in listOf(
             (0uL to 32uL),
             (1uL to 6uL),
             (0uL to 0x1_0000_0000.toULong()),
+            (0x10uL to 0x4_0000_0010.toULong()),
             (0uL to ULong.MAX_VALUE)
         )) {
             repeat(1000) {
-                val x = subject.nextULong(origin, bound)
-                if (x !in origin until bound) {
-                    fail("Value $x must be in range [$origin, $bound)")
+                val x = subject.nextULong(from, until)
+                if (x !in from until until) {
+                    fail("Value $x must be in range [$from, $until)")
                 }
             }
         }
@@ -313,7 +315,7 @@ abstract class RandomSmokeTest {
             assertEquals(n, subject.nextLong(n..n))
         }
 
-        for (range in listOf((0L until 2L), (-1L until 5L), (0L until 32L), (0L until Long.MAX_VALUE),
+        for (range in listOf((0L until 2L), (-1L until 5L), (0L until 32L), (0L until 1L.shl(33)), (0L until Long.MAX_VALUE),
                              (0L..Long.MAX_VALUE), (Long.MIN_VALUE..0L), (Long.MIN_VALUE..Long.MAX_VALUE))) {
             repeat(1000) {
                 val x = subject.nextLong(range)
@@ -338,6 +340,7 @@ abstract class RandomSmokeTest {
             (0uL..1uL),
             (1uL..5uL),
             (0uL..31uL),
+            (0uL until 0x4_0000_0000uL),
             (0uL..(ULong.MAX_VALUE - 1uL)),
             (1uL..ULong.MAX_VALUE),
             (0uL..ULong.MAX_VALUE)
@@ -364,7 +367,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextDoubleBound() {
+    fun nextDoubleUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(-1.0) }
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(-0.0) }
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(0.0) }
@@ -373,8 +376,6 @@ abstract class RandomSmokeTest {
         repeat(100) {
             assertEquals(0.0, subject.nextDouble(0.0.nextUp()))
         }
-
-        assertTrue(subject.nextDouble(Double.POSITIVE_INFINITY).isFinite(), "Infinity is exclusive")
 
         for (bound in listOf(1.0, 100.0, 1024.0, Double.MAX_VALUE)) {
             repeat(1000) {
@@ -387,7 +388,7 @@ abstract class RandomSmokeTest {
     }
 
     @Test
-    fun nextDoubleOriginBound() {
+    fun nextDoubleFromUntil() {
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(0.0, -1.0) }
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(0.0, Double.NaN) }
         assertFailsWith<IllegalArgumentException> { subject.nextDouble(Double.NaN, 0.0) }
@@ -409,11 +410,11 @@ abstract class RandomSmokeTest {
             assertTrue(fullRangeValues.size >= (size * 0.995), "All values should be distinct, but only ${fullRangeValues.size} of them are")
         }
 
-        for ((origin, bound) in listOf(0.0 to 1.0, -1.0 to 1.0, 0.0 to 100.0, -PI to PI, 0.0 to Double.MAX_VALUE)) {
+        for ([from, until] in listOf(0.0 to 1.0, -1.0 to 1.0, 0.0 to 100.0, -PI to PI, 0.0 to Double.MAX_VALUE)) {
             repeat(1000) {
-                val d = subject.nextDouble(origin, bound)
-                if (!(d >= origin && d < bound)) {
-                    fail("Random double $d is out of range [$origin, $bound)")
+                val d = subject.nextDouble(from, until)
+                if (!(d >= from && d < until)) {
+                    fail("Random double $d is out of range [$from, $until)")
                 }
             }
         }
@@ -566,12 +567,11 @@ class DefaultRandomSmokeTest : RandomSmokeTest() {
     override val subject: Random get() = Random
 }
 
-class SeededRandomSmokeTest : RandomSmokeTest() {
-    override val subject: Random get() = staticSubject
+@ThreadLocal
+internal val seededRandomSmokeTestSubject = Random(Random.nextInt().also { println("Seed: $it") })
 
-    companion object {
-        val staticSubject = Random(Random.nextInt().also { println("Seed: $it") })
-    }
+class SeededRandomSmokeTest : RandomSmokeTest() {
+    override val subject: Random get() = seededRandomSmokeTestSubject
 
     @Test
     fun sameIntSeed() {

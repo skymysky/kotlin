@@ -1,11 +1,13 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
 interface Base {
     fun result(): Int
 }
 
-inline class Inlined(val x: Int) : Base {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Inlined(val x: Int) : Base {
     override fun result(): Int = x
 }
 

@@ -1,7 +1,7 @@
-// !DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
-// COMMON_COROUTINES_TEST
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun nonSuspend() {}
 
@@ -18,3 +18,5 @@ suspend fun unitSuspend() {
 suspend fun baz(): Int = run {
     suspendCoroutineUninterceptedOrReturn { x: Continuation<Int> -> }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, lambdaLiteral, suspend */

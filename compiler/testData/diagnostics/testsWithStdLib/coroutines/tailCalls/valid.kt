@@ -1,7 +1,7 @@
-// !DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
-// COMMON_COROUTINES_TEST
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 suspend fun baz() = 1
 
@@ -30,3 +30,6 @@ suspend fun bar3() =
             true -> { foo() }
             else -> suspendCoroutineUninterceptedOrReturn { x: Continuation<Unit> -> }
         }
+
+/* GENERATED_FIR_TAGS: comparisonExpression, functionDeclaration, ifExpression, integerLiteral, lambdaLiteral, suspend,
+whenExpression */

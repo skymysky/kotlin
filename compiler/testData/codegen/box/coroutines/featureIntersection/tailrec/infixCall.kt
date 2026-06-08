@@ -1,12 +1,8 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-// DONT_RUN_GENERATED_CODE: JS
 
 import helpers.*
-import COROUTINES_PACKAGE.*
+import kotlin.coroutines.*
 
 tailrec suspend infix fun Int.test(x : Int) : Int {
     if (this > 1) {

@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: test/J.java
 
 package test;
@@ -15,3 +15,5 @@ package test
 fun test() {
     J("", <!NAMED_ARGUMENTS_NOT_ALLOWED!>r<!> = { }, <!NAMED_ARGUMENTS_NOT_ALLOWED!>z<!> = false)
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaFunction, javaType, lambdaLiteral, samConversion, stringLiteral */

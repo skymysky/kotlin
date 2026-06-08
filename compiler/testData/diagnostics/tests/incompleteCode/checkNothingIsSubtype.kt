@@ -1,16 +1,19 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_EXPRESSION
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_EXPRESSION
 package d
 
 interface A<T>
 
-fun <T> infer(<!UNUSED_PARAMETER!>a<!>: A<T>) : T {<!NO_RETURN_IN_FUNCTION_WITH_BLOCK_BODY!>}<!>
+fun <T> infer(a: A<T>) : T {<!NO_RETURN_IN_FUNCTION_WITH_BLOCK_BODY!>}<!>
 
 fun test(nothing: Nothing?) {
-    <!NI;UNREACHABLE_CODE!>val <!UNUSED_VARIABLE!>i<!> =<!> <!OI;TYPE_INFERENCE_INCORPORATION_ERROR!>infer<!>(<!TYPE_MISMATCH, DEBUG_INFO_CONSTANT!>nothing<!>)
+    val i = <!CANNOT_INFER_PARAMETER_TYPE!>infer<!>(<!ARGUMENT_TYPE_MISMATCH!>nothing<!>)
 }
 
-fun sum(<!UNUSED_PARAMETER!>a<!> : IntArray) : Int {
-for (n
-<!SYNTAX!>return<!><!SYNTAX!><!> "?"
+fun sum(a : IntArray) : Int {
+<!ITERATOR_MISSING!>for (n
+<!SYNTAX!>return<!><!SYNTAX!><!> "?"<!>
 <!NO_RETURN_IN_FUNCTION_WITH_BLOCK_BODY!>}<!>
+
+/* GENERATED_FIR_TAGS: forLoop, functionDeclaration, interfaceDeclaration, localProperty, nullableType,
+propertyDeclaration, stringLiteral, typeParameter */

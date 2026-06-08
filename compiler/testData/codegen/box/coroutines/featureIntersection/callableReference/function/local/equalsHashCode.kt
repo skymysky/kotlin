@@ -1,9 +1,6 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// IGNORE_BACKEND: JS
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: NATIVE
+// WITH_STDLIB
+// IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE: JS:2.3
+// ^^^ KT-15101 js: Same callable references are not equal
 
 fun box(): String {
     suspend fun bar() {}

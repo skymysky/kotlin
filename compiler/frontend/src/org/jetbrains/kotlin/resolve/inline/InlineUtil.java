@@ -25,11 +25,11 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils;
-import org.jetbrains.kotlin.resolve.calls.callUtil.CallUtilKt;
 import org.jetbrains.kotlin.resolve.calls.context.ResolutionContext;
 import org.jetbrains.kotlin.resolve.calls.model.ArgumentMapping;
 import org.jetbrains.kotlin.resolve.calls.model.ArgumentMatch;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
+import org.jetbrains.kotlin.resolve.calls.util.CallUtilKt;
 
 public class InlineUtil {
 
@@ -45,7 +45,7 @@ public class InlineUtil {
     }
 
     public static boolean isInline(@Nullable DeclarationDescriptor descriptor) {
-        return descriptor instanceof FunctionDescriptor && getInlineStrategy((FunctionDescriptor) descriptor).isInline();
+        return descriptor instanceof FunctionDescriptor && ((FunctionDescriptor) descriptor).isInline();
     }
 
     public static boolean hasInlineAccessors(@NotNull PropertyDescriptor propertyDescriptor) {
@@ -74,15 +74,6 @@ public class InlineUtil {
         return isInlineOrContainingInline(descriptor.getContainingDeclaration());
     }
 
-    @NotNull
-    private static InlineStrategy getInlineStrategy(@NotNull FunctionDescriptor descriptor) {
-        if (descriptor.isInline()) {
-            return InlineStrategy.AS_FUNCTION;
-        }
-
-        return InlineStrategy.NOT_INLINE;
-    }
-
     public static boolean checkNonLocalReturnUsage(
             @NotNull DeclarationDescriptor fromFunction,
             @NotNull KtExpression startExpression,
@@ -108,6 +99,11 @@ public class InlineUtil {
         if (containingFunctionDescriptor == null) return false;
 
         while (canBeInlineArgument(containingFunction) && fromFunction != containingFunctionDescriptor) {
+            Boolean isLambdaDefinitelyInline = bindingContext.get(BindingContext.NEW_INFERENCE_IS_LAMBDA_FOR_OVERLOAD_RESOLUTION_INLINE, containingFunction);
+            if (isLambdaDefinitelyInline != null) {
+                return isLambdaDefinitelyInline;
+            }
+
             if (!isInlinedArgument((KtFunction) containingFunction, bindingContext, true)) {
                 return false;
             }
@@ -197,14 +193,6 @@ public class InlineUtil {
             }
         }
         return true;
-    }
-
-    public static boolean containsReifiedTypeParameters(@NotNull CallableDescriptor descriptor) {
-        for (TypeParameterDescriptor typeParameterDescriptor : descriptor.getTypeParameters()) {
-            if (typeParameterDescriptor.isReified()) return true;
-        }
-
-        return false;
     }
 
     public static boolean isInlinableParameterExpression(@Nullable KtExpression deparenthesized) {

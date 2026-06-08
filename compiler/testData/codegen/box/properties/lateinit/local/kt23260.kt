@@ -1,6 +1,9 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
+
+// DISABLE_IR_VISIBILITY_CHECKS: NATIVE, WASM_JS, WASM_WASI
+// ^ UninitializedPropertyAccessException is internal on Native and Wasm
+
+@file:Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
 
 fun box(): String {
     lateinit var str: String

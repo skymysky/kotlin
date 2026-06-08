@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1282
+// NO_COMMON_FILES
 // MODULE: lib
 // FILE: lib.kt
 fun foo() = "OK"

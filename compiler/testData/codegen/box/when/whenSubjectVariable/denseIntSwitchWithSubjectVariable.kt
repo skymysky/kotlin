@@ -1,6 +1,4 @@
-// !LANGUAGE: +VariableDeclarationInWhenSubject
-// WITH_RUNTIME
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
 
 fun dense(x: Int): Int {
     return when (val xx = x) {

@@ -1,8 +1,11 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun foo() {
     var v: String? = "xyz"
     // It is possible in principle to provide smart cast here
     v<!UNSAFE_CALL!>.<!>length
     v = null
-    <!OI;DEBUG_INFO_CONSTANT!>v<!><!UNSAFE_CALL!>.<!>length
+    v<!UNSAFE_CALL!>.<!>length
 }
+
+/* GENERATED_FIR_TAGS: assignment, functionDeclaration, localProperty, nullableType, propertyDeclaration, smartcast,
+stringLiteral */

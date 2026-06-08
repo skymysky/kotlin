@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.resolve.calls.DslMarkerUtils.extractDslMarkerFqNames
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
-import org.jetbrains.kotlin.resolve.calls.resolvedCallUtil.getImplicitReceivers
+import org.jetbrains.kotlin.resolve.calls.util.getImplicitReceivers
 import org.jetbrains.kotlin.resolve.scopes.LexicalScope
 import org.jetbrains.kotlin.resolve.scopes.receivers.ReceiverValue
 import org.jetbrains.kotlin.resolve.scopes.utils.parentsWithSelf
@@ -31,7 +31,12 @@ object DslScopeViolationCallChecker : CallChecker {
         if (!context.languageVersionSettings.supportsFeature(LanguageFeature.DslMarkersSupport)) return
         val callImplicitReceivers = resolvedCall.getImplicitReceivers()
 
-        for (callImplicitReceiver in callImplicitReceivers) {
+        val originalReceivers = if (context.languageVersionSettings.supportsFeature(LanguageFeature.NewInference))
+            callImplicitReceivers.map { it.original }
+        else
+            callImplicitReceivers
+
+        for (callImplicitReceiver in originalReceivers) {
             checkCallImplicitReceiver(callImplicitReceiver, resolvedCall, reportOn, context)
         }
     }
@@ -42,20 +47,25 @@ object DslScopeViolationCallChecker : CallChecker {
         reportOn: PsiElement,
         context: CallCheckerContext
     ) {
+        val isNewInferenceEnabled = context.languageVersionSettings.supportsFeature(LanguageFeature.NewInference)
         val receiversUntilOneFromTheCall =
             context.scope.parentsWithSelf
-                .mapNotNull { (it as? LexicalScope)?.implicitReceiver?.value }
+                .filterIsInstance<LexicalScope>()
+                .flatMap { listOfNotNull(it.implicitReceiver) + it.contextReceiversGroup }
+                .map { if (isNewInferenceEnabled) it.value.original else it.value }
                 .takeWhile { it != callImplicitReceiver }.toList()
 
         if (receiversUntilOneFromTheCall.isEmpty()) return
 
-        val (callDslMarkers, additionalCallDslMarkers) = extractDslMarkerFqNames(callImplicitReceiver)
+        (val callDslMarkers = common, val additionalCallDslMarkers = fromContainingFunctionType) = extractDslMarkerFqNames(
+            callImplicitReceiver
+        )
         if (callDslMarkers.isEmpty() && additionalCallDslMarkers.isEmpty()) return
 
         val dslMarkersFromOuterReceivers = receiversUntilOneFromTheCall.map(::extractDslMarkerFqNames)
 
         val closestAnotherReceiverWithSameDslMarker =
-            dslMarkersFromOuterReceivers.firstOrNull { (dslMarkersFromReceiver, _) ->
+            dslMarkersFromOuterReceivers.firstOrNull { (val dslMarkersFromReceiver = common, val _ = fromContainingFunctionType) ->
                 dslMarkersFromReceiver.any(callDslMarkers::contains)
             }
 
@@ -68,7 +78,7 @@ object DslScopeViolationCallChecker : CallChecker {
         val allDslMarkersFromCall = callDslMarkers + additionalCallDslMarkers
 
         val closestAnotherReceiverWithSameDslMarkerWithDeprecation =
-            dslMarkersFromOuterReceivers.firstOrNull { (dslMarkersFromReceiver, additionalDslMarkersFromReceiver) ->
+            dslMarkersFromOuterReceivers.firstOrNull { (val dslMarkersFromReceiver = common, val additionalDslMarkersFromReceiver = fromContainingFunctionType) ->
                 val allMarkersFromReceiver = dslMarkersFromReceiver + additionalDslMarkersFromReceiver
                 allDslMarkersFromCall.any(allMarkersFromReceiver::contains)
             }

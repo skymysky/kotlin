@@ -1,17 +1,29 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js
 
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
-import org.jetbrains.kotlin.ir.expressions.IrStatementOriginImpl
 
-object JsLoweredDeclarationOrigin : IrDeclarationOrigin {
-    object CLASS_STATIC_INITIALIZER : IrDeclarationOriginImpl("CLASS_STATIC_INITIALIZER")
-    object JS_INTRINSICS_STUB : IrDeclarationOriginImpl("JS_INTRINSICS_STUB")
-    object JS_CLOSURE_BOX_CLASS : IrStatementOriginImpl("JS_CLOSURE_BOX_CLASS")
-    object JS_CLOSURE_BOX_CLASS_DECLARATION : IrDeclarationOriginImpl("JS_CLOSURE_BOX_CLASS_DECLARATION")
+object JsLoweredDeclarationOrigin {
+    val JS_INTRINSICS_STUB by IrDeclarationOriginImpl.Regular
+    val JS_CLOSURE_BOX_CLASS_DECLARATION by IrDeclarationOriginImpl.Regular
+    val BRIDGE_WITH_STABLE_NAME by IrDeclarationOriginImpl.Regular
+    val BRIDGE_WITHOUT_STABLE_NAME by IrDeclarationOriginImpl.Regular
+    val BRIDGE_PROPERTY_ACCESSOR by IrDeclarationOriginImpl.Regular
+    val OBJECT_GET_INSTANCE_FUNCTION by IrDeclarationOriginImpl.Regular
+    val JS_SHADOWED_EXPORT by IrDeclarationOriginImpl.Regular
+    val JS_SUPER_CONTEXT_PARAMETER by IrDeclarationOriginImpl.Regular
+    val JS_SHADOWED_DEFAULT_PARAMETER by IrDeclarationOriginImpl.Regular
+    val ENUM_GET_INSTANCE_FUNCTION by IrDeclarationOriginImpl.Regular
+
+    fun isBridgeDeclarationOrigin(origin: IrDeclarationOrigin) = when (origin) {
+        BRIDGE_WITH_STABLE_NAME -> true
+        BRIDGE_WITHOUT_STABLE_NAME -> true
+        BRIDGE_PROPERTY_ACCESSOR -> true
+        else -> false
+    }
 }

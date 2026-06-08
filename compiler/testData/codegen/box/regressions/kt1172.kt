@@ -1,9 +1,8 @@
-// IGNORE_BACKEND: JS_IR
-// TODO: muted automatically, investigate should it be ran for JS or not
-// IGNORE_BACKEND: JS, NATIVE
+// TARGET_BACKEND: JVM
+// TARGET_BACKEND: JVM_IR
 // not sure if it's ok to change Object to Any
 
-// WITH_RUNTIME
+// WITH_STDLIB
 
 package test.regressions.kt1172
 

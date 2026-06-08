@@ -1,7 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// TODO: muted automatically, investigate should it be ran for JS or not
-// IGNORE_BACKEND: JS, NATIVE
-
 package kt606
 
 //KT-606 wrong resolved call
@@ -18,9 +14,11 @@ interface ChannelPipeline  {
   fun print(any: Any)
 }
 
+var result = "FAIL"
+
 class DefaultChannelPipeline : ChannelPipeline {
   override fun print(any: Any) {
-      System.out?.println(any)
+      result = any as String
   }
 
 }
@@ -31,5 +29,5 @@ interface ChannelPipelineFactory {
 
 fun box() : String {
     StandardPipelineFactory({ print("OK") }).getPipeline()
-    return "OK"
+    return result
 }

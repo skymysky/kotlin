@@ -1,8 +1,6 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1289
 // MODULE: lib
+// JS_MODULE_KIND: AMD
 // FILE: lib.kt
-// MODULE_KIND: AMD
 @file:JsModule("native-lib")
 package foo
 
@@ -25,8 +23,8 @@ external val bar: Int = definedExternally
 external var mbar: Int = definedExternally
 
 // MODULE: main(lib)
+// JS_MODULE_KIND: AMD
 // FILE: main.kt
-// MODULE_KIND: AMD
 package foo
 
 fun box(): String {

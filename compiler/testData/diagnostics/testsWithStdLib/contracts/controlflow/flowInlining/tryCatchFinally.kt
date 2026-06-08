@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER -UNUSED_PARAMETER
 
 import kotlin.contracts.*
 
@@ -26,9 +26,12 @@ fun innerTryCatchFinally() {
             <!VAL_REASSIGNMENT!>x<!> = 42
             report(x)
         } finally {
-            x = 0
+            <!VAL_REASSIGNMENT!>x<!> = 0
         }
     }
 
     x.inc()
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, functionDeclaration, functionalType, inline,
+integerLiteral, lambdaLiteral, localProperty, nullableType, propertyDeclaration, tryExpression, typeParameter */

@@ -1,10 +1,4 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// IGNORE_BACKEND: NATIVE
-// IGNORE_BACKEND: JS, JS_IR
-// IGNORE_BACKEND: JVM_IR
-
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
 
 import helpers.*
@@ -22,8 +16,8 @@ class A {
     }
 
     suspend fun test(): String {
-        (::memberFunction)()
-        (::aExtensionFunction)()
+        (::memberFunction).let { it() }
+        (::aExtensionFunction).let { it() }
 
         return result
     }
@@ -34,12 +28,12 @@ class A {
         }
 
         suspend fun test(): String {
-            (::aMemberFunction)()
-            (::aExtensionFunction)()
+            (::aMemberFunction).let { it() }
+            (::aExtensionFunction).let { it() }
 
-            (::memberFunction)()
+            (::memberFunction).let { it() }
 
-            (::bExtensionFunction)()
+            (::bExtensionFunction).let { it() }
 
             return result
         }
@@ -75,8 +69,8 @@ fun box(): String {
     result = ""
     builder {
         with(A()) {
-            (::memberFunction)()
-            (::aExtensionFunction)()
+            (::memberFunction).let { it() }
+            (::aExtensionFunction).let { it() }
         }
     }
     if (result != "A.mf,A.ef,") return "Fail $result"
@@ -85,12 +79,12 @@ fun box(): String {
     builder {
         with(A()) {
             with(B()) {
-                (::aMemberFunction)()
-                (::aExtensionFunction)()
+                (::aMemberFunction).let { it() }
+                (::aExtensionFunction).let { it() }
 
-                (::memberFunction)()
+                (::memberFunction).let { it() }
 
-                (::bExtensionFunction)()
+                (::bExtensionFunction).let { it() }
             }
         }
     }

@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.text
@@ -45,26 +45,106 @@ fun Char.isAsciiUpperCase() = this in 'A'..'Z'
 
 class StringTest {
 
+    @Suppress("DEPRECATION_ERROR")
+    private fun testStringFromChars(expected: String, chars: CharArray, offset: Int, length: Int) {
+        assertEquals(expected, String(chars, offset, length))
+        assertEquals(expected, chars.concatToString(startIndex = offset, endIndex = offset + length))
+    }
+
+    @Suppress("DEPRECATION_ERROR")
+    private fun testStringFromChars(expected: String, chars: CharArray) {
+        assertEquals(expected, String(chars))
+        assertEquals(expected, chars.concatToString())
+    }
+
     @Test fun stringFromCharArrayFullSlice() {
         val chars: CharArray = charArrayOf('K', 'o', 't', 'l', 'i', 'n')
-        assertEquals("Kotlin", String(chars, 0, chars.size))
+        testStringFromChars("Kotlin", chars, 0, chars.size)
     }
 
+    @Suppress("DEPRECATION_ERROR")
     @Test fun stringFromCharArraySlice() {
         val chars: CharArray = charArrayOf('K', 'o', 't', 'l', 'i', 'n', ' ', 'r', 'u', 'l', 'e', 's')
-        assertEquals("rule", String(chars, 7, 4))
+        testStringFromChars("rule", chars, 7, 4)
+
+        val longChars = CharArray(200_000) { 'k' }
+        val longString = String(longChars, offset = 1000, length = 190_000)
+        val longConcatString = longChars.concatToString(startIndex = 1000, endIndex = 191_000)
+        assertEquals(190_000, longString.length)
+        assertEquals(190_000, longConcatString.length)
+        assertTrue(longString.all { it == 'k' })
+        assertTrue(longConcatString.all { it == 'k' })
     }
 
+    @Suppress("DEPRECATION_ERROR")
     @Test fun stringFromCharArray() {
         val chars: CharArray = charArrayOf('K', 'o', 't', 'l', 'i', 'n')
-        assertEquals("Kotlin", String(chars))
+        testStringFromChars("Kotlin", chars)
+
+        val longChars = CharArray(200_000) { 'k' }
+        val longString = String(longChars)
+        val longConcatString = longChars.concatToString()
+        assertEquals(200_000, longString.length)
+        assertEquals(200_000, longConcatString.length)
+        assertTrue(longString.all { it == 'k' })
+        assertTrue(longConcatString.all { it == 'k' })
     }
 
     @Test fun stringFromCharArrayUnicodeSurrogatePairs() {
         val chars: CharArray = charArrayOf('Ц', '月', '語', '\u016C', '\u138D', '\uD83C', '\uDC3A')
-        assertEquals("Ц月語Ŭᎍ🀺", String(chars))
-        assertEquals("月", String(chars, 1, 1))
-        assertEquals("Ŭᎍ🀺", String(chars, 3, 4))
+        testStringFromChars("Ц月語Ŭᎍ🀺", chars)
+        testStringFromChars("月", chars, 1, 1)
+        testStringFromChars("Ŭᎍ🀺", chars, 3, 4)
+
+        // U+1F600 = 0xD83D+0xDE00
+        // With the K/JS implementation, the surrogate pair is split into different chunks 3 times at indexes:
+        // - 16383-16384
+        // - 36863-36864
+        // - 57343-57344
+        val longString = "Kot\uD83D\uDE00".repeat(15_000)
+        val longChars = longString.toCharArray()
+        testStringFromChars(longString, longChars)
+        testStringFromChars("Kot\uD83D\uDE00Kot", longChars, offset = 16_380, length = 8)
+    }
+
+    @Suppress("DEPRECATION_ERROR")
+    @Test fun stringFromCharArrayOutOfBounds() {
+        fun test(chars: CharArray) {
+            assertFailsWith<IndexOutOfBoundsException> { String(chars, -1, 1) }
+            assertFailsWith<IndexOutOfBoundsException> { String(chars, 1, -1) }
+            assertFailsWith<IndexOutOfBoundsException> { String(chars, chars.size - 1, 2) }
+
+            assertFailsWith<IndexOutOfBoundsException> { chars.concatToString(-1, 1) }
+            assertFailsWith<IllegalArgumentException> { chars.concatToString(1, -1) }
+            assertFailsWith<IllegalArgumentException> { chars.concatToString(chars.size - 1, 2) }
+        }
+        test(CharArray(16) { 'k' })
+        test(CharArray(160_000) { 'k' })
+    }
+
+    @Test
+    fun toCharArray() {
+        val s = "hello"
+        val destination = CharArray(5) { '.' }
+        assertArrayContentEquals(charArrayOf('h', 'e', 'l', 'l', 'o'), s.toCharArray())
+        assertArrayContentEquals(charArrayOf('e', 'l'), s.toCharArray(1, 3))
+        assertSame(destination, s.toCharArray(destination, 2, 1, 3))
+        assertArrayContentEquals(charArrayOf('.', '.', 'e', 'l', '.'), destination)
+
+        assertFailsWith<IndexOutOfBoundsException> { s.toCharArray(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { s.toCharArray(0, 6) }
+        assertFailsWith<IllegalArgumentException> { s.toCharArray(3, 1) }
+        assertFailsWith<IndexOutOfBoundsException> { s.toCharArray(destination, -1, 1, 3) }
+        assertFailsWith<IndexOutOfBoundsException> { s.toCharArray(destination, 4, 1, 3) }
+
+        // Array modifications must not affect original string
+        val a = s.toCharArray()
+        a.fill(' ')
+        val a13 = s.toCharArray(1, 3)
+        a13.fill(' ')
+        assertSame(destination, s.toCharArray(destination))
+        destination.fill(' ')
+        assertEquals("hello", s)
     }
 
     @Test fun isEmptyAndBlank() = withOneCharSequenceArg { arg1 ->
@@ -94,6 +174,24 @@ class StringTest {
 
         assertEquals("hey", s.orEmpty())
         assertEquals("", ns.orEmpty())
+    }
+
+    @Test fun regionMatchesForCharSequence() = withTwoCharSequenceArgs { arg1, arg2 ->
+        assertTrue(arg1("abcd").regionMatches(1, arg2("debc"), 2, 2))
+        assertFalse(arg1("abcd").regionMatches(1, arg2("DEBc"), 2, 2, ignoreCase = false))
+        assertTrue(arg1("abcd").regionMatches(1, arg2("DEBc"), 2, 2, ignoreCase = true))
+
+        assertFalse(arg1("abcd").regionMatches(3, arg2(""), 2, 1))
+        assertTrue(arg1("abcd").regionMatches(4, arg2(""), 0, 0))
+    }
+
+    @Test fun regionMatchesForString() {
+        assertTrue("abcd".regionMatches(1, "debc", 2, 2))
+        assertFalse("abcd".regionMatches(1, "DEBc", 2, 2, ignoreCase = false))
+        assertTrue("abcd".regionMatches(1, "DEBc", 2, 2, ignoreCase = true))
+
+        assertFalse("abcd".regionMatches(3, "", 2, 1))
+        assertTrue("abcd".regionMatches(4, "", 0, 0))
     }
 
     @Test fun startsWithString() {
@@ -213,18 +311,28 @@ class StringTest {
     }
 
     @Test fun capitalize() {
-        assertEquals("A", "A".capitalize())
-        assertEquals("A", "a".capitalize())
-        assertEquals("Abcd", "abcd".capitalize())
-        assertEquals("Abcd", "Abcd".capitalize())
+        fun testCapitalize(expected: String, string: String) {
+            @Suppress("DEPRECATION")
+            assertEquals(expected, string.capitalize())
+            assertEquals(expected, string.replaceFirstChar { it.uppercase() })
+        }
+        testCapitalize("A", "A")
+        testCapitalize("A", "a")
+        testCapitalize("Abcd", "abcd")
+        testCapitalize("Abcd", "Abcd")
     }
 
     @Test fun decapitalize() {
-        assertEquals("a", "A".decapitalize())
-        assertEquals("a", "a".decapitalize())
-        assertEquals("abcd", "abcd".decapitalize())
-        assertEquals("abcd", "Abcd".decapitalize())
-        assertEquals("uRL", "URL".decapitalize())
+        fun testDecapitalize(expected: String, string: String) {
+            @Suppress("DEPRECATION")
+            assertEquals(expected, string.decapitalize())
+            assertEquals(expected, string.replaceFirstChar { it.lowercase() })
+        }
+        testDecapitalize("a", "A")
+        testDecapitalize("a", "a")
+        testDecapitalize("abcd", "abcd")
+        testDecapitalize("abcd", "Abcd")
+        testDecapitalize("uRL", "URL")
     }
 
     @Test fun slice() {
@@ -324,6 +432,30 @@ class StringTest {
 
     }
 
+    @Test fun substringWithInvalidIndices() {
+        // String.substring behavior on JS diverges from other targets: KT-17831
+        if (TestPlatform.current == TestPlatform.Js) return
+
+        assertFailsWith<IndexOutOfBoundsException> { "think positive".substring(-3, -1) }
+        assertFailsWith<IndexOutOfBoundsException> { "think positive".substring(-1, 3) }
+        assertFailsWith<IndexOutOfBoundsException> { "think positive".substring(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { "too short to be a substring".substring(0, 42) }
+        assertFailsWith<IndexOutOfBoundsException> { "too short to be a substring".substring(42, 43) }
+        assertFailsWith<IndexOutOfBoundsException> { "too short to be a substring".substring(42) }
+        assertFailsWith<IndexOutOfBoundsException> { "dlrow olleh".substring(3, 1) }
+    }
+
+    @Test fun subsequenceWithInvalidIndices() {
+        // String.subSequence behavior on JS diverges from other targets: KT-17831
+        if (TestPlatform.current == TestPlatform.Js) return
+
+        assertFailsWith<IndexOutOfBoundsException> { "think positive".subSequence(-3, -1) }
+        assertFailsWith<IndexOutOfBoundsException> { "think positive".subSequence(-1, 3) }
+        assertFailsWith<IndexOutOfBoundsException> { "too short to be a substring".subSequence(0, 42) }
+        assertFailsWith<IndexOutOfBoundsException> { "too short to be a substring".subSequence(42, 43) }
+        assertFailsWith<IndexOutOfBoundsException> { "dlrow olleh".subSequence(3, 1) }
+    }
+
     @Test fun replaceDelimited() {
         val s = "/user/folder/file.extension"
         // chars
@@ -420,7 +552,7 @@ class StringTest {
             " \u00A0 a \u00A0 "
         )
 
-        for ((source, example) in examples.map { it to arg1(it) }) {
+        for ([source, example] in examples.map { it to arg1(it) }) {
             assertContentEquals(source.trimEnd().trimStart(), example.trim())
             assertContentEquals(source.trimStart().trimEnd(), example.trim())
         }
@@ -432,7 +564,7 @@ class StringTest {
 
         val trimChars = charArrayOf('-', '=')
         val trimPredicate = { it: Char -> !it.isAsciiDigit() }
-        for ((source, example) in examplesForPredicate.map { it to arg1(it) }) {
+        for ([source, example] in examplesForPredicate.map { it to arg1(it) }) {
             assertContentEquals(source.trimStart(*trimChars).trimEnd(*trimChars), example.trim(*trimChars))
             assertContentEquals(source.trimStart(trimPredicate).trimEnd(trimPredicate), example.trim(trimPredicate))
         }
@@ -584,9 +716,35 @@ class StringTest {
         val string = arg1("first line\rsecond line\nthird line\r\nlast line")
         assertEquals(listOf("first line", "second line", "third line", "last line"), string.lines())
 
+        val singleLine = arg1("single line")
+        assertEquals(listOf("single line"), singleLine.lines())
+
+        val emptyLine = arg1("")
+        assertEquals(listOf(""), emptyLine.lines())
+
+        val multipleSeparators = arg1("\r\rfirst\r\n\rsecond\n\n\nthird\n\r\n\r")
+        assertEquals(listOf("", "", "first", "", "second", "", "", "third", "", "", ""), multipleSeparators.lines())
+
+        val onlySeparator = arg1("\n")
+        assertEquals(listOf("", ""), onlySeparator.lines())
+    }
+
+    @Test fun splitToLineSequence() = withOneCharSequenceArg { arg1 ->
+        val string = arg1("first line\rsecond line\nthird line\r\nlast line")
+        assertContentEquals(sequenceOf("first line", "second line", "third line", "last line"), string.lineSequence())
 
         val singleLine = arg1("single line")
-        assertEquals(listOf(singleLine.toString()), singleLine.lines())
+        assertContentEquals(sequenceOf("single line"), singleLine.lineSequence())
+
+        val emptyLine = arg1("")
+        assertContentEquals(sequenceOf(""), emptyLine.lineSequence())
+
+        val multipleSeparators = arg1("\r\rfirst\r\n\rsecond\n\n\nthird\n\r\n\r")
+        assertContentEquals(sequenceOf("", "", "first", "", "second", "", "", "third", "", "", ""),
+            multipleSeparators.lineSequence())
+
+        val onlySeparator = arg1("\n")
+        assertContentEquals(sequenceOf("", ""), onlySeparator.lineSequence())
     }
 
     @Test fun splitIllegalLimit() = withOneCharSequenceArg("test string") { string ->
@@ -755,6 +913,11 @@ class StringTest {
         assertFalse("sample".equals(null, ignoreCase = true))
         assertTrue(null.equals(null, ignoreCase = true))
         assertTrue(null.equals(null, ignoreCase = false))
+
+        // Tests that characters are compared one by one
+        val s1 = "\uFB00"  // uppercase() == "FF"
+        val s2 = "\u0066\u0066" // "ff"
+        assertFalse(s1.equals(s2, ignoreCase = true))
     }
 
     @Test fun compareToIgnoreCase() {
@@ -763,7 +926,7 @@ class StringTest {
             val result = v1.compareTo(v2, ignoreCase = ignoreCase).sign
             assertEquals(expectedResult, result, "Comparing '$v1' with '$v2', ignoreCase = $ignoreCase")
             if (expectedResult == 0)
-                assertTrue(v1.equals(v2, ignoreCase = ignoreCase))
+                assertTrue(v1.equals(v2, ignoreCase = ignoreCase), "'$v1'=='$v2' should be consistent with ordering, ignoreCase = $ignoreCase")
             if (!ignoreCase)
                 assertEquals(v1.compareTo(v2).sign, result)
         }
@@ -773,7 +936,7 @@ class StringTest {
             assertCompareResult(expectedResultIgnoreCase, v1, v2, true)
         }
 
-        val (EQ, LT, GT) = listOf(0, -1, 1)
+        val [EQ, LT, GT] = listOf(0, -1, 1)
 
         assertCompareResult(EQ, EQ, "ABC", "ABC")
         assertCompareResult(LT, EQ, "ABC", "ABc")
@@ -802,6 +965,61 @@ class StringTest {
                 assertCompareResult(EQ, item1, item2, ignoreCase = true)
             }
         }
+
+        CharTest.equalIgnoreCaseGroups
+            .filterNot { "i" in it }
+            .forEach { equalGroup ->
+                for (char1 in equalGroup) {
+                    for (char2 in equalGroup) {
+                        assertCompareResult(EQ, char1.toString(), char2.toString(), ignoreCase = true)
+                    }
+                }
+            }
+
+        // Tests that characters are compared one by one
+        val s1 = "\uFB00"  // uppercase().lowercase() == "ff"
+        val s2 = "\u0067"  // "g"
+        assertCompareResult(GT, s1, s2, ignoreCase = true)
+    }
+
+    @Test fun compareToUnicode() {
+        (Char.MIN_VALUE..Char.MAX_VALUE)
+            .map { it.toString() }
+            .zipWithNext()
+            .forEach { (first, second) ->
+                assertTrue(first.compareTo(second) < 0)
+                assertTrue(first.compareTo(first) == 0)
+                assertTrue(second.compareTo(second) == 0)
+                assertTrue(second.compareTo(first) > 0)
+            }
+    }
+
+    @Test fun orderUnicodeLongString() {
+        val range = Char.MIN_VALUE..Char.MAX_VALUE
+        val chars = buildList {
+            repeat(10) {
+                add(range.random())
+            }
+        }
+        val strings = buildList {
+            repeat(10000) {
+                add(buildString {
+                    repeat(Random.nextInt(8)) {
+                        append(chars.random())
+                    }
+                })
+            }
+        }.sorted()
+
+        assertTrue(strings.zipWithNext().all { [s1, s2] ->
+            val chars1 = s1.toCharArray()
+            val chars2 = s2.toCharArray()
+            for (i in 0 until minOf(chars1.size, chars2.size)) {
+                if (chars1[i] != chars2[i])
+                    return@all chars1[i] < chars2[i]
+            }
+            return@all chars1.size <= chars2.size
+        })
     }
 
 
@@ -820,6 +1038,25 @@ class StringTest {
         assertEquals("/b/", input.replace("ab", "/", ignoreCase = true))
 
         assertEquals("-a-b-b-A-b-", input.replace("", "-"))
+        assertEquals("-a-b-b-A-b-", input.replace("", "-", ignoreCase = true))
+
+        fun testIgnoreCase(chars: String) {
+            for ([i, c] in chars.withIndex()) {
+                val message = "Char: $c (${c.code})"
+                val expectOneReplaced = chars.replaceRange(i..i, "_")
+                val expectAllReplaced = "_".repeat(chars.length)
+                assertEquals(expectOneReplaced, chars.replace(c, '_'), message)
+                assertEquals(expectAllReplaced, chars.replace(c, '_', ignoreCase = true), "$message, ignoreCase")
+                assertEquals(expectOneReplaced, chars.replace(c.toString(), "_"), "$message, as string")
+                assertEquals(expectAllReplaced, chars.replace(c.toString(), "_", ignoreCase = true), "$message, as string, ignoreCase")
+                assertEquals(expectOneReplaced, chars.replace(Regex(Regex.escape(c.toString())), "_"), "$message, as regex")
+                assertEquals(expectAllReplaced, chars.replace(Regex(Regex.escape(c.toString()), RegexOption.IGNORE_CASE), "_"), "$message, as regex, ignoreCase")
+            }
+        }
+
+        CharTest.equalIgnoreCaseGroups
+            .filterNot { "i" in it } // not supported by JS
+            .forEach { testIgnoreCase(it) }
     }
 
     @Test fun replaceFirst() {
@@ -877,6 +1114,18 @@ class StringTest {
         // static types test
         assertStaticTypeIs<String>("x".onEach { })
         assertStaticTypeIs<StringBuilder>(result.onEach { })
+    }
+
+    @Test
+    fun onEachIndexed() = withOneCharSequenceArg("abcd") { data ->
+        val result = StringBuilder()
+        val newData = data.onEachIndexed { i, e -> result.append(e + i) }
+        assertEquals("aceg", result.toString())
+        assertSame(data, newData)
+
+        // static types test
+        assertStaticTypeIs<String>("x".onEachIndexed { _, _ -> })
+        assertStaticTypeIs<StringBuilder>(result.onEachIndexed { _, _ -> })
     }
 
 
@@ -960,6 +1209,29 @@ class StringTest {
         assertFailsWith<NoSuchElementException> { data("").random() }
     }
 
+    @Test fun randomOrNull() = withOneCharSequenceArg { data ->
+        data("abcdefg").let { charSeq ->
+            val tosses = List(10) { charSeq.randomOrNull() }
+            assertTrue(tosses.distinct().size > 1, "Should be some distinct elements in $tosses")
+
+            val seed = Random.nextInt()
+            val random1 = Random(seed)
+            val random2 = Random(seed)
+
+            val tosses1 = List(10) { charSeq.randomOrNull(random1) }
+            val tosses2 = List(10) { charSeq.randomOrNull(random2) }
+
+            assertEquals(tosses1, tosses2)
+        }
+
+        data("x").let { singletonCharSeq ->
+            val tosses = List(10) { singletonCharSeq.randomOrNull() }
+            assertEquals(singletonCharSeq.toList(), tosses.distinct())
+        }
+
+        assertNull(data("").randomOrNull())
+    }
+
     @Test fun partition() {
         val data = "a1b2c3"
         val pair = data.partition { it.isAsciiDigit() }
@@ -999,6 +1271,11 @@ class StringTest {
         data.toString().let { expectedSingleChunk ->
             assertEquals(expectedSingleChunk, data.chunked(size).single())
             assertEquals(expectedSingleChunk, data.chunked(size + 3).single())
+            assertEquals(expectedSingleChunk, data.chunked(Int.MAX_VALUE).single())
+        }
+
+        arg1("ab").let {
+            assertEquals(it.toString(), it.chunked(Int.MAX_VALUE).single())
         }
 
         assertTrue(arg1("").chunked(3).isEmpty())
@@ -1056,6 +1333,38 @@ class StringTest {
                         data.windowedSequence(window, step, partialWindows = true).iterator()) { iteratorBehavior() }
             }
         }
+
+        // index overflow tests
+        for (partialWindows in listOf(true, false)) {
+
+            val windowed1 = data.windowed(5, Int.MAX_VALUE, partialWindows)
+            assertEquals("abcde", windowed1.single())
+            val windowed2 = data.windowed(Int.MAX_VALUE, 5, partialWindows)
+            assertEquals(if (partialWindows) listOf(data.toString(), data.substring(5, 7)) else listOf(), windowed2)
+            val windowed3 = data.windowed(Int.MAX_VALUE, Int.MAX_VALUE, partialWindows)
+            assertEquals(if (partialWindows) listOf(data.toString()) else listOf(), windowed3)
+
+            val windowedTransform1 = data.windowed(5, Int.MAX_VALUE, partialWindows) { it }
+            assertEquals("abcde", windowedTransform1.single())
+            val windowedTransform2 = data.windowed(Int.MAX_VALUE, 5, partialWindows) { it }
+            assertEquals(if (partialWindows) listOf(data.toString(), data.substring(5, 7)) else listOf(), windowedTransform2)
+            val windowedTransform3 = data.windowed(Int.MAX_VALUE, Int.MAX_VALUE, partialWindows) { it }
+            assertEquals(if (partialWindows) listOf(data.toString()) else listOf(), windowedTransform3)
+
+            val windowedSequence1 = data.windowedSequence(5, Int.MAX_VALUE, partialWindows)
+            assertEquals("abcde", windowedSequence1.single())
+            val windowedSequence2 = data.windowedSequence(Int.MAX_VALUE, 5, partialWindows)
+            assertEquals(if (partialWindows) listOf(data.toString(), data.substring(5, 7)) else listOf(), windowedSequence2.toList())
+            val windowedSequence3 = data.windowedSequence(Int.MAX_VALUE, Int.MAX_VALUE, partialWindows)
+            assertEquals(if (partialWindows) listOf(data.toString()) else listOf(), windowedSequence3.toList())
+
+            val windowedSequenceTransform1 = data.windowedSequence(5, Int.MAX_VALUE, partialWindows) { it }
+            assertEquals("abcde", windowedSequenceTransform1.single())
+            val windowedSequenceTransform2 = data.windowedSequence(Int.MAX_VALUE, 5, partialWindows) { it }
+            assertEquals(if (partialWindows) listOf(data.toString(), data.substring(5, 7)) else listOf(), windowedSequenceTransform2.toList())
+            val windowedSequenceTransform3 = data.windowedSequence(Int.MAX_VALUE, Int.MAX_VALUE, partialWindows) { it }
+            assertEquals(if (partialWindows) listOf(data.toString()) else listOf(), windowedSequenceTransform3.toList())
+        }
     }
 
     @Test fun map() = withOneCharSequenceArg { arg1 ->
@@ -1065,7 +1374,7 @@ class StringTest {
 
         assertEquals(listOf<Boolean>(), arg1("").map { it.isAsciiUpperCase() })
 
-        assertEquals(listOf(97, 98, 99), arg1("abc").map { it.toInt() })
+        assertEquals(listOf(97, 98, 99), arg1("abc").map { it.code })
     }
 
     @Test fun mapTo() = withOneCharSequenceArg { arg1 ->
@@ -1085,7 +1394,7 @@ class StringTest {
         assertEquals(arrayListOf<Boolean>(), result3)
 
         val result4 = arrayListOf<Int>()
-        val return4 = arg1("abc").mapTo(result4, { it.toInt() })
+        val return4 = arg1("abc").mapTo(result4, { it.code })
         assertEquals(result4, return4)
         assertEquals(arrayListOf(97, 98, 99), result4)
     }
@@ -1093,6 +1402,11 @@ class StringTest {
     @Test fun flatMap() = withOneCharSequenceArg("abcd") { data ->
         val result = data.flatMap { ('a'..it) + ' ' }
         assertEquals("a ab abc abcd ".toList(), result)
+    }
+
+    @Test fun flatMapIndexed() = withOneCharSequenceArg("bdfi") { data ->
+        val result = data.flatMapIndexed { index, c -> ('a'..c).drop(index) + ' ' }
+        assertEquals("ab bcd cdef defghi ".toList(), result)
     }
 
     @Test fun fold() = withOneCharSequenceArg { arg1 ->
@@ -1139,6 +1453,22 @@ class StringTest {
         }
     }
 
+    @Test fun reduceIndexedOrNull() = withOneCharSequenceArg { arg1 ->
+        // get the 3rd character
+        assertEquals('c', arg1("bacfd").reduceIndexedOrNull { index, v, c -> if (index == 2) c else v })
+
+        expect('c') {
+            "ab".reduceIndexedOrNull { index, acc, e ->
+                assertEquals(1, index)
+                assertEquals('a', acc)
+                assertEquals('b', e)
+                e + (e - acc)
+            }
+        }
+
+        expect(null, { arg1("").reduceIndexedOrNull { _, _, _ -> '\n' } })
+    }
+
     @Test fun reduceRightIndexed() = withOneCharSequenceArg { arg1 ->
         // get the 3rd character
         assertEquals('c', arg1("bacfd").reduceRightIndexed { index, c, v -> if (index == 2) c else v })
@@ -1157,6 +1487,22 @@ class StringTest {
         }
     }
 
+    @Test fun reduceRightIndexedOrNull() = withOneCharSequenceArg { arg1 ->
+        // get the 3rd character
+        assertEquals('c', arg1("bacfd").reduceRightIndexedOrNull { index, c, v -> if (index == 2) c else v })
+
+        expect('c') {
+            "ab".reduceRightIndexedOrNull { index, e, acc ->
+                assertEquals(0, index)
+                assertEquals('b', acc)
+                assertEquals('a', e)
+                acc + (acc - e)
+            }
+        }
+
+        expect(null, { arg1("").reduceRightIndexedOrNull { _, _, _ -> '\n' } })
+    }
+
     @Test fun reduce() = withOneCharSequenceArg { arg1 ->
         // get the smallest character(by char value)
         assertEquals('a', arg1("bacfd").reduce { v, c -> if (v > c) c else v })
@@ -1172,6 +1518,52 @@ class StringTest {
 
         assertFailsWith<UnsupportedOperationException> {
             arg1("").reduceRight { _, _ -> '\n' }
+        }
+    }
+
+    @Test fun reduceOrNull() = withOneCharSequenceArg { arg1 ->
+        // get the smallest character(by char value)
+        assertEquals('a', arg1("bacfd").reduceOrNull { v, c -> if (v > c) c else v })
+
+        expect(null, { arg1("").reduceOrNull { _, _ -> '\n' } })
+    }
+
+
+    @Test
+    fun scan() = withOneCharSequenceArg { arg1 ->
+        for (size in 0 until 4) {
+            val source = arg1((0 until size).joinToString(separator = ""))
+            val expected = listOf("", "0", "01", "012", "0123").take(size + 1)
+            assertEquals(expected, source.scan("") { acc, e -> acc + e })
+            assertEquals(expected, source.runningFold("") { acc, e -> acc + e })
+        }
+    }
+
+    @Test
+    fun scanIndexed() = withOneCharSequenceArg { arg1 ->
+        for (size in 0 until 4) {
+            val source = arg1(('a' until 'a' + size).joinToString(separator = ""))
+            val expected = listOf("+", "+[0: a]", "+[0: a][1: b]", "+[0: a][1: b][2: c]", "+[0: a][1: b][2: c][3: d]").take(size + 1)
+            assertEquals(expected, source.scanIndexed("+") { index, acc, e -> "$acc[$index: $e]" })
+            assertEquals(expected, source.runningFoldIndexed("+") { index, acc, e -> "$acc[$index: $e]" })
+        }
+    }
+
+    @Test
+    fun runningReduce() = withOneCharSequenceArg { arg1 ->
+        for (size in 0 until 4) {
+            val expected = listOf(0, 1, 3, 6).take(size).map { Char(it) }
+            val source = arg1((Char(0) until Char(size)).joinToString(separator = ""))
+            assertEquals(expected, source.runningReduce { acc, e -> acc + e.code })
+        }
+    }
+
+    @Test
+    fun runningReduceIndexed() = withOneCharSequenceArg { arg1 ->
+        for (size in 0 until 4) {
+            val expected = listOf(0, 1, 6, 27).take(size).map { Char(it) }
+            val source = arg1((Char(0) until Char(size)).joinToString(separator = ""))
+            assertEquals(expected, source.runningReduceIndexed { index, acc, e -> Char(index * (acc.code + e.code)) })
         }
     }
 
@@ -1201,7 +1593,7 @@ class StringTest {
         assertEquals("[v-e-r-y-l-o-n-g-s-t-r-oops]", result2)
 
         val data3 = "a1/b".toList()
-        val result3 = data3.joinToString() { it.toUpperCase().toString() }
+        val result3 = data3.joinToString() { it.uppercase() }
         assertEquals("A, 1, /, B", result3)
     }
 
@@ -1410,8 +1802,8 @@ ${"    "}
 
         assertEquals(23, deindented.lines().size)
         val indents = deindented.lines().map { "^\\s*".toRegex().find(it)!!.value.length }
-        assertEquals(0, indents.min())
-        assertEquals(42, indents.max())
+        assertEquals(0, indents.minOrNull())
+        assertEquals(42, indents.maxOrNull())
         assertEquals(1, deindented.lines().count { it.isEmpty() })
     }
 
@@ -1421,5 +1813,119 @@ ${"    "}
         assertEquals("  ABC\n  \n  123", "ABC\n \n123".prependIndent("  "))
         assertEquals("  ABC\n   \n  123", "ABC\n   \n123".prependIndent("  "))
         assertEquals("  ", "".prependIndent("  "))
+    }
+
+    @Test
+    fun elementAt() {
+        expect('a') { "a c".elementAt(0) }
+        expect(' ') { "a c".elementAt(1) }
+        expect('c') { "a c".elementAt(2) }
+
+        assertFailsWith<IndexOutOfBoundsException> { "".elementAt(0) }
+        assertFailsWith<IndexOutOfBoundsException> { "a c".elementAt(-1) }
+    }
+
+    @Test
+    fun toHashSet() {
+        assertEquals(hashSetOf('A', 'B', 'C'), "ACAABBAC".toHashSet())
+
+        buildString {
+            repeat(100) { append('1') }
+            append('2')
+            repeat(100) { append('3') }
+            append('4')
+            repeat(100) { append('5') }
+        }.let {
+            assertEquals(hashSetOf('1', '2', '3', '4', '5'), it.toHashSet())
+        }
+    }
+
+    @Test
+    fun lowercase() {
+        assertEquals("", "".lowercase())
+
+        // ASCII
+        for (index in 0..25) {
+            val lower = ('a' + index).toString()
+            val upper = ('A' + index).toString()
+            assertEquals(lower, lower.lowercase())
+            assertEquals(lower, upper.lowercase())
+        }
+
+        // Incorrect surrogate chars
+        assertEquals("\uDE5F\uD801\uDC4F\uDCB0\uD806\uD81B", "\uDE5F\uD801\uDC27\uDCB0\uD806\uD81B".lowercase())
+    }
+
+    @Test
+    fun uppercase() {
+        assertEquals("", "".uppercase())
+
+        // ASCII
+        for (index in 0..25) {
+            val lower = ('a' + index).toString()
+            val upper = ('A' + index).toString()
+            assertEquals(upper, lower.uppercase())
+            assertEquals(upper, upper.uppercase())
+        }
+
+        // Surrogate pairs
+        assertEquals("\uD802\uDEBC\uD801\uDC00", "\uD802\uDEBC\uD801\uDC28".uppercase())
+
+        // Incorrect surrogate chars
+        assertEquals("\uDEBC\uD801\uDC00\uD802", "\uDEBC\uD801\uDC28\uD802".uppercase())
+
+        // Special Casing
+        assertEquals("\u0399\u0308\u0301\u0053\u0053", "\u0390\u00DF".uppercase())
+    }
+
+    @Test
+    fun contentEquals() = withTwoCharSequenceArgs { arg1, arg2 ->
+        infix fun String?.contentEquals(other: String?): Boolean {
+            return this?.let { arg1(it) } contentEquals other?.let { arg2(it) }
+        }
+
+        assertTrue("" contentEquals "")
+        assertTrue("1" contentEquals "1")
+        assertFalse("12" contentEquals "1")
+        assertFalse("1" contentEquals "12")
+
+        assertTrue("sample" contentEquals "sample")
+        assertFalse("Sample" contentEquals "sample")
+        assertFalse("sample" contentEquals "Sample")
+        assertFalse("sample" contentEquals null)
+        assertFalse(null contentEquals "sample")
+        assertTrue(null contentEquals null)
+    }
+
+    @Test
+    fun contentEqualsIgnoreCase() = withTwoCharSequenceArgs { arg1, arg2 ->
+        fun String.contentEquals(other: String, ignoreCase: Boolean): Boolean {
+            return arg1(this).contentEquals(arg2(other), ignoreCase)
+        }
+
+        assertTrue("".contentEquals("", ignoreCase = false))
+        assertTrue("".contentEquals("", ignoreCase = true))
+        assertTrue("1".contentEquals("1", ignoreCase = false))
+        assertTrue("1".contentEquals("1", ignoreCase = true))
+
+        assertFalse("sample".contentEquals("Sample", ignoreCase = false))
+        assertTrue("sample".contentEquals("Sample", ignoreCase = true))
+        assertFalse("sample".contentEquals(null, ignoreCase = false))
+        assertFalse("sample".contentEquals(null, ignoreCase = true))
+        assertTrue(null.contentEquals(null, ignoreCase = true))
+        assertTrue(null.contentEquals(null, ignoreCase = false))
+    }
+
+    @Test
+    fun indexOfRespectsCharBoundary() {
+        withOneCharSequenceArg("\u003a\u3b3c\u003d") { input ->
+            assertEquals(-1, input.indexOf("\u3c00"))
+            assertEquals(-1, input.indexOf("\u3d3b"))
+            assertEquals(-1, input.indexOf("\u3c00\u3d3b"))
+        }
+
+        // KT-56637
+        assertEquals("買っ", "買っ".replace("掌", "X"))
+        assertEquals("買", "買".replace("掌", "X"))
     }
 }

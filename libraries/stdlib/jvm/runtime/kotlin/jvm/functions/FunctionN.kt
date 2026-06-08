@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package kotlin.jvm.functions
@@ -13,7 +13,7 @@ import kotlin.jvm.internal.FunctionBase
  * This interface must only be used in Java sources to reference a Kotlin function type with more than 22 arguments.
  */
 @SinceKotlin("1.3")
-interface FunctionN<out R> : Function<R>, FunctionBase<R> {
+public interface FunctionN<out R> : Function<R>, FunctionBase<R> {
     /**
      * Invokes the function with the specified arguments.
      *
@@ -21,7 +21,7 @@ interface FunctionN<out R> : Function<R>, FunctionBase<R> {
      *
      * @param args arguments to the function
      */
-    operator fun invoke(vararg args: Any?): R
+    public operator fun invoke(vararg args: Any?): R
 
     /**
      * Returns the number of arguments that must be passed to this function.

@@ -1,19 +1,22 @@
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.js.ExperimentalJsExport, kotlin.js.ExperimentalJsStatic
+// FILE: f0.kt
 class C {
-    class <!JS_BUILTIN_NAME_CLASH!>prototype<!>
+    class prototype
 
-    class <!JS_BUILTIN_NAME_CLASH!>length<!>
+    class length
 
-    class <!JS_BUILTIN_NAME_CLASH!>`$metadata$`<!>
+    class `$metadata$`
 
-    <!JS_BUILTIN_NAME_CLASH!>fun constructor()<!> {}
+    fun constructor() {}
 }
 
 class D {
-    private class <!JS_BUILTIN_NAME_CLASH!>prototype<!>
+    private class prototype
 
-    private class <!JS_BUILTIN_NAME_CLASH!>length<!>
+    private class length
 
-    private class <!JS_BUILTIN_NAME_CLASH!>`$metadata$`<!>
+    private class `$metadata$`
 
     private fun constructor() {}
 }
@@ -37,6 +40,27 @@ class F {
     fun constructor() {}
 }
 
+class G {
+    val x: String
+    <!JS_BUILTIN_NAME_CLASH!>@JsName("constructor") get()<!> {
+        return "1"
+    }
+}
+
+class H {
+    var x: String = "1"
+    <!JS_BUILTIN_NAME_CLASH!>@JsName("constructor") set(v)<!> {
+        field = v
+    }
+    @JsName("getter") get() {
+        return "1"
+    }
+}
+
+class I {
+    val constructor = 1
+}
+
 class prototype
 
 class length
@@ -53,4 +77,155 @@ fun f() {
 
 external interface Object {
     val constructor: Any?
+}
+
+external interface ExternalInterface {
+    fun constructor()
+}
+
+class NonExternalChild : ExternalInterface {
+    <!JS_BUILTIN_NAME_CLASH!>override fun constructor()<!> {}
+}
+
+// JsStatic: previously prohibited static names as companion members
+@JsExport
+class ExportedStaticByJsStatic {
+    companion object {
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        fun prototype()<!> {}
+
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        fun length()<!> {}
+
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        fun `$metadata$`()<!> {}
+    }
+}
+
+external interface SymbolHolder {
+    fun Symbol()
+    fun DefaultImpls()
+}
+
+// Interface-specific forbidden static name: Symbol
+interface InterfaceWithForbiddenStaticSymbol {
+    // Static via class-like member inside interface
+    @JsName("Symbol")
+    class <!JS_BUILTIN_NAME_CLASH!>SomeSymbol<!>
+
+    @JsName("DefaultImpls")
+    class <!JS_BUILTIN_NAME_CLASH!>SomeDefaultImpls<!>
+
+    companion object : SymbolHolder {
+        // Static via @JsStatic companion member
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        override fun Symbol()<!> {}
+
+        // Static via @JsStatic companion member
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        override fun DefaultImpls()<!> {}
+    }
+}
+
+class NotExportedStaticByJsStatic {
+    companion object {
+        @JsStatic
+        fun prototype() {}
+
+        @JsStatic
+        fun length() {}
+
+        @JsStatic
+        fun `$metadata$`() {}
+    }
+}
+
+// JsStatic combined with prohibited @JsName
+class StaticByJsStaticWithJsName {
+    companion object {
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        @JsName("prototype") fun f1()<!> {}
+
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        @JsName("length") fun f2()<!> {}
+
+        <!JS_BUILTIN_NAME_CLASH!>@JsStatic
+        @JsName("\$metadata$") fun f3()<!> {}
+    }
+}
+
+// Ensure interface-only rule for "Symbol": using it in classes/top-levels should NOT trigger
+class ClassWithSymbolStatics {
+    // class-like member inside class: allowed
+    class Symbol
+
+    class DefaultImpls
+
+    companion object {
+        // @JsStatic member in class companion: allowed
+        @JsStatic
+        fun Symbol() {}
+
+        // @JsStatic member in class companion: allowed
+        @JsStatic
+        fun DefaultImpls() {}
+    }
+}
+
+// Top-level declarations named Symbol: allowed
+class Symbol
+
+class DefaultImpls
+
+fun Symbol(foo: Int) {}
+
+fun DefaultImpls(foo: Int) {}
+
+interface InterfaceWithCompanionSymbolStatics {
+    companion object {
+        // companion member in : allowed
+        fun Symbol() {}
+        fun DefaultImpls() {}
+    }
+}
+
+// FILE: f1.kt
+package foo1
+
+class prototype {
+    companion object {
+        fun test() {}
+    }
+}
+
+class length {
+    companion object {
+        fun test() {}
+    }
+}
+
+@JsExport
+class C {
+    class <!JS_BUILTIN_NAME_CLASH!>prototype<!>
+
+    class <!JS_BUILTIN_NAME_CLASH!>length<!>
+
+    class <!JS_BUILTIN_NAME_CLASH!>`$metadata$`<!>
+
+    <!JS_BUILTIN_NAME_CLASH!>fun constructor()<!> {}
+}
+
+// FILE: f2.kt
+package foo2
+
+external class prototype {
+    companion object {
+        fun test()
+    }
+}
+
+external class length {
+    companion object {
+        fun test()
+    }
 }

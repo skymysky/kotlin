@@ -1,7 +1,7 @@
-sealed class Base
-
-class Derived : Base()
-
-fun useApiFrom11() {
-    mapOf<Any, Any>().toMutableMap()
+fun test() {
+    while (true) {
+        run {
+            break
+        }
+    }
 }

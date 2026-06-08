@@ -1,4 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
+// LAMBDAS: CLASS
+
 fun foo() {
     var a = {
 
@@ -6,4 +7,4 @@ fun foo() {
 }
 
 // METHOD : LambdaAsVarKt$foo$a$1.invoke()V
-// VARIABLE : NAME=this TYPE=LLambdaAsVarKt$foo$a$1; INDEX=0
+// VARIABLE : NAME=this TYPE=LLambdaAsVarKt$foo$a$1;

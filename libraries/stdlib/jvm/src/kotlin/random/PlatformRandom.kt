@@ -1,12 +1,12 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package kotlin.random
 
-import kotlin.UnsupportedOperationException
-import kotlin.internal.*
+import kotlin.internal.IMPLEMENTATIONS
+import kotlin.internal.InlineOnly
 
 /**
  * Creates a [java.util.Random][java.util.Random] instance that uses the specified Kotlin [Random] generator as a randomness source.
@@ -28,9 +28,6 @@ public fun java.util.Random.asKotlinRandom(): Random =
 internal actual inline fun defaultPlatformRandom(): Random =
     IMPLEMENTATIONS.defaultPlatformRandom()
 
-internal actual fun fastLog2(value: Int): Int =
-    31 - Integer.numberOfLeadingZeros(value)
-
 internal actual fun doubleFromParts(hi26: Int, low27: Int): Double =
     (hi26.toLong().shl(27) + low27) / (1L shl 53).toDouble()
 
@@ -42,25 +39,29 @@ internal abstract class AbstractPlatformRandom : Random() {
         impl.nextInt().takeUpperBits(bitCount)
 
     override fun nextInt(): Int = impl.nextInt()
-    override fun nextInt(bound: Int): Int = impl.nextInt(bound)
+    override fun nextInt(until: Int): Int = impl.nextInt(until)
     override fun nextLong(): Long = impl.nextLong()
     override fun nextBoolean(): Boolean = impl.nextBoolean()
     override fun nextDouble(): Double = impl.nextDouble()
     override fun nextFloat(): Float = impl.nextFloat()
+    @IgnorableReturnValue
     override fun nextBytes(array: ByteArray): ByteArray = array.also { impl.nextBytes(it) }
 }
 
 internal class FallbackThreadLocalRandom : AbstractPlatformRandom() {
     private val implStorage = object : ThreadLocal<java.util.Random>() {
-        override fun initialValue(): java.util.Random {
-            return java.util.Random()
-        }
+        override fun initialValue(): java.util.Random = java.util.Random()
     }
+
     override val impl: java.util.Random
         get() = implStorage.get()
 }
 
-private class PlatformRandom(override val impl: java.util.Random) : AbstractPlatformRandom()
+private class PlatformRandom(override val impl: java.util.Random) : AbstractPlatformRandom(), Serializable {
+    private companion object {
+        private const val serialVersionUID: Long = 0L
+    }
+}
 
 private class KotlinRandom(val impl: Random) : java.util.Random() {
     override fun next(bits: Int): Int = impl.nextBits(bits)
@@ -75,7 +76,18 @@ private class KotlinRandom(val impl: Random) : java.util.Random() {
         impl.nextBytes(bytes)
     }
 
+    private var seedInitialized: Boolean = false
+
     override fun setSeed(seed: Long) {
-        throw UnsupportedOperationException("Setting seed is not supported.")
+        if (!seedInitialized) {
+            // ignore seed value from constructor
+            seedInitialized = true
+        } else {
+            throw UnsupportedOperationException("Setting seed is not supported.")
+        }
+    }
+
+    private companion object {
+        private const val serialVersionUID: Long = 0L
     }
 }

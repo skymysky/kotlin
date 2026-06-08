@@ -1,16 +1,17 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
-import kotlin.test.*
-
+// FILE: lib.kt
 var log: String = ""
-
-class MyClass(val value: String)
 
 inline fun <T> runLogged(entry: String, action: () -> T): T {
     log += entry
     return action()
 }
+
+// FILE: main.kt
+import kotlin.test.*
+
+class MyClass(val value: String)
 
 operator fun MyClass.provideDelegate(host: Any?, p: Any): String =
         runLogged("tdf(${this.value});") { this.value }

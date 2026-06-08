@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 val i1 = 1
 val i2 = 2

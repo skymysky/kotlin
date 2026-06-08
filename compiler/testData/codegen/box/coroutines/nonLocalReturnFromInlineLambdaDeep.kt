@@ -1,11 +1,10 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
-// COMMON_COROUTINES_TEST
+// WITH_STDLIB
 // WITH_COROUTINES
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 
 class Controller {
@@ -32,6 +31,11 @@ inline fun foo(x: (Int) -> Unit) {
         }
     }
 }
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun box(): String {
     var result = ""

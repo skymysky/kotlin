@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.codegen.inline;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.codegen.StackValue;
+import org.jetbrains.kotlin.codegen.state.KotlinTypeMapperBase;
 import org.jetbrains.org.objectweb.asm.Label;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
@@ -26,21 +27,23 @@ import org.jetbrains.org.objectweb.asm.tree.FieldInsnNode;
 
 import static org.jetbrains.kotlin.codegen.inline.InlineCodegenUtilsKt.CAPTURED_FIELD_FOLD_PREFIX;
 
-public class RemapVisitor extends MethodBodyVisitor {
+public class RemapVisitor extends SkipMaxAndEndVisitor {
     private final LocalVarRemapper remapper;
     private final FieldRemapper nodeRemapper;
     private final InstructionAdapter instructionAdapter;
+    private final KotlinTypeMapperBase typeMapper;
 
     public RemapVisitor(
             @NotNull MethodVisitor mv,
             @NotNull LocalVarRemapper remapper,
             @NotNull FieldRemapper nodeRemapper,
-            boolean copyAnnotationsAndAttributes
+            @NotNull KotlinTypeMapperBase typeMapper
     ) {
-        super(mv, copyAnnotationsAndAttributes);
+        super(mv);
         this.instructionAdapter = new InstructionAdapter(mv);
         this.remapper = remapper;
         this.nodeRemapper = nodeRemapper;
+        this.typeMapper = typeMapper;
     }
 
     @Override
@@ -50,7 +53,7 @@ public class RemapVisitor extends MethodBodyVisitor {
 
     @Override
     public void visitVarInsn(int opcode, int var) {
-        remapper.visitVarInsn(opcode, var, instructionAdapter);
+        remapper.visitVarInsn(opcode, var, instructionAdapter, typeMapper);
     }
 
     @Override
@@ -68,10 +71,10 @@ public class RemapVisitor extends MethodBodyVisitor {
             StackValue inline = nodeRemapper.getFieldForInline(fin, null);
             assert inline != null : "Captured field should have not null stackValue " + fin;
             if (Opcodes.PUTSTATIC == opcode) {
-                inline.store(StackValue.onStack(inline.type, inline.kotlinType), this);
+                inline.store(inline.type, inline.kotlinType, this, typeMapper);
             }
             else {
-                inline.put(inline.type, inline.kotlinType, this);
+                inline.put(inline.type, inline.kotlinType, this, typeMapper);
             }
             return;
         }

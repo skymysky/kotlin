@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -18,18 +18,18 @@ fun elseWithNullableResult(x: Any?) {
     }
 
     when (safeIsString(x)) {
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
         else -> x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 
     when (safeIsString(x)) {
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
         false -> x.<!UNRESOLVED_REFERENCE!>length<!>
         else -> x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 
     when (safeIsString(x)) {
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
         null -> x.<!UNRESOLVED_REFERENCE!>length<!>
         else -> x.<!UNRESOLVED_REFERENCE!>length<!>
     }
@@ -37,20 +37,23 @@ fun elseWithNullableResult(x: Any?) {
 
 fun exhaustiveWithNullableResult(x: Any?) {
     when (safeIsString(x)) {
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
         false -> x.<!UNRESOLVED_REFERENCE!>length<!>
         null -> x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 
     when (safeIsString(x)) {
         false -> x.<!UNRESOLVED_REFERENCE!>length<!>
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
         null -> x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 
     when (safeIsString(x)) {
         false -> x.<!UNRESOLVED_REFERENCE!>length<!>
         null -> x.<!UNRESOLVED_REFERENCE!>length<!>
-        true -> <!DEBUG_INFO_SMARTCAST!>x<!>.length
+        true -> x.length
     }
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, equalityExpression, functionDeclaration, isExpression,
+lambdaLiteral, nullableType, safeCall, smartcast, whenExpression, whenWithSubject */

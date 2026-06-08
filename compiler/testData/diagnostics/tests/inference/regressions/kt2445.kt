@@ -1,12 +1,14 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNREACHABLE_CODE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNREACHABLE_CODE
 //KT-2445 Calling method with function with generic parameter causes compile-time exception
 package a
 
-fun main(args: Array<String>) {
-    <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>test<!> {
+fun main() {
+    <!CANNOT_INFER_PARAMETER_TYPE!>test<!> <!CANNOT_INFER_PARAMETER_TYPE!>{
 
-    }
+    }<!>
 }
 
 fun <R> test(callback: (R) -> Unit):Unit = callback(null!!)
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, functionDeclaration, functionalType, lambdaLiteral, nullableType, typeParameter */

@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // KT-307 Unresolved reference
 
 open class AL {
@@ -9,3 +10,6 @@ interface ALE<T> : <!INTERFACE_WITH_SUPERCLASS!>AL<!> {
         return get(index) <!UNCHECKED_CAST!>as? T<!> ?: value
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, elvisExpression, functionDeclaration, interfaceDeclaration, nullableType,
+typeParameter */

@@ -1,25 +1,22 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.resolve.calls
 
-import org.jetbrains.kotlin.builtins.*
+import org.jetbrains.kotlin.builtins.getReturnTypeFromFunctionType
+import org.jetbrains.kotlin.builtins.getValueParameterTypesFromFunctionType
+import org.jetbrains.kotlin.builtins.isFunctionOrSuspendFunctionType
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.contracts.EffectSystem
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.BindingContext.CONSTRAINT_SYSTEM_COMPLETER
-import org.jetbrains.kotlin.resolve.calls.callResolverUtil.ResolveArgumentsMode.RESOLVE_FUNCTION_ARGUMENTS
-import org.jetbrains.kotlin.resolve.calls.callResolverUtil.getEffectiveExpectedType
-import org.jetbrains.kotlin.resolve.calls.callResolverUtil.isInvokeCallOnVariable
-import org.jetbrains.kotlin.resolve.calls.callUtil.isCallableReference
-import org.jetbrains.kotlin.resolve.calls.callUtil.isFakeElement
 import org.jetbrains.kotlin.resolve.calls.checkers.CallChecker
 import org.jetbrains.kotlin.resolve.calls.checkers.CallCheckerContext
 import org.jetbrains.kotlin.resolve.calls.context.BasicCallResolutionContext
@@ -32,18 +29,23 @@ import org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.Constrain
 import org.jetbrains.kotlin.resolve.calls.inference.filterConstraintsOut
 import org.jetbrains.kotlin.resolve.calls.inference.toHandle
 import org.jetbrains.kotlin.resolve.calls.model.*
-import org.jetbrains.kotlin.resolve.calls.resolvedCallUtil.makeNullableTypeIfSafeReceiver
 import org.jetbrains.kotlin.resolve.calls.results.OverloadResolutionResultsImpl
 import org.jetbrains.kotlin.resolve.calls.results.ResolutionStatus
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowValueFactory
 import org.jetbrains.kotlin.resolve.calls.tasks.TracingStrategy
+import org.jetbrains.kotlin.resolve.calls.util.*
+import org.jetbrains.kotlin.resolve.calls.util.ResolveArgumentsMode.RESOLVE_FUNCTION_ARGUMENTS
+import org.jetbrains.kotlin.resolve.checkers.MissingDependencySupertypeChecker
 import org.jetbrains.kotlin.resolve.constants.CompileTimeConstant
 import org.jetbrains.kotlin.resolve.constants.IntegerValueTypeConstant
 import org.jetbrains.kotlin.resolve.constants.IntegerValueTypeConstructor
+import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
+import org.jetbrains.kotlin.resolve.scopes.receivers.ReceiverValue
 import org.jetbrains.kotlin.types.*
+import org.jetbrains.kotlin.types.error.ErrorScopeKind
+import org.jetbrains.kotlin.types.error.ErrorUtils
 import org.jetbrains.kotlin.types.expressions.DataFlowAnalyzer
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import java.util.*
 
 class CallCompleter(
@@ -54,7 +56,9 @@ class CallCompleter(
     private val moduleDescriptor: ModuleDescriptor,
     private val deprecationResolver: DeprecationResolver,
     private val effectSystem: EffectSystem,
-    private val dataFlowValueFactory: DataFlowValueFactory
+    private val dataFlowValueFactory: DataFlowValueFactory,
+    private val missingSupertypesResolver: MissingSupertypesResolver,
+    private val callComponents: KotlinCallComponents,
 ) {
     fun <D : CallableDescriptor> completeCall(
         context: BasicCallResolutionContext,
@@ -71,21 +75,26 @@ class CallCompleter(
             completeAllCandidates(context, results)
         }
 
-        if (resolvedCall != null && context.trace.wantsDiagnostics()) {
-            val calleeExpression = if (resolvedCall is VariableAsFunctionResolvedCall)
-                resolvedCall.variableCall.call.calleeExpression
-            else
-                resolvedCall.call.calleeExpression
-            val reportOn =
-                if (calleeExpression != null && !calleeExpression.isFakeElement) calleeExpression
-                else resolvedCall.call.callElement
+        if (context.trace.wantsDiagnostics()) {
+            if (resolvedCall == null) {
+                checkMissingSupertypes(context, missingSupertypesResolver)
+            } else {
+                val calleeExpression = if (resolvedCall is VariableAsFunctionResolvedCall)
+                    resolvedCall.variableCall.call.calleeExpression
+                else
+                    resolvedCall.call.calleeExpression
+                val reportOn =
+                    if (calleeExpression != null && !calleeExpression.isFakeElement) calleeExpression
+                    else resolvedCall.call.callElement
 
-            val callCheckerContext = CallCheckerContext(context, deprecationResolver, moduleDescriptor)
-            for (callChecker in callCheckers) {
-                callChecker.check(resolvedCall, reportOn, callCheckerContext)
+                val callCheckerContext =
+                    CallCheckerContext(context, deprecationResolver, moduleDescriptor, missingSupertypesResolver, callComponents)
+                for (callChecker in callCheckers) {
+                    callChecker.check(resolvedCall, reportOn, callCheckerContext)
 
-                if (resolvedCall is VariableAsFunctionResolvedCall) {
-                    callChecker.check(resolvedCall.variableCall, reportOn, callCheckerContext)
+                    if (resolvedCall is VariableAsFunctionResolvedCall) {
+                        callChecker.check(resolvedCall.variableCall, reportOn, callCheckerContext)
+                    }
                 }
             }
         }
@@ -94,6 +103,18 @@ class CallCompleter(
             return results.changeStatusToSuccess()
         }
         return results
+    }
+
+    private fun checkMissingSupertypes(
+        context: BasicCallResolutionContext,
+        missingSupertypesResolver: MissingSupertypesResolver
+    ) {
+        val call = context.call
+        val explicitReceiver = call.explicitReceiver as? ReceiverValue ?: return
+
+        MissingDependencySupertypeChecker.checkSupertypes(
+            explicitReceiver.type, call.callElement, context.trace, missingSupertypesResolver
+        )
     }
 
     private fun <D : CallableDescriptor> completeAllCandidates(
@@ -126,6 +147,8 @@ class CallCompleter(
         context: BasicCallResolutionContext,
         tracing: TracingStrategy
     ) {
+        disableContractsInsideContractsBlock(context.call, resolvedCall?.resultingDescriptor, context.scope, context.trace)
+
         if (resolvedCall == null || resolvedCall.isCompleted || resolvedCall.constraintSystem == null) {
             completeArguments(context, results)
             resolvedCall?.updateResultDataFlowInfoUsingEffects(context.trace)
@@ -206,7 +229,7 @@ class CallCompleter(
         if (call.isCallableReference() && !TypeUtils.noExpectedType(expectedType) && expectedType.isFunctionOrSuspendFunctionType) {
             updateSystemIfNeeded { builder ->
                 candidateDescriptor.valueParameters.zip(expectedType.getValueParameterTypesFromFunctionType())
-                    .forEach { (parameter, argument) ->
+                    .forEach { [parameter, argument] ->
                         val valueParameterInSystem = builder.typeInSystem(parameter.type)
                         builder.addSubtypeConstraint(
                             valueParameterInSystem,
@@ -224,7 +247,12 @@ class CallCompleter(
         val system = builder.build()
         setConstraintSystem(system)
 
-        setResultingSubstitutor(system.resultingSubstitutor)
+        val isNewInferenceEnabled = effectSystem.languageVersionSettings.supportsFeature(LanguageFeature.NewInference)
+        val resultingSubstitutor = if (isNewInferenceEnabled) {
+            system.resultingSubstitutor.replaceWithContravariantApproximatingSubstitution()
+        } else system.resultingSubstitutor
+
+        setSubstitutor(resultingSubstitutor)
     }
 
     private fun <D : CallableDescriptor> MutableResolvedCall<D>.updateResolutionStatusFromConstraintSystem(
@@ -298,11 +326,11 @@ class CallCompleter(
     }
 
     private fun createTypeForConvertableConstant(constant: CompileTimeConstant<*>): SimpleType? {
-        val value = constant.getValue(TypeUtils.NO_EXPECTED_TYPE).safeAs<Number>()?.toLong() ?: return null
+        val value = (constant.getValue(TypeUtils.NO_EXPECTED_TYPE) as? Number)?.toLong() ?: return null
         val typeConstructor = IntegerValueTypeConstructor(value, moduleDescriptor, constant.parameters)
         return KotlinTypeFactory.simpleTypeWithNonTrivialMemberScope(
-            Annotations.EMPTY, typeConstructor, emptyList(), false,
-            ErrorUtils.createErrorScope("Scope for number value type ($typeConstructor)", true)
+            TypeAttributes.Empty, typeConstructor, emptyList(), false,
+            ErrorUtils.createErrorScope(ErrorScopeKind.INTEGER_LITERAL_TYPE_SCOPE, throwExceptions = true, typeConstructor.toString())
         )
     }
 
@@ -329,7 +357,7 @@ class CallCompleter(
             if (!convertedConst) {
                 updatedType =
                         if (resolvedCall.hasInferredReturnType())
-                            resolvedCall.makeNullableTypeIfSafeReceiver(resolvedCall.resultingDescriptor?.returnType, context)
+                            resolvedCall.makeNullableTypeIfSafeReceiver(resolvedCall.resultingDescriptor.returnType, context)
                         else
                             null
             }
@@ -341,7 +369,7 @@ class CallCompleter(
             updatedType = argumentTypeResolver.updateResultArgumentTypeIfNotDenotable(context, expression) ?: updatedType
         }
 
-        if (parameter != null && ImplicitIntegerCoercion.isEnabledForParameter(parameter)) {
+        if (parameter != null && ImplicitIntegerCoercion.isEnabledFor(parameter, context.languageVersionSettings)) {
             val argumentCompileTimeValue = context.trace[BindingContext.COMPILE_TIME_VALUE, deparenthesized]
             if (argumentCompileTimeValue != null && argumentCompileTimeValue.parameters.isConvertableConstVal) {
                 val generalNumberType = createTypeForConvertableConstant(argumentCompileTimeValue)
@@ -378,7 +406,7 @@ class CallCompleter(
         context: BasicCallResolutionContext
     ): OverloadResolutionResultsImpl<*>? {
         val cachedData = getResolutionResultsCachedData(expression, context) ?: return null
-        val (cachedResolutionResults, cachedContext, tracing) = cachedData
+        (val cachedResolutionResults = resolutionResults, val cachedContext = deferredComputation, val tracing) = cachedData
 
         val contextForArgument = cachedContext.replaceBindingTrace(context.trace)
             .replaceExpectedType(context.expectedType).replaceCollectAllCandidates(false).replaceCallPosition(context.callPosition)
@@ -416,11 +444,11 @@ class CallCompleter(
         }
 
         var shouldBeMadeNullable = false
-        expressions.asReversed().forEach { expression ->
-            if (!(expression is KtParenthesizedExpression || expression is KtLabeledExpression || expression is KtAnnotatedExpression)) {
-                shouldBeMadeNullable = hasNecessarySafeCall(expression, trace)
+        expressions.asReversed().forEach { ktExpression ->
+            if (!(ktExpression is KtParenthesizedExpression || ktExpression is KtLabeledExpression || ktExpression is KtAnnotatedExpression)) {
+                shouldBeMadeNullable = hasNecessarySafeCall(ktExpression, trace)
             }
-            BindingContextUtils.updateRecordedType(updatedType, expression, trace, shouldBeMadeNullable)
+            BindingContextUtils.updateRecordedType(updatedType, ktExpression, trace, shouldBeMadeNullable)
         }
         return trace.getType(argumentExpression)
     }
@@ -440,7 +468,7 @@ class CallCompleter(
     private fun MutableResolvedCall<*>.updateResultDataFlowInfoUsingEffects(bindingTrace: BindingTrace) {
         if (dataFlowInfoForArguments is MutableDataFlowInfoForArguments.WithoutArgumentsCheck) return
 
-        val moduleDescriptor = DescriptorUtils.getContainingModule(this.resultingDescriptor?.containingDeclaration ?: return)
+        val moduleDescriptor = DescriptorUtils.getContainingModule(this.resultingDescriptor.containingDeclaration)
         val resultDFIfromES = effectSystem.getDataFlowInfoForFinishedCall(this, bindingTrace, moduleDescriptor)
         dataFlowInfoForArguments.updateResultInfo(resultDFIfromES)
 

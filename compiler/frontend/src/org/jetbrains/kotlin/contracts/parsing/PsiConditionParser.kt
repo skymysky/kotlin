@@ -16,14 +16,15 @@
 
 package org.jetbrains.kotlin.contracts.parsing
 
-import org.jetbrains.kotlin.contracts.description.*
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.contracts.description.BooleanExpression
 import org.jetbrains.kotlin.contracts.description.expressions.*
 import org.jetbrains.kotlin.descriptors.ValueDescriptor
 import org.jetbrains.kotlin.descriptors.impl.AbstractTypeParameterDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.resolve.calls.inference.CapturedType
 import org.jetbrains.kotlin.resolve.scopes.receivers.ExpressionReceiver
 import org.jetbrains.kotlin.types.CastDiagnosticsUtil
@@ -47,8 +48,16 @@ internal class PsiConditionParser(
         }
 
         if (descriptor is AbstractTypeParameterDescriptor) {
-            collector.badDescription("references to type parameters are forbidden in contracts", typeReference)
-            return null
+            val reifiedGenericsAllowed = callContext.languageVersionSettings.supportsFeature(LanguageFeature.AllowReifiedGenericsInContracts)
+            if (!reifiedGenericsAllowed || !descriptor.isReified) {
+                val message = if (reifiedGenericsAllowed) {
+                    "references to not reified type parameters are forbidden in contracts"
+                } else {
+                    "references to type parameters are forbidden in contracts"
+                }
+                collector.badDescription(message, typeReference)
+                return null
+            }
         }
 
         // This should be reported as "Can't check for erased" error, but we explicitly abort contract parsing. Just in case.

@@ -1,10 +1,14 @@
-// IGNORE_BACKEND: JVM_IR
 open class Base(val callback: () -> String)
 
 class Outer {
     val ok = "OK"
 
-    inner class Inner : Base({ { ok }() })
+    inner class Inner : Base(
+        {
+            val lambda = { ok }
+            lambda()
+        }
+    )
 }
 
 fun box(): String =

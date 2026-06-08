@@ -1,8 +1,6 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// LANGUAGE_VERSION: 1.3
+
 import helpers.*
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*

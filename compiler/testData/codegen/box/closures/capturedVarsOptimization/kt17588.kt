@@ -1,5 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
-//WITH_RUNTIME
+
+// WITH_STDLIB
 class Test {
 
     data class Style(

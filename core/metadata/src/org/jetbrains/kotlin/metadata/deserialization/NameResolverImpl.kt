@@ -1,6 +1,6 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.metadata.deserialization
@@ -10,13 +10,13 @@ import org.jetbrains.kotlin.metadata.ProtoBuf.QualifiedNameTable.QualifiedName
 import java.util.*
 
 class NameResolverImpl(
-    private val strings: ProtoBuf.StringTable,
-    private val qualifiedNames: ProtoBuf.QualifiedNameTable
+    val strings: ProtoBuf.StringTable,
+    val qualifiedNames: ProtoBuf.QualifiedNameTable
 ) : NameResolver {
     override fun getString(index: Int): String = strings.getString(index)
 
     override fun getQualifiedClassName(index: Int): String {
-        val (packageFqNameSegments, relativeClassNameSegments) = traverseIds(index)
+        val [packageFqNameSegments, relativeClassNameSegments] = traverseIds(index)
         val className = relativeClassNameSegments.joinToString(".")
         return if (packageFqNameSegments.isEmpty()) className
         else packageFqNameSegments.joinToString("/") + "/$className"

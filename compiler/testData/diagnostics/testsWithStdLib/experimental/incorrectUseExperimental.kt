@@ -1,9 +1,17 @@
-// !USE_EXPERIMENTAL: kotlin.Experimental
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.RequiresOptIn
 
 annotation class NotAMarker
 
-<!USE_EXPERIMENTAL_WITHOUT_ARGUMENTS!>@UseExperimental<!>
+annotation class NotBMarker
+
+<!OPT_IN_WITHOUT_ARGUMENTS!>@OptIn<!>
 fun f1() {}
 
-<!USE_EXPERIMENTAL_ARGUMENT_IS_NOT_MARKER!>@UseExperimental(NotAMarker::class)<!>
+@OptIn(<!OPT_IN_ARGUMENT_IS_NOT_MARKER!>NotAMarker::class<!>)
 fun f2() {}
+
+@OptIn(<!OPT_IN_ARGUMENT_IS_NOT_MARKER!>NotAMarker::class<!>, <!OPT_IN_ARGUMENT_IS_NOT_MARKER!>NotBMarker::class<!>)
+fun f3() {}
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classReference, functionDeclaration */

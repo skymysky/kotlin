@@ -1,7 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -23,12 +22,12 @@ fun testDeMorgan(x: Any?) {
        // !(x !is String || x !is Int)
        // x is String && x is Int
     if (!(notIsString(x) || notIsInt(x))) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.length
+        x.inc()
     }
     else {
         x.<!UNRESOLVED_REFERENCE!>length<!>
-        x.<!NI;NONE_APPLICABLE, OI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>inc<!>()
+        x.<!UNRESOLVED_REFERENCE!>inc<!>()
     }
 }
 
@@ -36,10 +35,13 @@ fun testDeMorgan2(x: Any?) {
         // x !is String || x !is Int
     if (notIsString(x) || notIsInt(x)) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
-        x.<!NI;NONE_APPLICABLE, OI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>inc<!>()
+        x.<!UNRESOLVED_REFERENCE!>inc<!>()
     }
     else {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.length
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.length
+        x.inc()
     }
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, disjunctionExpression, functionDeclaration, ifExpression,
+intersectionType, isExpression, lambdaLiteral, nullableType, smartcast */

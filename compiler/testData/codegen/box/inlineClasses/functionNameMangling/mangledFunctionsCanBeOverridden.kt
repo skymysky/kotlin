@@ -1,9 +1,12 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Id(val id: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Id(val id: String)
 
-inline class Name(val name: String)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Name(val name: String)
 
 interface IA {
     fun fromInterface(id: Id)

@@ -19,10 +19,15 @@ package org.jetbrains.kotlin.codegen;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.backend.common.output.OutputFile;
+import org.jetbrains.kotlin.config.CompilerConfiguration;
+import org.jetbrains.kotlin.config.JVMConfigurationKeys;
+import org.jetbrains.kotlin.config.JvmClosureGenerationScheme;
 import org.jetbrains.kotlin.load.java.JvmAbi;
-import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMetadataVersion;
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.test.ConfigurationKind;
+import org.jetbrains.kotlin.test.FirParser;
+import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
@@ -32,12 +37,29 @@ import static org.jetbrains.kotlin.load.java.JvmAnnotationNames.METADATA_FQ_NAME
 import static org.jetbrains.kotlin.load.java.JvmAnnotationNames.METADATA_VERSION_FIELD_NAME;
 
 public class KotlinSyntheticClassAnnotationTest extends CodegenTestCase {
-    public static final FqName PACKAGE_NAME = new FqName("test");
+    @Override
+    public boolean getUseFir() {
+        return true;
+    }
+
+    @Override
+    public @NotNull FirParser getFirParser() {
+        return FirParser.LightTree;
+    }
+
+    private static final FqName PACKAGE_NAME = new FqName("test");
 
     @Override
     protected void setUp() throws Exception {
         super.setUp();
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.ALL);
+    }
+
+    @Override
+    protected void updateConfiguration(@NotNull CompilerConfiguration configuration) {
+        configuration.put(JVMConfigurationKeys.LAMBDAS, JvmClosureGenerationScheme.CLASS);
+        configuration.put(JVMConfigurationKeys.SAM_CONVERSIONS, JvmClosureGenerationScheme.CLASS);
+        super.updateConfiguration(configuration);
     }
 
     public void testTraitImpl() {
@@ -64,13 +86,6 @@ public class KotlinSyntheticClassAnnotationTest extends CodegenTestCase {
     public void testCallableReferenceWrapper() {
         doTestKotlinSyntheticClass(
                 "val f = String::get",
-                "$1"
-        );
-    }
-
-    public void testLocalFunction() {
-        doTestKotlinSyntheticClass(
-                "fun foo() { fun bar() {} }",
                 "$1"
         );
     }
@@ -124,7 +139,7 @@ public class KotlinSyntheticClassAnnotationTest extends CodegenTestCase {
         List<OutputFile> output = generateClassesInFile().asList();
         Collection<OutputFile> files = CollectionsKt.filter(output, file -> file.getRelativePath().contains(classFilePart));
         assertFalse("No files with \"" + classFilePart + "\" in the name are found: " + output, files.isEmpty());
-        assertTrue("Exactly one file with \"" + classFilePart + "\" in the name should be found: " + files, files.size() == 1);
+        assertEquals("Exactly one file with \"" + classFilePart + "\" in the name should be found: " + files, 1, files.size());
 
         String path = files.iterator().next().getRelativePath();
         String fqName = path.substring(0, path.length() - ".class".length()).replace('/', '.');
@@ -142,6 +157,17 @@ public class KotlinSyntheticClassAnnotationTest extends CodegenTestCase {
         int[] version = (int[]) CodegenTestUtil.getAnnotationAttribute(annotation, METADATA_VERSION_FIELD_NAME);
         assertNotNull(version);
         assertTrue("Annotation " + annotationFqName + " is written with an unsupported format",
-                   new JvmMetadataVersion(version).isCompatible());
+                   new MetadataVersion(version).isCompatibleWithCurrentCompilerVersion());
+    }
+
+    @NotNull
+    @SuppressWarnings("unchecked")
+    private Class<? extends Annotation> loadAnnotationClassQuietly(@NotNull String fqName) {
+        try {
+            return (Class<? extends Annotation>) initializedClassLoader.loadClass(fqName);
+        }
+        catch (ClassNotFoundException e) {
+            throw ExceptionUtilsKt.rethrow(e);
+        }
     }
 }

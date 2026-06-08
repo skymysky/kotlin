@@ -1,27 +1,23 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.resolve
 
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.descriptors.ParameterDescriptor
-import org.jetbrains.kotlin.descriptors.VariableDescriptor
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.name.FqName
 
 object ImplicitIntegerCoercion {
 
-    val MODULE_CAPABILITY = ModuleDescriptor.Capability<Boolean>("ImplicitIntegerCoercion")
+    val MODULE_CAPABILITY = ModuleCapability<Boolean>("ImplicitIntegerCoercion")
 
-    fun isEnabledForParameter(descriptor: ParameterDescriptor): Boolean = isEnabledFor(descriptor)
-
-    fun isEnabledForConstVal(descriptor: VariableDescriptor): Boolean = isEnabledFor(descriptor)
-
-    private fun isEnabledFor(descriptor: DeclarationDescriptor): Boolean =
+    fun isEnabledFor(descriptor: DeclarationDescriptor, languageVersionSettings: LanguageVersionSettings): Boolean =
         descriptor.hasImplicitIntegerCoercionAnnotation() ||
-                DescriptorUtils.getContainingModuleOrNull(descriptor)?.hasImplicitIntegerCoercionCapability() == true
+                (languageVersionSettings.supportsFeature(LanguageFeature.ImplicitSignedToUnsignedIntegerConversion) &&
+                        DescriptorUtils.getContainingModuleOrNull(descriptor)?.hasImplicitIntegerCoercionCapability() == true)
 
     private val IMPLICIT_INTEGER_COERCION_ANNOTATION_FQ_NAME = FqName("kotlin.internal.ImplicitIntegerCoercion")
 

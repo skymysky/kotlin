@@ -1,4 +1,7 @@
-// WITH_RUNTIME
+// WITH_STDLIB
+// IGNORE_BACKEND: JS_IR, WASM_JS
+// KT-61141: kotlin.collections.HashMap instead of java.util.HashMap
+// IGNORE_BACKEND: NATIVE
 
 val test1 = 0
 

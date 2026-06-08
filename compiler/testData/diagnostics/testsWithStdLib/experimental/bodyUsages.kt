@@ -1,9 +1,11 @@
-// !USE_EXPERIMENTAL: kotlin.Experimental
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.RequiresOptIn
 // FILE: api.kt
 
 package api
 
-@Experimental(Experimental.Level.WARNING)
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+@Retention(AnnotationRetention.BINARY)
 annotation class ExperimentalAPI
 
 interface I
@@ -19,12 +21,16 @@ import api.*
 
 open class Base(val i: I)
 
-@UseExperimental(ExperimentalAPI::class)
+@OptIn(ExperimentalAPI::class)
 class Derived : Base(Impl())
 
-@UseExperimental(ExperimentalAPI::class)
+@OptIn(ExperimentalAPI::class)
 class Delegated : I by Impl()
 
-@UseExperimental(ExperimentalAPI::class)
+@OptIn(ExperimentalAPI::class)
 val delegatedProperty by Impl()
 operator fun I.getValue(x: Any?, y: Any?) = null
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, classReference, funWithExtensionReceiver,
+functionDeclaration, inheritanceDelegation, interfaceDeclaration, nullableType, operator, primaryConstructor,
+propertyDeclaration, propertyDelegate */

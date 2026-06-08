@@ -1,11 +1,10 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.utils
 
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 object OperatorNames {
@@ -16,17 +15,16 @@ object OperatorNames {
     val SUB = OperatorNameConventions.MINUS
     val MUL = OperatorNameConventions.TIMES
     val DIV = OperatorNameConventions.DIV
-    val MOD = OperatorNameConventions.MOD
     val REM = OperatorNameConventions.REM
 
     val AND = OperatorNameConventions.AND
     val OR = OperatorNameConventions.OR
-    val XOR = Name.identifier("xor")
-    val INV = Name.identifier("inv")
+    val XOR = OperatorNameConventions.XOR
+    val INV = OperatorNameConventions.INV
 
-    val SHL = Name.identifier("shl")
-    val SHR = Name.identifier("shr")
-    val SHRU = Name.identifier("ushr")
+    val SHL = OperatorNameConventions.SHL
+    val SHR = OperatorNameConventions.SHR
+    val SHRU = OperatorNameConventions.USHR
 
     val NOT = OperatorNameConventions.NOT
 
@@ -34,7 +32,7 @@ object OperatorNames {
     val DEC = OperatorNameConventions.DEC
 
 
-    val BINARY = setOf(ADD, SUB, MUL, DIV, MOD, REM, AND, OR, XOR, SHL, SHR, SHRU)
+    val BINARY = setOf(ADD, SUB, MUL, DIV, REM, AND, OR, XOR, SHL, SHR, SHRU)
     val UNARY = setOf(UNARY_PLUS, UNARY_MINUS, INV, NOT, INC, DEC)
     val ALL = BINARY + UNARY
 }

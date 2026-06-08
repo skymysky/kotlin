@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // As in KT-18514
 object A : <!CYCLIC_INHERITANCE_HIERARCHY!>A.I<!> {
     interface I
@@ -20,3 +21,4 @@ object H : <!CYCLIC_INHERITANCE_HIERARCHY!>G.NestedG<!>() {
     open class NestedH
 }
 
+/* GENERATED_FIR_TAGS: classDeclaration, interfaceDeclaration, nestedClass, objectDeclaration */

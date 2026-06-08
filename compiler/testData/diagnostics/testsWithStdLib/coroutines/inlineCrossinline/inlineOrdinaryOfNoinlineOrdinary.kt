@@ -1,9 +1,8 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE
 // WITH_COROUTINES
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 import helpers.*
 
 // Function is NOT suspend
@@ -21,7 +20,7 @@ inline fun test(noinline c: () -> Unit) {
         }
     }
     val l = { c() }
-    c.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>startCoroutine<!>(EmptyContinuation)
+    c.startCoroutine(EmptyContinuation)
 }
 
 suspend fun calculate() = "OK"
@@ -31,3 +30,7 @@ fun box() {
         <!ILLEGAL_SUSPEND_FUNCTION_CALL!>calculate<!>()
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, assignment, classDeclaration, companionObject, functionDeclaration,
+functionalType, inline, lambdaLiteral, localProperty, noinline, nullableType, objectDeclaration, override,
+primaryConstructor, propertyDeclaration, safeCall, stringLiteral, suspend, thisExpression, typeParameter */

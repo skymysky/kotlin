@@ -25,6 +25,7 @@ import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.artifact.resolver.ResolutionErrorHandler;
 import org.apache.maven.artifact.versioning.VersionRange;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.compiler.DependencyCoordinate;
 import org.apache.maven.project.MavenProject;
@@ -36,6 +37,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+
+import static org.jetbrains.kotlin.maven.Util.getMavenPluginVersion;
 
 public class AnnotationProcessingManager {
     private final ArtifactHandlerManager artifactHandlerManager;
@@ -63,7 +66,7 @@ public class AnnotationProcessingManager {
 
     static {
         KAPT_DEPENDENCY.setGroupId("org.jetbrains.kotlin");
-        KAPT_DEPENDENCY.setArtifactId("kotlin-annotation-processing-maven");
+        KAPT_DEPENDENCY.setArtifactId("kotlin-annotation-processing-embeddable");
         try {
             KAPT_DEPENDENCY.setVersion(getMavenPluginVersion());
         }
@@ -167,7 +170,7 @@ public class AnnotationProcessingManager {
         return new DefaultArtifact(
                 dependency.getGroupId(),
                 dependency.getArtifactId(),
-                VersionRange.createFromVersionSpec(dependency.getVersion()),
+                VersionRange.createFromVersionSpec(evaluateVersion(dependency)),
                 Artifact.SCOPE_RUNTIME,
                 dependency.getType(),
                 dependency.getClassifier(),
@@ -175,24 +178,19 @@ public class AnnotationProcessingManager {
                 false);
     }
 
-    @NotNull
-    private static String getMavenPluginVersion() throws MojoExecutionException {
-        ClassLoader classLoader = AnnotationProcessingManager.class.getClassLoader();
-        InputStream pomPropertiesIs = classLoader.getResourceAsStream(
-                "META-INF/maven/org.jetbrains.kotlin/kotlin-maven-plugin/pom.properties");
-        if (pomPropertiesIs == null) {
-            throw new MojoExecutionException("Can't resolve the version of kotlin-maven-plugin");
+    private String evaluateVersion(@NotNull DependencyCoordinate dependency) {
+        String version = dependency.getVersion();
+        if (version == null) {
+            Optional<Dependency> sameButParentDependency = project.getDependencies().stream()
+                    .filter(dep -> dep.getGroupId().equals(dependency.getGroupId())
+                            && dep.getArtifactId().equals(dependency.getArtifactId())
+                            && dep.getVersion() != null
+                    ).findFirst();
+            if (sameButParentDependency.isPresent()) {
+                version = sameButParentDependency.get().getVersion();
+            }
         }
-
-        Properties properties = new Properties();
-        try {
-            properties.load(pomPropertiesIs);
-        }
-        catch (IOException e) {
-            throw new MojoExecutionException("Error while reading kotlin-maven-plugin/pom.properties", e);
-        }
-
-        return properties.getProperty("version");
+        return version;
     }
 
     class ResolvedArtifacts {

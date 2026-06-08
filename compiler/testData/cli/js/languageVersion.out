@@ -1,4 +1,5 @@
-compiler/testData/cli/js/languageVersion.kt:4:5: error: members are not allowed in annotation class
-    class Nested
-    ^
+warning: language version 2.1 is deprecated and its support will be removed in a future version of Kotlin. Update the version to 2.2.
+compiler/testData/cli/js/languageVersion.kt:6:13: error: the feature "break continue in inline lambdas" is only available since language version 2.2
+            break
+            ^^^^^
 COMPILATION_ERROR

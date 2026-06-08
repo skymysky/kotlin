@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 annotation class Ann(vararg val i: String)
 
 const val topLevel = "topLevel"
@@ -26,3 +27,6 @@ fun foo() {
             <!ANNOTATION_ARGUMENT_MUST_BE_CONST!>"a" + a4<!>
     ) val b = 1
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, annotationDeclaration, const, functionDeclaration, integerLiteral,
+localProperty, outProjection, primaryConstructor, propertyDeclaration, stringLiteral, vararg */

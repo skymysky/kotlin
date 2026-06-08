@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JS_IR
+
 class A {
     private lateinit var str: String
 

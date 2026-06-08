@@ -16,11 +16,22 @@
 
 package org.jetbrains.kotlin.codegen;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.test.ConfigurationKind;
+import org.jetbrains.kotlin.test.FirParser;
 
 import java.lang.reflect.Method;
 
 public class PrimitiveTypesTest extends CodegenTestCase {
+    @Override
+    public boolean getUseFir() {
+        return true;
+    }
+
+    @Override
+    public @NotNull FirParser getFirParser() {
+        return FirParser.LightTree;
+    }
 
     @Override
     protected void setUp() throws Exception {
@@ -89,22 +100,22 @@ public class PrimitiveTypesTest extends CodegenTestCase {
 
     public void testShort() throws Exception {
         binOpTest("fun foo(a: Short, b: Short): Int = a + b",
-                Short.valueOf((short) 32767), Short.valueOf((short) 32767), 65534);
+                  Short.valueOf((short) 32767), Short.valueOf((short) 32767), 65534);
     }
 
     public void testShortCmp() throws Exception {
         binOpTest("fun foo(a: Short, b: Short): Boolean = a == b",
-                Short.valueOf((short) 32767), Short.valueOf((short) 32767), true);
+                  Short.valueOf((short) 32767), Short.valueOf((short) 32767), true);
     }
 
     public void testByte() throws Exception {
         binOpTest("fun foo(a: Byte, b: Byte): Int = a + b",
-                Byte.valueOf((byte) 127), Byte.valueOf((byte) 127), 254);
+                  Byte.valueOf((byte) 127), Byte.valueOf((byte) 127), 254);
     }
 
     public void testByteCmp() throws Exception {
         binOpTest("fun foo(a: Byte, b: Byte): Int = if (a == b) 1 else 0",
-                Byte.valueOf((byte) 127), Byte.valueOf((byte) 127), 1);
+                  Byte.valueOf((byte) 127), Byte.valueOf((byte) 127), 1);
     }
 
     public void testByteLess() throws Exception {

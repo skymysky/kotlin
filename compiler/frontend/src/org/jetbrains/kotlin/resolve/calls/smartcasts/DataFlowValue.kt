@@ -17,7 +17,8 @@
 package org.jetbrains.kotlin.resolve.calls.smartcasts
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.types.ErrorUtils
+import org.jetbrains.kotlin.types.error.ErrorTypeKind
+import org.jetbrains.kotlin.types.error.ErrorUtils
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 
@@ -41,25 +42,44 @@ class DataFlowValue(
         // or protected / public member value from the same module without open / custom getter
         // Smart casts are completely safe
         STABLE_VALUE("stable val"),
+
         // Block, or if / else, or when
         STABLE_COMPLEX_EXPRESSION("complex expression", ""),
+
         // Should be unstable, but can be used as stable with deprecation warning
         LEGACY_STABLE_LOCAL_DELEGATED_PROPERTY("local delegated property"),
+
         // Member value with open / custom getter
         // Smart casts are not safe
         PROPERTY_WITH_GETTER("custom getter", "property that has open or custom getter"),
+
+        // Protected / public member value from derived class from another module
+        // Should be unstable, but can be used as stable with deprecation warning
+        LEGACY_ALIEN_BASE_PROPERTY("alien derived", "property declared in base class from different module"),
+
+        // Protected / public member value from derived class from another module, in case the derived class is non-public API
+        // Should be unstable, but can be used as stable with deprecation warning
+        LEGACY_ALIEN_BASE_PROPERTY_INHERITED_IN_INVISIBLE_CLASS(
+            "alien inherited in invisible",
+            "property declared in base class from different module inherited in non-public API class"
+        ),
+
         // Protected / public member value from another module
         // Smart casts are not safe
         ALIEN_PUBLIC_PROPERTY("alien public", "public API property declared in different module"),
+
         // Local variable not yet captured by a changing closure
         // Smart casts are safe but possible changes in loops / closures ahead must be taken into account
         STABLE_VARIABLE("stable var", "local variable that can be changed since the check in a loop"),
+
         // Local variable already captured by a changing closure
         // Smart casts are not safe
         CAPTURED_VARIABLE("captured var", "local variable that is captured by a changing closure"),
+
         // Member variable regardless of its visibility
         // Smart casts are not safe
         MUTABLE_PROPERTY("member", "mutable property that could have been changed by this time"),
+
         // Some complex expression
         // Smart casts are not safe
         OTHER("other", "complex expression");
@@ -74,7 +94,9 @@ class DataFlowValue(
     val isStable = kind == Kind.STABLE_VALUE ||
             kind == Kind.STABLE_VARIABLE ||
             kind == Kind.STABLE_COMPLEX_EXPRESSION ||
-            kind == Kind.LEGACY_STABLE_LOCAL_DELEGATED_PROPERTY
+            kind == Kind.LEGACY_STABLE_LOCAL_DELEGATED_PROPERTY ||
+            kind == Kind.LEGACY_ALIEN_BASE_PROPERTY ||
+            kind == Kind.LEGACY_ALIEN_BASE_PROPERTY_INHERITED_IN_INVISIBLE_CLASS
 
     val canBeBound get() = identifierInfo.canBeBound
 
@@ -109,6 +131,6 @@ class DataFlowValue(
         fun nullValue(builtIns: KotlinBuiltIns) = DataFlowValue(IdentifierInfo.NULL, builtIns.nullableNothingType, Nullability.NULL)
 
         @JvmField
-        val ERROR = DataFlowValue(IdentifierInfo.ERROR, ErrorUtils.createErrorType("Error type for data flow"), Nullability.IMPOSSIBLE)
+        val ERROR = DataFlowValue(IdentifierInfo.ERROR, ErrorUtils.createErrorType(ErrorTypeKind.ERROR_DATA_FLOW_TYPE), Nullability.IMPOSSIBLE)
     }
 }

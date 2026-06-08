@@ -1,4 +1,4 @@
-// !LANGUAGE: +InlineClasses
+// LANGUAGE: +InlineClasses
 
 inline class Foo<T>(val x: List<T>)
 
@@ -27,4 +27,4 @@ object Test {
 
 // method: Foo::unbox-impl
 // jvm signature: ()Ljava/util/List;
-// generic signature: ()Ljava/util/List<TT;>;
+// generic signature: null

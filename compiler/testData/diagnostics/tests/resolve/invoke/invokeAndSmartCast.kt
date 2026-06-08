@@ -1,22 +1,25 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 class A(val x: (String.() -> Unit)?)
 
 fun test(a: A) {
     if (a.x != null) {
-        "".<!DEBUG_INFO_SMARTCAST!>(a.x)<!>()
-        a<!NI;UNSAFE_CALL!>.<!><!OI;UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>("") // todo
-        <!DEBUG_INFO_SMARTCAST!>(a.x)<!>("")
+        "".(a.x)()
+        a.x("") // todo
+        (a.x)("")
     }
     "".<!UNSAFE_IMPLICIT_INVOKE_CALL!>(a.x)<!>()
-    a<!NI;UNSAFE_CALL!>.<!><!OI;UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>("")
-    <!NI;UNSAFE_CALL, OI;UNSAFE_IMPLICIT_INVOKE_CALL!>(a.x)<!>("")
+    a.<!UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>("")
+    <!UNSAFE_IMPLICIT_INVOKE_CALL!>(a.x)<!>("")
 
     with("") {
-        a<!NI;UNSAFE_CALL!>.<!><!OI;UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>(<!NO_VALUE_FOR_PARAMETER!>)<!>
-        <!NI;UNSAFE_CALL, OI;UNSAFE_IMPLICIT_INVOKE_CALL!>(a.x)<!>()
+        a.<!NO_VALUE_FOR_PARAMETER, UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>()
+        <!UNSAFE_IMPLICIT_INVOKE_CALL!>(a.x)<!>()
         if (a.x != null) {
-            a<!NI;UNSAFE_CALL!>.<!><!OI;UNSAFE_IMPLICIT_INVOKE_CALL!>x<!>(<!NO_VALUE_FOR_PARAMETER!>)<!> // todo
-            <!DEBUG_INFO_SMARTCAST!>(a.x)<!>()
+            a.<!NO_VALUE_FOR_PARAMETER!>x<!>() // todo
+            (a.x)()
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, equalityExpression, functionDeclaration, functionalType, ifExpression,
+lambdaLiteral, nullableType, primaryConstructor, propertyDeclaration, smartcast, stringLiteral, typeWithExtension */

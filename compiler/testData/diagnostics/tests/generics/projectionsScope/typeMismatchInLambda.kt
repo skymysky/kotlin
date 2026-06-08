@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE
 
 class Out<out T> {
     fun id() = this
@@ -13,15 +13,19 @@ class A<E> {
 
 fun test(a: A<out CharSequence>, z: Out<CharSequence>) {
     a.foo {
-        val x: String = <!CONSTANT_EXPECTED_TYPE_MISMATCH!>1<!> // Should be no TYPE_MISMATCH_DUE_TO_TYPE_PROJECTIONS
-        <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>""<!>
+        val x: String <!INITIALIZER_TYPE_MISMATCH!>=<!> 1 // Should be no TYPE_MISMATCH_DUE_TO_TYPE_PROJECTIONS
+        <!RETURN_TYPE_MISMATCH!>""<!>
     }
-    a.bar { <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>Out<CharSequence>()<!> }
+    a.bar { <!RETURN_TYPE_MISMATCH!>Out<CharSequence>()<!> }
     a.bar { Out() }
-    a.bar { <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>z.<!NI;TYPE_MISMATCH!>id()<!><!> }
+    a.bar { <!RETURN_TYPE_MISMATCH!>z.id()<!> }
 
     a.foo {
-        z.foobar(if (1 > 2) return@foo <!TYPE_MISMATCH!>""<!> else "")
-        <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>""<!>
+        z.foobar(if (1 > 2) return@foo <!RETURN_TYPE_MISMATCH!>""<!> else "")
+        <!RETURN_TYPE_MISMATCH!>""<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: capturedType, classDeclaration, comparisonExpression, functionDeclaration, functionalType,
+ifExpression, inline, integerLiteral, lambdaLiteral, localProperty, nullableType, out, outProjection,
+propertyDeclaration, stringLiteral, thisExpression, typeParameter */

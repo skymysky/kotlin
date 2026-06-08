@@ -1,5 +1,6 @@
 // IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// IGNORE_BACKEND: JS_IR_ES6
+// WITH_STDLIB
 
 class A() {
     infix fun <T> ArrayList<T>.add3(el: T) = add(el)

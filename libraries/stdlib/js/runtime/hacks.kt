@@ -1,16 +1,38 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:Suppress("WRONG_EXTERNAL_DECLARATION")
-package kotlin.js
 
-import kotlin.annotation.AnnotationTarget.*
+package kotlin
 
-@Retention(AnnotationRetention.BINARY)
-@Target(CLASS, FUNCTION, PROPERTY, CONSTRUCTOR, PROPERTY_GETTER, PROPERTY_SETTER)
-internal external annotation class JsName(val name: String)
+import kotlin.internal.UsedFromCompilerGeneratedCode
 
-internal external annotation class native
+@UsedFromCompilerGeneratedCode
+internal fun throwKotlinNothingValueException(): Nothing =
+    throw KotlinNothingValueException()
 
-external fun js(code: String): dynamic
+@UsedFromCompilerGeneratedCode
+internal fun noWhenBranchMatchedException(): Nothing = throw NoWhenBranchMatchedException()
+
+@UsedFromCompilerGeneratedCode
+internal fun THROW_ISE(): Nothing {
+    throw IllegalStateException()
+}
+
+@UsedFromCompilerGeneratedCode
+internal fun THROW_CCE(): Nothing {
+    throw ClassCastException()
+}
+
+@UsedFromCompilerGeneratedCode
+internal fun THROW_NPE(): Nothing {
+    throw NullPointerException()
+}
+
+@UsedFromCompilerGeneratedCode
+internal fun THROW_IAE(msg: String): Nothing {
+    throw IllegalArgumentException(msg)
+}
+
+@UsedFromCompilerGeneratedCode
+internal fun <T:Any> ensureNotNull(v: T?): T = if (v == null) THROW_NPE() else v

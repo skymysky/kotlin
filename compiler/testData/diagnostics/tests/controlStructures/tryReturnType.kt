@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 package a
 
 fun foo() : Int {
@@ -6,23 +6,25 @@ fun foo() : Int {
         doSmth()
     }
     catch (e: Exception) {
-        <!UNREACHABLE_CODE!>return<!> <!TYPE_MISMATCH!>""<!>
+        return <!RETURN_TYPE_MISMATCH!>""<!>
     }
     finally {
-        return <!TYPE_MISMATCH!>""<!>
+        return <!RETURN_TYPE_MISMATCH!>""<!>
     }
 }
 
 fun bar() : Int =
-    try {
-        <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>doSmth()<!>
+    <!RETURN_TYPE_MISMATCH!>try {
+        doSmth()
     }
     catch (e: Exception) {
-        <!TYPE_MISMATCH!>""<!>
+        ""
     }
     finally {
-        <!UNUSED_EXPRESSION!>""<!>
-    }
+        ""
+    }<!>
 
 
 fun doSmth() {}
+
+/* GENERATED_FIR_TAGS: functionDeclaration, localProperty, propertyDeclaration, stringLiteral, tryExpression */

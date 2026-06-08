@@ -1,9 +1,16 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // JAVAC_EXPECTED_FILE
-// FILE: test/My.java
+// LANGUAGE: -ForbidInferOfInvisibleTypeAsReifiedVarargOrReturnType, -ForbidExposingPackagePrivateInInternal
+
+// FILE: test/Internal.java
 
 package test;
 
 class Internal {}
+
+// FILE: test/My.java
+
+package test;
 
 public class My {
     static public Internal foo() { return new Internal(); }
@@ -31,5 +38,7 @@ package other
 import test.My
 
 class Your {
-    internal fun bar() = <!INACCESSIBLE_TYPE!>My.foo()<!>
+    internal fun bar() = <!INFERRED_INVISIBLE_RETURN_TYPE_WARNING!>My.foo()<!>
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, functionDeclaration, javaFunction */

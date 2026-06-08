@@ -1,24 +1,20 @@
-
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("gradle-plugin-published-compiler-dependency-configuration") // via daemon-client
 }
 
-jvmTarget = "1.6"
-
 dependencies {
-    compile(project(":core:descriptors"))
-    compile(project(":core:descriptors.jvm"))
-    compile(project(":compiler:util"))
-    compile(project(":compiler:cli-common"))
-    compile(project(":kotlin-stdlib"))
-    compileOnly(project(":js:js.frontend"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
-    compileOnly(intellijDep()) { includeIntellijCoreJarDependencies(project) }
+    implementation(project(":compiler:build-tools:kotlin-build-tools-api"))
+    api(project(":compiler:cli-base")) { isTransitive = false }
+    api(project(":compiler:util")) { isTransitive = false }
+    api(project(":core:compiler.common")) { isTransitive = false }
+    api(project(":core:util.runtime")) { isTransitive = false }
+    api(project(":kotlin-build-common"))
+    val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
+    api(kotlin("stdlib", coreDepsVersion))
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
-

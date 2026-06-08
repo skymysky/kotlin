@@ -1,6 +1,5 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // See KT-8277
-// NI_EXPECTED_FILE
 
 val v = { true } <!USELESS_ELVIS!>?: ( { true } <!USELESS_ELVIS!>?:null!!<!> )<!>
 
@@ -12,28 +11,31 @@ else {
 }
 
 val ww = if (true) {
-    <!OI;TYPE_MISMATCH!>{ true }<!> <!USELESS_ELVIS!>?: null!!<!>
+    { true } <!USELESS_ELVIS!>?: null!!<!>
 }
 else if (true) {
-    <!OI;TYPE_MISMATCH!>{ true }<!> <!USELESS_ELVIS!>?: null!!<!>
+    { true } <!USELESS_ELVIS!>?: null!!<!>
 }
 else {
     null!!
 }
 
-val <!OI;IMPLICIT_NOTHING_PROPERTY_TYPE!>n<!> = null ?: (null ?: <!OI;TYPE_MISMATCH!>{ true }<!>)
+val n = <!USELESS_ELVIS_LEFT_IS_NULL!>null ?:<!> (<!USELESS_ELVIS_LEFT_IS_NULL!>null ?:<!> { true })
 
 fun l(): (() -> Boolean)? = null
 
-val b = null ?: ( l() ?: false)
+val b = <!USELESS_ELVIS_LEFT_IS_NULL!>null ?:<!> ( l() ?: false)
 
-val bb = null ?: ( l() ?: null!!)
+val bb = <!USELESS_ELVIS_LEFT_IS_NULL!>null ?:<!> ( l() ?: null!!)
 
-val bbb = null ?: ( l() <!USELESS_ELVIS_RIGHT_IS_NULL!>?: null<!>)
+val bbb = <!USELESS_ELVIS_LEFT_IS_NULL!>null ?:<!> ( l() <!USELESS_ELVIS_RIGHT_IS_NULL!>?: null<!>)
 
 val bbbb = ( l() <!USELESS_ELVIS_RIGHT_IS_NULL!>?: null<!>) ?: ( l() <!USELESS_ELVIS_RIGHT_IS_NULL!>?: null<!>)
 
 fun f(x : Long?): Long {
-    var a = x ?: (<!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>fun() {}<!> <!USELESS_ELVIS!>?: <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>fun() {}<!><!>)
-    return <!OI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>a<!>
+    var a = x ?: (fun() {} <!USELESS_ELVIS!>?: fun() {}<!>)
+    return <!RETURN_TYPE_MISMATCH!>a<!>
 }
+
+/* GENERATED_FIR_TAGS: anonymousFunction, checkNotNullCall, elvisExpression, functionDeclaration, functionalType,
+ifExpression, lambdaLiteral, localProperty, nullableType, propertyDeclaration */

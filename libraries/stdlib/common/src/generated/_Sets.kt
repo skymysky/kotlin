@@ -1,10 +1,11 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license 
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
 @file:kotlin.jvm.JvmName("SetsKt")
+@file:Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
 
 package kotlin.collections
 
@@ -13,10 +14,10 @@ package kotlin.collections
 // See: https://github.com/JetBrains/kotlin/tree/master/libraries/stdlib
 //
 
-import kotlin.*
-import kotlin.text.*
-import kotlin.comparisons.*
+import kotlin.contracts.*
 import kotlin.random.*
+import kotlin.ranges.contains
+import kotlin.ranges.reversed
 
 /**
  * Returns a set containing all elements of the original set except the given [element].
@@ -46,7 +47,7 @@ public operator fun <T> Set<T>.minus(elements: Array<out T>): Set<T> {
  * The returned set preserves the element iteration order of the original set.
  */
 public operator fun <T> Set<T>.minus(elements: Iterable<T>): Set<T> {
-    val other = elements.convertToSetForSetOperationWith(this)
+    val other = elements.convertToListIfNotCollection()
     if (other.isEmpty())
         return this.toSet()
     if (other is Set)

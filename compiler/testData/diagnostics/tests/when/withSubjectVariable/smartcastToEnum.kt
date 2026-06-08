@@ -1,5 +1,5 @@
-// !LANGUAGE: +VariableDeclarationInWhenSubject
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 enum class E { FIRST, SECOND }
 
@@ -16,3 +16,6 @@ fun testSmartcastToEnumInSubjectInitializer2(e: E?) {
         E.SECOND -> "s"
     }
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, enumDeclaration, enumEntry, equalityExpression, functionDeclaration,
+localProperty, nullableType, propertyDeclaration, smartcast, stringLiteral, whenExpression, whenWithSubject */

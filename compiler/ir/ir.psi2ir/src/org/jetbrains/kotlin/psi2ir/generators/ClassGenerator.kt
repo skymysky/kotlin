@@ -1,33 +1,28 @@
 /*
- * Copyright 2010-2016 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.psi2ir.generators
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrPropertyImpl
 import org.jetbrains.kotlin.ir.descriptors.IrImplementingDelegateDescriptorImpl
-import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.expressions.mapValueParameters
-import org.jetbrains.kotlin.ir.expressions.putTypeArguments
-import org.jetbrains.kotlin.ir.expressions.typeParametersCount
-import org.jetbrains.kotlin.ir.util.StableDescriptorsComparator
-import org.jetbrains.kotlin.ir.util.declareSimpleFunctionWithOverrides
-import org.jetbrains.kotlin.ir.util.referenceFunction
+import org.jetbrains.kotlin.ir.expressions.IrBlockBody
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetFieldImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
+import org.jetbrains.kotlin.psi2ir.descriptors.fromSymbolDescriptor
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDelegatedSuperTypeEntry
 import org.jetbrains.kotlin.psi.KtEnumEntry
@@ -35,43 +30,53 @@ import org.jetbrains.kotlin.psi.KtPureClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.pureEndOffset
 import org.jetbrains.kotlin.psi.psiUtil.pureStartOffset
-import org.jetbrains.kotlin.psi.psiUtil.startOffset
+import org.jetbrains.kotlin.psi.psiUtil.startOffsetSkippingComments
 import org.jetbrains.kotlin.psi.synthetics.SyntheticClassOrObjectDescriptor
 import org.jetbrains.kotlin.psi.synthetics.findClassDescriptor
 import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.DelegationResolver
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.codegen.CodegenUtil
+import org.jetbrains.kotlin.resolve.descriptorUtil.propertyIfAccessor
+import org.jetbrains.kotlin.resolve.descriptorUtil.setSingleOverridden
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeProjectionImpl
 import org.jetbrains.kotlin.types.TypeSubstitutor
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
+import org.jetbrains.kotlin.types.error.ErrorTypeKind
+import org.jetbrains.kotlin.types.error.ErrorUtils.createErrorType
 import org.jetbrains.kotlin.utils.newHashMapWithExpectedSize
 
-class ClassGenerator(
+@ObsoleteDescriptorBasedAPI
+internal class ClassGenerator(
     declarationGenerator: DeclarationGenerator
 ) : DeclarationGeneratorExtension(declarationGenerator) {
-
-    fun generateClass(ktClassOrObject: KtPureClassOrObject): IrClass {
+    @OptIn(ValueClassBackendAgnosticApi::class)
+    fun generateClass(ktClassOrObject: KtPureClassOrObject, visibility_: DescriptorVisibility? = null): IrClass {
         val classDescriptor = ktClassOrObject.findClassDescriptor(this.context.bindingContext)
-        val startOffset = ktClassOrObject.pureStartOffset
+        val startOffset = ktClassOrObject.getStartOffsetOfClassDeclarationOrNull() ?: ktClassOrObject.pureStartOffset
         val endOffset = ktClassOrObject.pureEndOffset
+        val visibility = visibility_ ?: classDescriptor.visibility
+        val modality = getEffectiveModality(ktClassOrObject, classDescriptor)
 
-        return context.symbolTable.declareClass(
-            startOffset, endOffset, IrDeclarationOrigin.DEFINED, classDescriptor
-        ).buildWithScope { irClass ->
+        return context.symbolTable.descriptorExtension.declareClass(classDescriptor) { it: IrClassSymbol ->
+            context.irFactory.createIrClassFromDescriptor(
+                startOffset, endOffset, IrDeclarationOrigin.DEFINED, it, classDescriptor,
+                context.symbolTable.nameProvider.nameForDeclaration(classDescriptor), visibility, modality
+            ).apply {
+                metadata = DescriptorMetadataSource.Class(it.descriptor)
+            }
+        }.buildWithScope { irClass ->
             declarationGenerator.generateGlobalTypeParametersDeclarations(irClass, classDescriptor.declaredTypeParameters)
 
-            classDescriptor.typeConstructor.supertypes.mapTo(irClass.superTypes) {
+            irClass.superTypes = classDescriptor.typeConstructor.supertypes.map {
                 it.toIrType()
             }
 
-            irClass.thisReceiver = context.symbolTable.declareValueParameter(
-                startOffset, endOffset,
-                IrDeclarationOrigin.INSTANCE_RECEIVER,
-                classDescriptor.thisAsReceiverParameter,
-                classDescriptor.thisAsReceiverParameter.type.toIrType()
-            )
+            irClass.setThisReceiverParameter(context)
+
+            generateFieldsForContextReceivers(irClass, classDescriptor)
 
             val irPrimaryConstructor = generatePrimaryConstructor(irClass, ktClassOrObject)
             if (irPrimaryConstructor != null) {
@@ -85,45 +90,94 @@ class ClassGenerator(
 
             generateFakeOverrideMemberDeclarations(irClass, ktClassOrObject)
 
-            if (irClass.isInline && ktClassOrObject is KtClassOrObject) {
-                generateAdditionalMembersForInlineClasses(irClass, ktClassOrObject)
+            irClass.valueClassRepresentation = classDescriptor.valueClassRepresentation?.mapUnderlyingType { type ->
+                type.toIrType() as? IrSimpleType ?: error("Value class underlying type is not a simple type: $classDescriptor")
+            }
+
+            if (irClass.isSingleFieldValueClass(treatFullValueClassesWithOneFieldAsBasic = false) && ktClassOrObject is KtClassOrObject) {
+                generateAdditionalMembersForSingleFieldValueClasses(irClass, ktClassOrObject)
             }
 
             if (irClass.isData && ktClassOrObject is KtClassOrObject) {
                 generateAdditionalMembersForDataClass(irClass, ktClassOrObject)
             }
 
+            if (irClass.isJvmInlineMultiFieldValueClass && ktClassOrObject is KtClassOrObject) {
+                generateAdditionalMembersForMultiFieldValueClasses(irClass, ktClassOrObject)
+            }
+
             if (DescriptorUtils.isEnumClass(classDescriptor)) {
                 generateAdditionalMembersForEnumClass(irClass)
+            }
+
+            irClass.sealedSubclasses = classDescriptor.sealedSubclasses.map { context.symbolTable.descriptorExtension.referenceClass(it) }
+        }
+    }
+
+    private fun getEffectiveModality(ktClassOrObject: KtPureClassOrObject, classDescriptor: ClassDescriptor): Modality =
+        when {
+            DescriptorUtils.isAnnotationClass(classDescriptor) ->
+                Modality.OPEN
+            !DescriptorUtils.isEnumClass(classDescriptor) ->
+                classDescriptor.modality
+            DescriptorUtils.hasAbstractMembers(classDescriptor) ->
+                Modality.ABSTRACT
+            ktClassOrObject.hasEnumEntriesWithClassMembers() ->
+                Modality.OPEN
+            else ->
+                Modality.FINAL
+        }
+
+    private fun KtPureClassOrObject.hasEnumEntriesWithClassMembers(): Boolean {
+        val body = this.body ?: return false
+        return body.enumEntries.any { it.hasMemberDeclarations() }
+    }
+
+    private fun KtEnumEntry.hasMemberDeclarations() = declarations.isNotEmpty()
+
+    private fun generateFakeOverrideMemberDeclarations(irClass: IrClass, ktClassOrObject: KtPureClassOrObject) {
+        val classDescriptor = irClass.descriptor
+
+        for (descriptor in classDescriptor.unsubstitutedMemberScope.getContributedDescriptors()) {
+            if (descriptor is CallableMemberDescriptor && descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+                declarationGenerator.generateFakeOverrideDeclaration(descriptor, ktClassOrObject)?.let { irClass.declarations.add(it) }
+            }
+        }
+
+        context.extensions.getParentClassStaticScope(classDescriptor)?.run {
+            for (parentStaticMember in getContributedDescriptors()) {
+                if (parentStaticMember is FunctionDescriptor &&
+                    DescriptorVisibilityUtils.isVisibleIgnoringReceiver(
+                        parentStaticMember,
+                        classDescriptor,
+                        context.languageVersionSettings
+                    )
+                ) {
+                    val fakeOverride = createFakeOverrideDescriptorForParentStaticMember(classDescriptor, parentStaticMember)
+                    declarationGenerator.generateFakeOverrideDeclaration(fakeOverride, ktClassOrObject)?.let {
+                        irClass.declarations.add(it)
+                    }
+                }
             }
         }
     }
 
-    private fun generateFakeOverrideMemberDeclarations(irClass: IrClass, ktClassOrObject: KtPureClassOrObject) {
-        irClass.descriptor.unsubstitutedMemberScope.getContributedDescriptors()
-            .mapNotNull {
-                it.safeAs<CallableMemberDescriptor>().takeIf {
-                    it?.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE
-                }
-            }
-            .sortedWith(StableDescriptorsComparator)
-            .forEach { fakeOverride ->
-                irClass.addMember(declarationGenerator.generateFakeOverrideDeclaration(fakeOverride, ktClassOrObject))
-            }
-    }
+    private fun createFakeOverrideDescriptorForParentStaticMember(
+        classDescriptor: ClassDescriptor,
+        parentStaticMember: FunctionDescriptor
+    ): FunctionDescriptor =
+        parentStaticMember.copy(
+            classDescriptor, parentStaticMember.modality, parentStaticMember.visibility, CallableMemberDescriptor.Kind.FAKE_OVERRIDE, false
+        ).apply {
+            setSingleOverridden(parentStaticMember)
+        }
 
     private fun generateMembersDeclaredInSupertypeList(irClass: IrClass, ktClassOrObject: KtClassOrObject) {
         val ktSuperTypeList = ktClassOrObject.getSuperTypeList() ?: return
-        val delegatedMembers = irClass.descriptor.unsubstitutedMemberScope
-            .getContributedDescriptors(DescriptorKindFilter.CALLABLES)
-            .filterIsInstance<CallableMemberDescriptor>()
-            .filter { it.kind == CallableMemberDescriptor.Kind.DELEGATION }
-            .sortedWith(StableDescriptorsComparator)
-        if (delegatedMembers.isEmpty()) return
-
+        var delegateNumber = 0
         for (ktEntry in ktSuperTypeList.entries) {
             if (ktEntry is KtDelegatedSuperTypeEntry) {
-                generateDelegatedImplementationMembers(irClass, ktEntry, delegatedMembers)
+                generateDelegatedImplementationMembers(irClass, ktEntry, delegateNumber++)
             }
         }
     }
@@ -131,27 +185,52 @@ class ClassGenerator(
     private fun generateDelegatedImplementationMembers(
         irClass: IrClass,
         ktEntry: KtDelegatedSuperTypeEntry,
-        delegatedMembers: List<CallableMemberDescriptor>
+        delegateNumber: Int
     ) {
         val ktDelegateExpression = ktEntry.delegateExpression!!
-        val delegateType = getInferredTypeWithImplicitCastsOrFail(ktDelegateExpression)
+        val delegateType = if (context.configuration.generateBodies) {
+            getTypeInferredByFrontendOrFail(ktDelegateExpression)
+        } else {
+            getTypeInferredByFrontend(ktDelegateExpression).takeUnless {
+                it?.constructor?.declarationDescriptor?.let(DescriptorUtils::isLocal) == true
+            } ?: createErrorType(ErrorTypeKind.UNRESOLVED_TYPE, ktDelegateExpression.text)
+        }
         val superType = getOrFail(BindingContext.TYPE, ktEntry.typeReference!!)
+
         val superTypeConstructorDescriptor = superType.constructor.declarationDescriptor
         val superClass = superTypeConstructorDescriptor as? ClassDescriptor
-                ?: throw AssertionError("Unexpected supertype constructor for delegation: $superTypeConstructorDescriptor")
-        val delegateDescriptor = IrImplementingDelegateDescriptorImpl(irClass.descriptor, delegateType, superType)
-        val irDelegateField = context.symbolTable.declareField(
-            ktDelegateExpression.startOffset, ktDelegateExpression.endOffset,
-            IrDeclarationOrigin.DELEGATE,
-            delegateDescriptor, delegateDescriptor.type.toIrType(),
-            createBodyGenerator(irClass.symbol).generateExpressionBody(ktDelegateExpression)
-        )
-        irClass.addMember(irDelegateField)
+            ?: throw AssertionError("Unexpected supertype constructor for delegation: $superTypeConstructorDescriptor")
 
-        for (delegatedMember in delegatedMembers) {
+        val propertyDescriptor = CodegenUtil.getDelegatePropertyIfAny(ktDelegateExpression, irClass.descriptor, context.bindingContext)
+
+        val irDelegateField: IrField = if (CodegenUtil.isFinalPropertyWithBackingField(propertyDescriptor, context.bindingContext)) {
+            irClass.properties.first { it.descriptor == propertyDescriptor }.backingField!!
+        } else {
+            val delegateDescriptor = IrImplementingDelegateDescriptorImpl(irClass.descriptor, delegateType, superType, delegateNumber)
+            val initializer = if (context.configuration.generateBodies) {
+                createBodyGenerator(irClass.symbol).generateExpressionBody(ktDelegateExpression)
+            } else {
+                null
+            }
+            context.symbolTable.descriptorExtension.declareField(
+                ktDelegateExpression.startOffsetSkippingComments, ktDelegateExpression.endOffset,
+                IrDeclarationOrigin.DELEGATE,
+                delegateDescriptor, delegateDescriptor.type.toIrType(),
+                initializer
+            ).apply {
+                irClass.addMember(this)
+            }
+        }
+
+        val delegatesMap = DelegationResolver.getDelegates(irClass.descriptor, superClass, delegateType)
+        for (delegatedMember in delegatesMap.keys) {
             val overriddenMember = delegatedMember.overriddenDescriptors.find { it.containingDeclaration.original == superClass.original }
             if (overriddenMember != null) {
-                generateDelegatedMember(irClass, irDelegateField, delegatedMember, overriddenMember)
+                val delegateToMember = delegatesMap[delegatedMember]
+                    ?: throw AssertionError(
+                        "No corresponding member in delegate type $delegateType for $delegatedMember overriding $overriddenMember"
+                    )
+                generateDelegatedMember(irClass, irDelegateField, delegatedMember, delegateToMember)
             }
         }
     }
@@ -160,117 +239,134 @@ class ClassGenerator(
         irClass: IrClass,
         irDelegate: IrField,
         delegatedMember: CallableMemberDescriptor,
-        overriddenMember: CallableMemberDescriptor
+        delegateToMember: CallableMemberDescriptor
     ) {
         when (delegatedMember) {
-            is FunctionDescriptor ->
-                generateDelegatedFunction(irClass, irDelegate, delegatedMember, overriddenMember as FunctionDescriptor)
-            is PropertyDescriptor ->
-                generateDelegatedProperty(irClass, irDelegate, delegatedMember, overriddenMember as PropertyDescriptor)
+            is FunctionDescriptor -> generateDelegatedFunction(irClass, irDelegate, delegatedMember, delegateToMember as FunctionDescriptor)
+            is PropertyDescriptor -> generateDelegatedProperty(irClass, irDelegate, delegatedMember, delegateToMember as PropertyDescriptor)
         }
-
     }
 
     private fun generateDelegatedProperty(
         irClass: IrClass,
         irDelegate: IrField,
-        delegated: PropertyDescriptor,
-        overridden: PropertyDescriptor
+        delegatedDescriptor: PropertyDescriptor,
+        delegateToDescriptor: PropertyDescriptor
     ) {
-        irClass.addMember(generateDelegatedProperty(irDelegate, delegated, overridden))
+        irClass.addMember(generateDelegatedProperty(irDelegate, delegatedDescriptor, delegateToDescriptor))
     }
 
     private fun generateDelegatedProperty(
         irDelegate: IrField,
         delegatedDescriptor: PropertyDescriptor,
-        overriddenDescriptor: PropertyDescriptor
-    ): IrPropertyImpl {
+        delegateToDescriptor: PropertyDescriptor
+    ): IrProperty {
         val startOffset = irDelegate.startOffset
         val endOffset = irDelegate.endOffset
 
-        val irProperty = IrPropertyImpl(
-            startOffset, endOffset, IrDeclarationOrigin.DELEGATED_MEMBER,
-            false, delegatedDescriptor
-        )
+        val irProperty =
+            context.symbolTable.descriptorExtension.declareProperty(
+                startOffset, endOffset, IrDeclarationOrigin.DELEGATED_MEMBER,
+                delegatedDescriptor,
+                delegatedDescriptor.isDelegated
+            )
 
-        irProperty.getter = generateDelegatedFunction(irDelegate, delegatedDescriptor.getter!!, overriddenDescriptor.getter!!)
+        irProperty.getter = generateDelegatedFunction(irDelegate, delegatedDescriptor.getter!!, delegateToDescriptor.getter!!)
 
         if (delegatedDescriptor.isVar) {
-            irProperty.setter = generateDelegatedFunction(irDelegate, delegatedDescriptor.setter!!, overriddenDescriptor.setter!!)
+            irProperty.setter = generateDelegatedFunction(irDelegate, delegatedDescriptor.setter!!, delegateToDescriptor.setter!!)
         }
+
+        irProperty.generateOverrides(delegatedDescriptor)
+
+        irProperty.linkCorrespondingPropertySymbol()
+
         return irProperty
+    }
+
+    private fun IrProperty.generateOverrides(propertyDescriptor: PropertyDescriptor) {
+        overriddenSymbols =
+            propertyDescriptor.overriddenDescriptors.map { overriddenPropertyDescriptor ->
+                context.symbolTable.descriptorExtension.referenceProperty(overriddenPropertyDescriptor.original)
+            }
     }
 
     private fun generateDelegatedFunction(
         irClass: IrClass,
         irDelegate: IrField,
-        delegated: FunctionDescriptor,
-        overridden: FunctionDescriptor
+        delegatedDescriptor: FunctionDescriptor,
+        delegateToDescriptor: FunctionDescriptor
     ) {
-        irClass.addMember(generateDelegatedFunction(irDelegate, delegated, overridden))
+        irClass.addMember(generateDelegatedFunction(irDelegate, delegatedDescriptor, delegateToDescriptor))
     }
 
     private fun generateDelegatedFunction(
         irDelegate: IrField,
-        delegated: FunctionDescriptor,
-        overridden: FunctionDescriptor
+        delegatedDescriptor: FunctionDescriptor,
+        delegateToDescriptor: FunctionDescriptor
     ): IrSimpleFunction =
         context.symbolTable.declareSimpleFunctionWithOverrides(
-            irDelegate.startOffset, irDelegate.endOffset,
+            SYNTHETIC_OFFSET, SYNTHETIC_OFFSET,
             IrDeclarationOrigin.DELEGATED_MEMBER,
-            delegated
+            delegatedDescriptor
         ).buildWithScope { irFunction ->
             FunctionGenerator(declarationGenerator).generateSyntheticFunctionParameterDeclarations(irFunction)
 
             // TODO could possibly refer to scoped type parameters for property accessors
-            irFunction.returnType = delegated.returnType!!.toIrType()
+            irFunction.returnType = delegatedDescriptor.returnType!!.toIrType()
 
-            irFunction.body = generateDelegateFunctionBody(irDelegate, delegated, overridden, irFunction)
+            if (context.configuration.generateBodies) {
+                irFunction.body = generateDelegateFunctionBody(irDelegate, delegatedDescriptor, delegateToDescriptor, irFunction)
+            }
         }
 
     private fun generateDelegateFunctionBody(
         irDelegate: IrField,
-        delegated: FunctionDescriptor,
-        overridden: FunctionDescriptor,
+        delegatedDescriptor: FunctionDescriptor,
+        delegateToDescriptor: FunctionDescriptor,
         irDelegatedFunction: IrSimpleFunction
-    ): IrBlockBodyImpl {
-        val startOffset = irDelegate.startOffset
-        val endOffset = irDelegate.endOffset
-        val irBlockBody = IrBlockBodyImpl(startOffset, endOffset)
-        val substitutedOverridden = substituteOverriddenDescriptorForDelegate(delegated, overridden)
-        val returnType = substitutedOverridden.returnType!!
-        val irReturnType = returnType.toIrType()
-        val irCall = IrCallImpl(
-            startOffset, endOffset, irReturnType,
-            context.symbolTable.referenceFunction(overridden.original),
-            substitutedOverridden,
-            substitutedOverridden.typeParametersCount
+    ): IrBlockBody {
+        val startOffset = SYNTHETIC_OFFSET
+        val endOffset = SYNTHETIC_OFFSET
+
+        val irBlockBody = context.irFactory.createBlockBody(startOffset, endOffset)
+
+        val substitutedDelegateTo = substituteDelegateToDescriptor(delegatedDescriptor, delegateToDescriptor)
+        val returnType = substitutedDelegateTo.returnType!!
+
+        val delegateToSymbol = context.symbolTable.descriptorExtension.referenceSimpleFunction(delegateToDescriptor.original)
+
+        val irCall = IrCallImpl.fromSymbolDescriptor(
+            startOffset, endOffset,
+            returnType.toIrType(),
+            delegateToSymbol,
         ).apply {
-            val typeArguments = getTypeArgumentsForOverriddenDescriptorDelegatingCall(delegated, overridden)
+            context.callToSubstitutedDescriptorMap[this] = substitutedDelegateTo
+
+            val typeArguments = getTypeArgumentsForOverriddenDescriptorDelegatingCall(delegatedDescriptor, delegateToDescriptor)
             putTypeArguments(typeArguments) { it.toIrType() }
-        }
-        val dispatchReceiverParameter = irDelegatedFunction.dispatchReceiverParameter!!
-        val dispatchReceiverType = dispatchReceiverParameter.type
-        irCall.dispatchReceiver =
-                IrGetFieldImpl(
+
+            val dispatchReceiverParameter = irDelegatedFunction.dispatchReceiverParameter!!
+            val nonDispatchParameterCount = delegatedDescriptor.contextReceiverParameters.size +
+                    (if (delegatedDescriptor.extensionReceiverParameter != null) 1 else 0) +
+                    delegatedDescriptor.valueParameters.size
+
+            arguments[0] = IrGetFieldImpl(
+                startOffset, endOffset,
+                irDelegate.symbol,
+                irDelegate.type,
+                IrGetValueImpl(
                     startOffset, endOffset,
-                    irDelegate.symbol,
-                    irDelegate.type,
-                    IrGetValueImpl(
-                        startOffset, endOffset,
-                        dispatchReceiverType,
-                        dispatchReceiverParameter.symbol
-                    )
+                    dispatchReceiverParameter.type,
+                    dispatchReceiverParameter.symbol
                 )
-        irCall.extensionReceiver =
-                irDelegatedFunction.extensionReceiverParameter?.let { extensionReceiver ->
-                    IrGetValueImpl(startOffset, endOffset, extensionReceiver.type, extensionReceiver.symbol)
-                }
-        irCall.mapValueParameters { overriddenValueParameter ->
-            val delegatedValueParameter = delegated.valueParameters[overriddenValueParameter.index]
-            val irDelegatedValueParameter = irDelegatedFunction.getIrValueParameter(delegatedValueParameter)
-            IrGetValueImpl(startOffset, endOffset, irDelegatedValueParameter.type, irDelegatedValueParameter.symbol)
+            )
+            for (index in 1..nonDispatchParameterCount) {
+                val delegatedParameter = irDelegatedFunction.parameters[index]
+                arguments[index] = IrGetValueImpl(startOffset, endOffset, delegatedParameter.type, delegatedParameter.symbol)
+            }
         }
+
         if (KotlinBuiltIns.isUnit(returnType) || KotlinBuiltIns.isNothing(returnType)) {
             irBlockBody.statements.add(irCall)
         } else {
@@ -280,55 +376,85 @@ class ClassGenerator(
         return irBlockBody
     }
 
-    private fun substituteOverriddenDescriptorForDelegate(
-        delegated: FunctionDescriptor,
-        overridden: FunctionDescriptor
-    ): FunctionDescriptor {
-        // TODO PropertyAccessorDescriptor doesn't support 'substitute' right now :(
-        return if (overridden is PropertyAccessorDescriptor)
-            overridden
-        else {
-            val substitutor =
-                TypeSubstitutor.create(
-                    overridden.typeParameters.associate {
-                        val delegatedDefaultType = delegated.typeParameters[it.index].defaultType
-                        it.typeConstructor to TypeProjectionImpl(delegatedDefaultType)
-                    }
-                )
-            overridden.substitute(substitutor)!!
+    @Suppress("UNCHECKED_CAST")
+    private fun <D : CallableMemberDescriptor> substituteDelegateToDescriptor(delegated: D, overridden: D): D =
+        // PropertyAccessorDescriptor doesn't support 'substitute', so we substitute the corresponding property instead.
+        when (overridden) {
+            is PropertyGetterDescriptor -> substituteDelegateToDescriptor(
+                (delegated as PropertyGetterDescriptor).correspondingProperty,
+                overridden.correspondingProperty
+            ).getter as D
+            is PropertySetterDescriptor -> substituteDelegateToDescriptor(
+                (delegated as PropertySetterDescriptor).correspondingProperty,
+                overridden.correspondingProperty
+            ).setter as D
+            else -> {
+                val delegatedTypeParameters = delegated.typeParameters
+                val substitutor =
+                    TypeSubstitutor.create(
+                        overridden.typeParameters.associate {
+                            val delegatedDefaultType = delegatedTypeParameters[it.index].defaultType
+                            it.typeConstructor to TypeProjectionImpl(delegatedDefaultType)
+                        }
+                    )
+                overridden.substitute(substitutor)!! as D
+            }
         }
-    }
 
     private fun getTypeArgumentsForOverriddenDescriptorDelegatingCall(
-        delegated: FunctionDescriptor,
-        overridden: FunctionDescriptor
-    ): Map<TypeParameterDescriptor, KotlinType>? =
-        if (overridden.original.typeParameters.isEmpty())
-            null
-        else
-            zipTypeParametersToDefaultTypes(overridden.original, delegated)
+        delegatedDescriptor: FunctionDescriptor,
+        delegateToDescriptor: FunctionDescriptor
+    ): Map<TypeParameterDescriptor, KotlinType>? {
+        val keys = delegateToDescriptor.propertyIfAccessor.original.typeParameters
+        if (keys.isEmpty()) return null
 
-    private fun zipTypeParametersToDefaultTypes(
-        keys: FunctionDescriptor,
-        values: FunctionDescriptor
-    ): Map<TypeParameterDescriptor, KotlinType> {
-        val typeArguments = newHashMapWithExpectedSize<TypeParameterDescriptor, KotlinType>(keys.typeParameters.size)
-        for ((i, overriddenTypeParameter) in keys.typeParameters.withIndex()) {
-            typeArguments[overriddenTypeParameter] = values.typeParameters[i].defaultType
+        val values = delegatedDescriptor.propertyIfAccessor.typeParameters
+
+        val typeArguments = newHashMapWithExpectedSize<TypeParameterDescriptor, KotlinType>(keys.size)
+        for ([i, overriddenTypeParameter] in keys.withIndex()) {
+            typeArguments[overriddenTypeParameter] = values[i].defaultType
         }
         return typeArguments
     }
 
-    private fun generateAdditionalMembersForInlineClasses(irClass: IrClass, ktClassOrObject: KtClassOrObject) {
-        DataClassMembersGenerator(declarationGenerator).generateInlineClassMembers(ktClassOrObject, irClass)
+    private fun generateAdditionalMembersForSingleFieldValueClasses(irClass: IrClass, ktClassOrObject: KtClassOrObject) {
+        DataClassMembersGenerator(declarationGenerator, context.configuration.generateBodies).generateSingleFieldValueClassMembers(ktClassOrObject, irClass)
+    }
+
+    private fun generateAdditionalMembersForMultiFieldValueClasses(irClass: IrClass, ktClassOrObject: KtClassOrObject) {
+        DataClassMembersGenerator(declarationGenerator, context.configuration.generateBodies).generateMultiFieldValueClassMembers(ktClassOrObject, irClass)
     }
 
     private fun generateAdditionalMembersForDataClass(irClass: IrClass, ktClassOrObject: KtClassOrObject) {
-        DataClassMembersGenerator(declarationGenerator).generateDataClassMembers(ktClassOrObject, irClass)
+        DataClassMembersGenerator(declarationGenerator, context.configuration.generateBodies).generateDataClassMembers(ktClassOrObject, irClass)
     }
 
     private fun generateAdditionalMembersForEnumClass(irClass: IrClass) {
-        EnumClassMembersGenerator(declarationGenerator).generateSpecialMembers(irClass)
+        EnumClassMembersGenerator(declarationGenerator).generateSpecialMembers(
+            irClass,
+            context.languageVersionSettings.supportsFeature(
+                LanguageFeature.EnumEntries
+            )
+        )
+    }
+
+    private fun generateFieldsForContextReceivers(irClass: IrClass, classDescriptor: ClassDescriptor) {
+        for ([fieldIndex, receiverDescriptor] in classDescriptor.contextReceivers.withIndex()) {
+            val irField = context.irFactory.createField(
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = IrDeclarationOrigin.FIELD_FOR_CLASS_CONTEXT_RECEIVER,
+                name = Name.identifier("contextReceiverField$fieldIndex"),
+                visibility = DescriptorVisibilities.PRIVATE,
+                symbol = IrFieldSymbolImpl(),
+                type = receiverDescriptor.type.toIrType(),
+                isFinal = true,
+                isStatic = false,
+                isExternal = false,
+            )
+            context.additionalDescriptorStorage.put(receiverDescriptor.value, irField)
+            irClass.addMember(irField)
+        }
     }
 
     private fun generatePrimaryConstructor(irClass: IrClass, ktClassOrObject: KtPureClassOrObject): IrConstructor? {
@@ -348,26 +474,28 @@ class ClassGenerator(
         ktClassOrObject: KtPureClassOrObject
     ) {
         ktClassOrObject.primaryConstructor?.let { ktPrimaryConstructor ->
-            irPrimaryConstructor.valueParameters.forEach {
-                context.symbolTable.introduceValueParameter(it)
+            irPrimaryConstructor.parameters.filter { it.kind == IrParameterKind.Regular || it.kind == IrParameterKind.Context }.forEach {
+                context.symbolTable.descriptorExtension.introduceValueParameter(it)
             }
 
-            ktPrimaryConstructor.valueParameters.forEachIndexed { i, ktParameter ->
-                val irValueParameter = irPrimaryConstructor.valueParameters[i]
-                if (ktParameter.hasValOrVar()) {
-                    val irProperty = PropertyGenerator(declarationGenerator)
-                        .generatePropertyForPrimaryConstructorParameter(ktParameter, irValueParameter)
-                    irClass.addMember(irProperty)
+            irPrimaryConstructor.parameters
+                .filter { it.kind == IrParameterKind.Regular }
+                .zip(ktPrimaryConstructor.valueParameters)
+                .forEach { [irValueParameter, ktParameter] ->
+                    if (ktParameter.hasValOrVar()) {
+                        val irProperty = PropertyGenerator(declarationGenerator)
+                            .generatePropertyForPrimaryConstructorParameter(ktParameter, irValueParameter)
+                        irClass.addMember(irProperty)
+                    }
                 }
-            }
         }
     }
 
     private fun generateMembersDeclaredInClassBody(irClass: IrClass, ktClassOrObject: KtPureClassOrObject) {
         // generate real body declarations
-        ktClassOrObject.getBody()?.let { ktClassBody ->
-            ktClassBody.declarations.mapTo(irClass.declarations) { ktDeclaration ->
-                declarationGenerator.generateClassMemberDeclaration(ktDeclaration, irClass.descriptor)
+        ktClassOrObject.body?.let { ktClassBody ->
+            ktClassBody.declarations.mapNotNullTo(irClass.declarations) { ktDeclaration ->
+                declarationGenerator.generateClassMemberDeclaration(ktDeclaration, irClass, ktClassOrObject)
             }
         }
 
@@ -384,22 +512,44 @@ class ClassGenerator(
 
     fun generateEnumEntry(ktEnumEntry: KtEnumEntry): IrEnumEntry {
         val enumEntryDescriptor = getOrFail(BindingContext.CLASS, ktEnumEntry)
-        return context.symbolTable.declareEnumEntry(
-            ktEnumEntry.startOffset,
+
+        // TODO this is a hack, pass declaration parent through generator chain instead
+        val enumClassDescriptor = enumEntryDescriptor.containingDeclaration as ClassDescriptor
+        val enumClassSymbol = context.symbolTable.descriptorExtension.referenceClass(enumClassDescriptor)
+        val irEnumClass = enumClassSymbol.owner
+
+        return context.symbolTable.descriptorExtension.declareEnumEntry(
+            ktEnumEntry.startOffsetSkippingComments,
             ktEnumEntry.endOffset,
             IrDeclarationOrigin.DEFINED,
             enumEntryDescriptor
         ).buildWithScope { irEnumEntry ->
-            if (!enumEntryDescriptor.isExpect) {
+            irEnumEntry.parent = irEnumClass
+
+            if (!enumEntryDescriptor.isExpect && context.configuration.generateBodies) {
                 irEnumEntry.initializerExpression =
+                    context.irFactory.createExpressionBody(
                         createBodyGenerator(irEnumEntry.symbol)
                             .generateEnumEntryInitializer(ktEnumEntry, enumEntryDescriptor)
+                    )
             }
 
-            if (ktEnumEntry.declarations.isNotEmpty()) {
-                irEnumEntry.correspondingClass = generateClass(ktEnumEntry)
+            if (ktEnumEntry.hasMemberDeclarations()) {
+                irEnumEntry.correspondingClass = generateClass(ktEnumEntry, DescriptorVisibilities.PRIVATE)
             }
         }
 
+    }
+}
+
+fun IrClass.setThisReceiverParameter(context: GeneratorContext) {
+    thisReceiver = context.symbolTable.descriptorExtension.declareValueParameter(
+        startOffset, endOffset,
+        IrDeclarationOrigin.INSTANCE_RECEIVER,
+        symbol.descriptor.thisAsReceiverParameter,
+        IrParameterKind.DispatchReceiver,
+        context.typeTranslator.translateType(symbol.descriptor.thisAsReceiverParameter.type),
+    ).also {
+        it.parent = this
     }
 }

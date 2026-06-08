@@ -1,5 +1,5 @@
-// !LANGUAGE: +ReadDeserializedContracts +UseCallsInPlaceEffect
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 fun testRunWithUnitReturn() {
     val x: Int
@@ -18,7 +18,7 @@ fun testRunWithReturnValue() {
 }
 
 fun testRunWithCoercionToUnit() {
-    val <!ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE!>x<!>: Int
+    val x: Int
     run {
         x = 42
         "hello"
@@ -85,7 +85,7 @@ fun testTakeUnless(x: Int?) {
 fun testRepeatOnVal(x: Int) {
     val y: Int
     repeat(x) {
-        // reassignment instead of captured val initalization
+        // reassignment instead of captured val initialization
         <!VAL_REASSIGNMENT!>y<!> = 42
     }
     println(<!UNINITIALIZED_VARIABLE!>y<!>)
@@ -108,3 +108,6 @@ fun testRepeatOnInitializedVar(x: Int) {
     }
     println(y)
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, assignment, equalityExpression, functionDeclaration, integerLiteral,
+lambdaLiteral, localProperty, nullableType, propertyDeclaration, stringLiteral, thisExpression */

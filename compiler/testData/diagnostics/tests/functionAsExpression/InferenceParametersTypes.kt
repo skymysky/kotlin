@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_ANONYMOUS_PARAMETER -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_ANONYMOUS_PARAMETER -UNUSED_VARIABLE
 fun <T> listOf(): List<T> = null!!
 
 fun test(a: (Int) -> Int) {
@@ -12,9 +12,13 @@ fun test(a: (Int) -> Int) {
 }
 
 fun test2(a: () -> List<Int>) {
-    test2(fun () = <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>listOf<!>())
+    test2(fun () = listOf())
 }
 
 val a: (Int) -> Unit = fun(x) { checkSubtype<Int>(x) }
 
-val b: (Int) -> Unit = <!OI;TYPE_MISMATCH!>fun(<!EXPECTED_PARAMETER_TYPE_MISMATCH!>x: String<!>) {}<!>
+val b: (Int) -> Unit <!INITIALIZER_TYPE_MISMATCH!>=<!> fun(x: String) {}
+
+/* GENERATED_FIR_TAGS: anonymousFunction, checkNotNullCall, classDeclaration, funWithExtensionReceiver,
+functionDeclaration, functionalType, infix, integerLiteral, nullableType, propertyDeclaration, typeParameter,
+typeWithExtension */

@@ -1,7 +1,7 @@
-// !DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
-// COMMON_COROUTINES_TEST
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_ANONYMOUS_PARAMETER
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun nonSuspend() {}
 
@@ -40,3 +40,6 @@ suspend fun tryCatchFinally(): Int {
         baz()
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, integerLiteral, lambdaLiteral, localProperty, propertyDeclaration, suspend,
+tryExpression */

@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 package baz
 
 import kotlin.reflect.KProperty
@@ -10,13 +10,13 @@ class A(outer: Outer) {
     var g: String by  outer.getContainer().getMyProperty()
 
 
-    var b: String by  foo(<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>getMyProperty<!>())
-    var r: String by  foo(outer.getContainer().<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>getMyProperty<!>())
-    var e: String by  <!NI;DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE, NI;TYPE_MISMATCH!><!OI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>+<!> <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>foo<!>(<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>getMyProperty<!>())<!>
-    var f: String by  <!NI;TYPE_MISMATCH!><!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>foo<!>(<!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>getMyProperty<!>()) <!OI;DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>-<!> 1<!>
+    var b: String <!DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE, DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE!>by<!>  foo(<!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>getMyProperty<!>())
+    var r: String <!DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE, DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE!>by<!>  foo(outer.getContainer().<!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>getMyProperty<!>())
+    var e: String by  + <!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>foo<!>(<!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>getMyProperty<!>())
+    var f: String by  <!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>foo<!>(<!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!>getMyProperty<!>()) - 1
 }
 
-fun <A, B> foo(<!UNUSED_PARAMETER!>a<!>: Any?) = MyProperty<A, B>()
+fun <A, B> foo(a: Any?) = MyProperty<A, B>()
 
 fun <A, B> getMyProperty() = MyProperty<A, B>()
 
@@ -35,7 +35,7 @@ class MyProperty<R, T> {
 }
 
 operator fun <R, T> MyProperty<R, T>.unaryPlus() = MyProperty<R, T>()
-operator fun <R, T> MyProperty<R, T>.minus(<!UNUSED_PARAMETER!>i<!>: Int) = MyProperty<R, T>()
+operator fun <R, T> MyProperty<R, T>.minus(i: Int) = MyProperty<R, T>()
 
 object O {
     fun <A, B> getMyProperty() = MyProperty<A, B>()
@@ -51,3 +51,7 @@ interface Outer {
 
 // -----------------
 fun println(a: Any?) = a
+
+/* GENERATED_FIR_TAGS: additiveExpression, asExpression, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+integerLiteral, interfaceDeclaration, nullableType, objectDeclaration, operator, primaryConstructor, propertyDeclaration,
+propertyDelegate, setter, starProjection, stringLiteral, typeParameter, unaryExpression */

@@ -1,11 +1,11 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// WITH_STDLIB
 
 val arr = arrayOf(10, 20, 30, 40)
 
 fun <T : Number> foo(xs: Array<T>): String {
     val s = StringBuilder()
-    for ((index, x) in xs.withIndex()) {
+    for ([index, x] in xs.withIndex()) {
         s.append("$index:$x;")
     }
     return s.toString()

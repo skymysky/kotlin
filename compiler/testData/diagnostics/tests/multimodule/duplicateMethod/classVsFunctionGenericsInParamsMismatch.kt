@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // MODULE: m1
 // FILE: a.kt
 package p
@@ -30,8 +30,11 @@ import p.*
 
 fun test(b: B?, c: C) {
     b?.foo(1, 1)
-    c.foo(1, 1)
+    c.<!OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>(1, 1)
     if (b is C) {
-        b<!UNNECESSARY_SAFE_CALL!>?.<!><!NI;OVERLOAD_RESOLUTION_AMBIGUITY, OI;CANNOT_COMPLETE_RESOLVE!>foo<!>(1, 1)
+        b<!UNNECESSARY_SAFE_CALL!>?.<!><!OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>(1, 1)
     }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, ifExpression, integerLiteral, interfaceDeclaration, intersectionType,
+isExpression, nullableType, override, safeCall, smartcast, typeParameter */

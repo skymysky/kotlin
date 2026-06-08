@@ -1,15 +1,18 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun useDeclaredVariables() {
-    for ((a, b)<!SYNTAX!><!>) {
-        <!UNUSED_EXPRESSION, DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>a<!>
-        <!UNUSED_EXPRESSION, DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>b<!>
-    }
+    <!ITERATOR_MISSING!>for ((a, b)<!SYNTAX!><!>) {
+        a
+        b
+    }<!>
 }
 
 fun checkersShouldRun() {
-    for ((@A <!UNUSED_VARIABLE!>a<!>, _)<!SYNTAX!><!>) {
+    <!ITERATOR_MISSING!>for ((@A a, _)<!SYNTAX!><!>) {
 
-    }
+    }<!>
 }
 
 annotation class A
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, forLoop, functionDeclaration, localProperty, propertyDeclaration,
+unnamedLocalVariable */

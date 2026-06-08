@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -PLATFORM_CLASS_MAPPED_TO_KOTLIN
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -PLATFORM_CLASS_MAPPED_TO_KOTLIN
 
 interface IBase : Map<String, String>
 
@@ -10,4 +11,4 @@ interface TestDerivedInterfaceDefault : IBase {
     fun replace(key: String, value: String): String? = TODO()
 }
 
-
+/* GENERATED_FIR_TAGS: functionDeclaration, interfaceDeclaration, nullableType */

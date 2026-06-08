@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 object Outer {
     private var x
         get() = object : CharSequence {
@@ -7,7 +7,7 @@ object Outer {
                 get() = 0
 
             override fun get(index: Int): Char {
-                checkSubtype<CharSequence>(<!NI;DEBUG_INFO_MISSING_UNRESOLVED, TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM!>x<!>)
+                checkSubtype<CharSequence>(<!TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM!>x<!>)
                 return ' '
             }
 
@@ -22,7 +22,7 @@ object Outer {
             x = q
         }
 
-    private var y = <!DEBUG_INFO_LEAKING_THIS!>x<!>
+    private var y = x
 
     fun foo() {
         x = y
@@ -34,3 +34,7 @@ object Outer {
         y.bar()
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, assignment, classDeclaration, funWithExtensionReceiver,
+functionDeclaration, functionalType, getter, infix, integerLiteral, nullableType, objectDeclaration, operator, override,
+propertyDeclaration, setter, stringLiteral, typeParameter, typeWithExtension */

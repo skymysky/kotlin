@@ -1,4 +1,4 @@
-// !LANGUAGE: +MultiPlatformProjects
+// RUN_PIPELINE_TILL: FIR2IR
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -19,15 +19,14 @@ expect annotation class A5(val x: Int = 42, val y: String)
 @A5(0, "")
 fun test() {}
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual typealias A1 = J1
-// TODO: support arguments coming from Java via typealias (KT-22704)
-actual typealias <!ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE!>A2<!> = J2
+actual typealias A2 = J2
 actual typealias A3 = J3
 actual typealias A4 = J4
-actual typealias <!ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE!>A5<!> = J5
+<!ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE!>actual<!> typealias A5 = J5
 
 // FILE: J1.java
 
@@ -63,3 +62,6 @@ public @interface J5 {
     int x() default 239;
     String y() default "OK";
 }
+
+/* GENERATED_FIR_TAGS: actual, annotationDeclaration, expect, functionDeclaration, integerLiteral, javaType,
+primaryConstructor, propertyDeclaration, stringLiteral, typeAliasDeclaration */

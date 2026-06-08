@@ -1,4 +1,5 @@
-// !DIAGNOSTICS:-UNUSED_VARIABLE,-CAST_NEVER_SUCCEEDS,-DIVISION_BY_ZERO
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE -CAST_NEVER_SUCCEEDS -DIVISION_BY_ZERO
 
 import kotlin.reflect.KProperty
 
@@ -38,7 +39,7 @@ abstract class C {
     }
 }
 
-const val delegated: Int <!CONST_VAL_WITH_DELEGATE!>by Delegate()<!>
+const val delegated: Int by <!CONST_VAL_WITH_DELEGATE!>Delegate()<!>
 
 
 const val withGetter: Int
@@ -61,7 +62,7 @@ enum class MyEnum {
 
 class Outer {
     inner class Inner {
-        <!NESTED_CLASS_NOT_ALLOWED(Object)!>object C<!> {
+        <!NESTED_CLASS_NOT_ALLOWED!>object C<!> {
             const val a = 18
         }
     }
@@ -73,7 +74,7 @@ const val defaultGetter = 19
 const val nonConstInitializer1 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>foo()<!>
 const val nonConstInitializer2 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1 as String<!>
 const val nonConstInitializer3 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1.0 as String<!>
-const val nonConstInitializer4 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1 as Double<!>
+const val nonConstInitializer4 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1 <!NUMERIC_CAST_NEVER_SUCCEEDS_BUT_CAN_BE_REPLACED_WITH_TO_CALL!>as Double<!><!>
 const val nonConstInitializer5 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>"2" as Int<!>
 const val nonConstInitializer6 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1/0<!>
 const val nonConstInitializer7 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>-1/0<!>
@@ -82,7 +83,6 @@ const val nonConstInitializer9 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1.0/0.0
 const val nonConstInitializer10 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>0/0<!>
 const val nonConstInitializer11 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>1 % 0<!>
 const val nonConstInitializer12 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>0 % 0<!>
-const val nonConstInitializer13 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>0.<!DEPRECATION_ERROR!>mod<!>(0)<!>
 const val nonConstInitializer14 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>0.rem(0)<!>
 const val nonConstInitializer15 = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>0.div(0)<!>
 
@@ -99,8 +99,11 @@ const val constInitializer10 = 1.0 % 0
 const val constInitializer11 = 0.0 % 0
 const val constInitializer12 = (-1.0) % 0
 const val constInitializer13 = 1.0.rem(0)
-const val constInitializer14 = 1.0.<!DEPRECATION_ERROR!>mod<!>(0)
 const val constInitializer15 = 1.0.div(0)
+
+typealias IntAlias = Int
+const val constInitializer16: IntAlias = 1
+const val constInitializer17 = constInitializer16 + 0
 
 // ------------------
 class Delegate {
@@ -108,3 +111,8 @@ class Delegate {
 
     operator fun setValue(thisRef: Any?, prop: KProperty<*>, value: Int) = Unit
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, asExpression, assignment, classDeclaration, companionObject, const,
+enumDeclaration, enumEntry, functionDeclaration, getter, init, inner, integerLiteral, localProperty,
+multiplicativeExpression, nestedClass, nullableType, objectDeclaration, operator, override, primaryConstructor,
+propertyDeclaration, propertyDelegate, starProjection, stringLiteral, typeAliasDeclaration, unaryExpression */

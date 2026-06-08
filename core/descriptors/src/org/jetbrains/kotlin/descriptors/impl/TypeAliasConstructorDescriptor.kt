@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor.Kind
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.resolve.DescriptorFactory
+import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitContextReceiver
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.storage.getValue
 import org.jetbrains.kotlin.types.*
@@ -39,11 +41,11 @@ interface TypeAliasConstructorDescriptor : ConstructorDescriptor, DescriptorDeri
     val withDispatchReceiver: TypeAliasConstructorDescriptor?
 
     override fun copy(
-        newOwner: DeclarationDescriptor,
-        modality: Modality,
-        visibility: Visibility,
-        kind: Kind,
-        copyOverrides: Boolean
+            newOwner: DeclarationDescriptor,
+            modality: Modality,
+            visibility: DescriptorVisibility,
+            kind: Kind,
+            copyOverrides: Boolean
     ): TypeAliasConstructorDescriptor
 }
 
@@ -56,7 +58,7 @@ class TypeAliasConstructorDescriptorImpl private constructor(
     kind: Kind,
     source: SourceElement
 ) : TypeAliasConstructorDescriptor,
-    FunctionDescriptorImpl(typeAliasDescriptor, original, annotations, Name.special("<init>"), kind, source) {
+    FunctionDescriptorImpl(typeAliasDescriptor, original, annotations, SpecialNames.INIT, kind, source) {
 
     init {
         isActual = typeAliasDescriptor.isActual
@@ -82,6 +84,7 @@ class TypeAliasConstructorDescriptorImpl private constructor(
             typeAliasConstructor.initialize(
                 null,
                 underlyingConstructorDescriptor.dispatchReceiverParameter?.substitute(substitutorForUnderlyingClass),
+                underlyingConstructorDescriptor.contextReceiverParameters.map { it.substitute(substitutorForUnderlyingClass) },
                 typeAliasDescriptor.declaredTypeParameters,
                 valueParameters,
                 returnType,
@@ -128,11 +131,11 @@ class TypeAliasConstructorDescriptorImpl private constructor(
     }
 
     override fun copy(
-        newOwner: DeclarationDescriptor,
-        modality: Modality,
-        visibility: Visibility,
-        kind: Kind,
-        copyOverrides: Boolean
+            newOwner: DeclarationDescriptor,
+            modality: Modality,
+            visibility: DescriptorVisibility,
+            kind: Kind,
+            copyOverrides: Boolean
     ): TypeAliasConstructorDescriptor =
         newCopyBuilder()
             .setOwner(newOwner)
@@ -201,9 +204,23 @@ class TypeAliasConstructorDescriptorImpl private constructor(
                 )
             }
 
+            val classDescriptor = typeAliasDescriptor.classDescriptor
+            val contextReceiverParameters = classDescriptor?.let {
+                constructor.contextReceiverParameters.mapIndexed { index, contextReceiver ->
+                    DescriptorFactory.createContextReceiverParameterForClass(
+                        classDescriptor,
+                        substitutorForUnderlyingClass.safeSubstitute(contextReceiver.type, Variance.INVARIANT),
+                        (contextReceiver.value as ImplicitContextReceiver).customLabelName,
+                        Annotations.EMPTY,
+                        index
+                    )
+                }
+            } ?: emptyList()
+
             typeAliasConstructor.initialize(
                 receiverParameter,
                 null,
+                contextReceiverParameters,
                 typeAliasDescriptor.declaredTypeParameters,
                 valueParameters,
                 returnType,

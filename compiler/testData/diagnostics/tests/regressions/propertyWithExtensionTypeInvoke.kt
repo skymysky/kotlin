@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 object X
 
 class Y {
@@ -5,3 +6,5 @@ class Y {
         X.op()
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, functionalType, objectDeclaration, typeWithExtension */

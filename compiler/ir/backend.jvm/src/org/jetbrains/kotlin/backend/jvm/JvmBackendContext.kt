@@ -1,132 +1,182 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.backend.jvm
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.ReflectionTypes
-import org.jetbrains.kotlin.backend.common.ir.Ir
-import org.jetbrains.kotlin.backend.common.ir.Symbols
-import org.jetbrains.kotlin.backend.jvm.descriptors.JvmDeclarationFactory
-import org.jetbrains.kotlin.backend.jvm.descriptors.JvmSharedVariablesManager
+import org.jetbrains.kotlin.backend.common.InlineClassesUtils
+import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.backend.common.lower.ClosureAnnotator.ClosureBuilder
+import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
+import org.jetbrains.kotlin.backend.jvm.MemoizedMultiFieldValueClassReplacements.RemappedParameter.MultiFieldValueClassMapping
+import org.jetbrains.kotlin.backend.jvm.MemoizedMultiFieldValueClassReplacements.RemappedParameter.RegularMapping
+import org.jetbrains.kotlin.backend.jvm.caches.BridgeLoweringCache
+import org.jetbrains.kotlin.backend.jvm.caches.CollectionStubComputer
+import org.jetbrains.kotlin.backend.jvm.extensions.JvmIrDeclarationOrigin
+import org.jetbrains.kotlin.backend.jvm.mapping.IrTypeMapper
+import org.jetbrains.kotlin.backend.jvm.mapping.MethodSignatureMapper
 import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.codegen.state.JvmBackendConfig
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
+import org.jetbrains.kotlin.ir.IrBuiltIns
+import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi2ir.PsiSourceManager
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.ir.util.dump
+import org.jetbrains.kotlin.ir.util.render
+import org.jetbrains.kotlin.resolve.jvm.JvmClassName
+import org.jetbrains.org.objectweb.asm.Type
 
+@OptIn(ObsoleteDescriptorBasedAPI::class)
 class JvmBackendContext(
     val state: GenerationState,
-    val psiSourceManager: PsiSourceManager,
     override val irBuiltIns: IrBuiltIns,
-    irModuleFragment: IrModuleFragment, symbolTable: SymbolTable
+    val symbolTable: SymbolTable,
+    val generatorExtensions: JvmGeneratorExtensions,
+    val backendExtension: JvmBackendExtension,
+    val irPluginContext: IrPluginContext?,
+    val evaluatorData: JvmEvaluatorData?
 ) : CommonBackendContext {
-    override val builtIns = state.module.builtIns
-    override val declarationFactory: JvmDeclarationFactory = JvmDeclarationFactory(psiSourceManager, builtIns, state)
-    override val sharedVariablesManager = JvmSharedVariablesManager(builtIns, irBuiltIns)
+    class SharedLocalDeclarationsData(
+        val closureBuilders: MutableMap<IrDeclaration, ClosureBuilder> = mutableMapOf<IrDeclaration, ClosureBuilder>(),
+        val transformedDeclarations: MutableMap<IrSymbolOwner, IrDeclaration> = mutableMapOf<IrSymbolOwner, IrDeclaration>(),
+        val newParameterToCaptured: MutableMap<IrValueParameter, IrValueSymbol> = mutableMapOf(),
+        val newParameterToOld: MutableMap<IrValueParameter, IrValueParameter> = mutableMapOf(),
+        val oldParameterToNew: MutableMap<IrValueParameter, IrValueParameter> = mutableMapOf(),
+    )
 
-    override val reflectionTypes: ReflectionTypes by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        ReflectionTypes(state.module, FqName("kotlin.reflect.jvm.internal"))
-    }
+    val config: JvmBackendConfig = state.config
 
-    override val ir = JvmIr(irModuleFragment, symbolTable)
+    override val irFactory: IrFactory = IrFactoryImpl
 
-    private fun find(memberScope: MemberScope, className: String): ClassDescriptor {
-        return find(memberScope, Name.identifier(className))
-    }
+    override val typeSystem: IrTypeSystemContext = JvmIrTypeSystemContext(irBuiltIns)
+    val defaultTypeMapper = IrTypeMapper(this)
+    val defaultMethodSignatureMapper = MethodSignatureMapper(this, defaultTypeMapper)
 
-    private fun find(memberScope: MemberScope, name: Name): ClassDescriptor {
-        return memberScope.getContributedClassifier(name, NoLookupLocation.FROM_BACKEND) as ClassDescriptor
-    }
+    override val innerClassesSupport: InnerClassesSupport = JvmInnerClassesSupport(irFactory)
+    val cachedDeclarations = JvmCachedDeclarations(
+        this, generatorExtensions.cachedFields
+    )
 
-    override fun getInternalClass(name: String): ClassDescriptor {
-        return find(state.module.getPackage(FqName("kotlin.jvm.internal")).memberScope, name)
-    }
+    override val diagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(state.diagnosticReporter, config.languageVersionSettings)
 
-    override fun getClass(fqName: FqName): ClassDescriptor {
-        return find(state.module.getPackage(fqName.parent()).memberScope, fqName.shortName())
-    }
+    override val symbols = JvmSymbols(this)
 
-    override fun getInternalFunctions(name: String): List<FunctionDescriptor> {
-        return when (name) {
-            "ThrowUninitializedPropertyAccessException" ->
-                getInternalClass("Intrinsics").staticScope.getContributedFunctions(
-                    Name.identifier("throwUninitializedPropertyAccessException"),
-                    NoLookupLocation.FROM_BACKEND
-                ).toList()
-            else -> TODO(name)
+    override val sharedVariablesManager = JvmSharedVariablesManager(state.module, symbols, irBuiltIns, irFactory)
+
+    lateinit var getIntrinsic: (IrFunctionSymbol) -> IntrinsicMarker?
+
+    lateinit var enumEntriesIntrinsicMappingsCache: EnumEntriesIntrinsicMappingsCache
+
+    val isCompilingAgainstJdk8OrLater = state.jvmBackendClassResolver.resolveToClassDescriptors(
+        Type.getObjectType("java/lang/invoke/LambdaMetafactory")
+    ).isNotEmpty()
+
+    val multifileFacadesToAdd = mutableMapOf<JvmClassName, MutableList<IrClass>>()
+
+    val collectionStubComputer = CollectionStubComputer(this)
+
+    val bridgeLoweringCache = BridgeLoweringCache(this)
+
+    override var inVerbosePhase: Boolean = false
+
+    override val configuration get() = state.configuration
+
+    val inlineClassReplacements = MemoizedInlineClassReplacements(config.functionsWithInlineClassReturnTypesMangled, irFactory, this)
+
+    val multiFieldValueClassReplacements = MemoizedMultiFieldValueClassReplacements(irFactory, this)
+
+    val inlineMethodGenerationLock = Any()
+
+    val optionalAnnotations = mutableListOf<MetadataSource.Class>()
+
+    @Deprecated("It is non-JVM API", level = DeprecationLevel.ERROR)
+    override val inlineClassesUtils: InlineClassesUtils
+        get() = error("Not supported in JVM")
+
+    init {
+        state.mapInlineClass = { descriptor ->
+            defaultTypeMapper.mapType(referenceClass(descriptor).defaultType)
+        }
+
+        state.multiFieldValueClassUnboxInfo = lambda@{ descriptor ->
+            val irClass = referenceClass(descriptor).owner
+            val node = multiFieldValueClassReplacements.getRootMfvcNodeOrNull(irClass) ?: return@lambda null
+            val leavesInfo =
+                node.leaves.map { Triple(defaultTypeMapper.mapType(it.type), it.fullMethodName.asString(), it.fullFieldName.asString()) }
+            GenerationState.MultiFieldValueClassUnboxInfo(leavesInfo)
+        }
+
+        state.reportDuplicateClassNameError = { origin1, internalName, origin2 ->
+            val declaration1 = (origin1 as JvmIrDeclarationOrigin).declaration as IrClass
+            val declaration2 = (origin2 as JvmIrDeclarationOrigin).declaration as IrClass
+            diagnosticReporter.at(declaration1).report(
+                JvmBackendErrors.DUPLICATE_CLASS_NAMES, internalName,
+                listOf(declaration1, declaration2).joinToString { it.name.asString() },
+            )
         }
     }
 
-    override fun log(message: () -> String) {
-        /*TODO*/
-        print(message())
-    }
+    fun referenceClass(descriptor: ClassDescriptor): IrClassSymbol =
+        symbolTable.lazyWrapper.descriptorExtension.referenceClass(descriptor)
 
-    override fun report(element: IrElement?, irFile: IrFile?, message: String, isError: Boolean) {
-        /*TODO*/
-        print(message)
-    }
+    internal fun referenceTypeParameter(descriptor: TypeParameterDescriptor): IrTypeParameterSymbol =
+        symbolTable.lazyWrapper.descriptorExtension.referenceTypeParameter(descriptor)
 
-    inner class JvmIr(
-        irModuleFragment: IrModuleFragment,
-        private val symbolTable: SymbolTable
-    ) : Ir<JvmBackendContext>(this, irModuleFragment) {
-        override val symbols = JvmSymbols()
+    override val preferJavaLikeCounterLoop: Boolean
+        get() = true
 
-        inner class JvmSymbols : Symbols<JvmBackendContext>(this@JvmBackendContext, symbolTable.lazyWrapper) {
+    override val optimizeLoopsOverUnsignedArrays: Boolean
+        get() = true
 
-            override val areEqual
-                get () = symbolTable.referenceSimpleFunction(context.getInternalFunctions("areEqual").single())
+    override val doWhileCounterLoopOrigin: IrStatementOrigin
+        get() = JvmLoweredStatementOrigin.DO_WHILE_COUNTER_LOOP
 
-            override val ThrowNullPointerException
-                get () = symbolTable.referenceSimpleFunction(
-                    context.getInternalFunctions("ThrowNullPointerException").single()
-                )
+    override val optimizeNullChecksUsingKotlinNullability: Boolean
+        get() = false
 
-            override val ThrowNoWhenBranchMatchedException
-                get () = symbolTable.referenceSimpleFunction(
-                    context.getInternalFunctions("ThrowNoWhenBranchMatchedException").single()
-                )
+    override val shouldGenerateHandlerParameterForDefaultBodyFun: Boolean
+        get() = true
 
-            override val ThrowTypeCastException
-                get () = symbolTable.referenceSimpleFunction(
-                    context.getInternalFunctions("ThrowTypeCastException").single()
-                )
-
-            override val ThrowUninitializedPropertyAccessException =
-                symbolTable.referenceSimpleFunction(
-                    context.getInternalFunctions("ThrowUninitializedPropertyAccessException").single()
-                )
-
-            override val stringBuilder
-                get() = symbolTable.referenceClass(
-                    context.getClass(FqName("java.lang.StringBuilder"))
-                )
-
-            override val copyRangeTo: Map<ClassDescriptor, IrSimpleFunctionSymbol>
-                get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-            override val coroutineImpl: IrClassSymbol
-                get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-            override val coroutineSuspendedGetter: IrSimpleFunctionSymbol
-                get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-
-            val lambdaClass = calc { symbolTable.referenceClass(context.getInternalClass("Lambda")) }
+    override fun remapMultiFieldValueClassStructure(
+        oldFunction: IrFunction,
+        newFunction: IrFunction,
+        parametersMappingOrNull: Map<IrValueParameter, IrValueParameter>?,
+    ) {
+        val parametersMapping = parametersMappingOrNull ?: run {
+            require(oldFunction.parameters.size == newFunction.parameters.size) {
+                "Use non-default mapping instead:\n${oldFunction.render()}\n${newFunction.render()}"
+            }
+            oldFunction.parameters.zip(newFunction.parameters).toMap()
         }
-
-
-        override fun shouldGenerateHandlerParameterForDefaultBodyFun() = true
+        val oldRemappedParameters = oldFunction.parameterTemplateStructureOfThisNewMfvcBidingFunction ?: return
+        val newRemapsFromOld = oldRemappedParameters.mapNotNull { oldRemapping ->
+            when (oldRemapping) {
+                is RegularMapping -> parametersMapping[oldRemapping.valueParameter]?.let(::RegularMapping)
+                is MultiFieldValueClassMapping -> {
+                    val newParameters = oldRemapping.parameters.map { parametersMapping[it] }
+                    when {
+                        newParameters.all { it == null } -> null
+                        newParameters.none { it == null } -> oldRemapping.copy(parameters = newParameters.map { it!! })
+                        else -> error("Illegal new parameters:\n${newParameters.joinToString("\n") { it?.dump() ?: "null" }}")
+                    }
+                }
+            }
+        }
+        val remappedParameters = newRemapsFromOld.flatMap { remap -> remap.parameters.map { it to remap } }.toMap()
+        val newBinding = newFunction.parameters.map { remappedParameters[it] ?: RegularMapping(it) }.distinct()
+        newFunction.parameterTemplateStructureOfThisNewMfvcBidingFunction = newBinding
     }
 }

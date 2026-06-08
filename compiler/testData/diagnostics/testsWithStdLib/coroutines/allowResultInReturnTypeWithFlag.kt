@@ -1,8 +1,10 @@
-// !ALLOW_RESULT_RETURN_TYPE
+// RUN_PIPELINE_TILL: BACKEND
 
 fun result(): Result<Int> = TODO()
 val resultP: Result<Int> = result()
 
 fun f(r1: Result<Int>?) {
-    r1 <!RESULT_CLASS_WITH_NULLABLE_OPERATOR!>?:<!> <!UNUSED_EXPRESSION!>0<!>
+    r1 ?: 0
 }
+
+/* GENERATED_FIR_TAGS: elvisExpression, functionDeclaration, integerLiteral, nullableType, propertyDeclaration */

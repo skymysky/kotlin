@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.codegen.optimization.nullCheck
 import org.jetbrains.kotlin.codegen.coroutines.withInstructionAdapter
 import org.jetbrains.kotlin.codegen.inline.ReifiedTypeInliner
 import org.jetbrains.kotlin.codegen.intrinsics.IntrinsicMethods
+import org.jetbrains.kotlin.codegen.linkWithLabel
 import org.jetbrains.kotlin.codegen.optimization.common.StrictBasicValue
 import org.jetbrains.kotlin.codegen.optimization.common.debugText
 import org.jetbrains.kotlin.codegen.optimization.common.isInsn
@@ -38,15 +39,16 @@ import org.jetbrains.org.objectweb.asm.tree.*
 
 class RedundantNullCheckMethodTransformer(private val generationState: GenerationState) : MethodTransformer() {
     override fun transform(internalClassName: String, methodNode: MethodNode) {
-        while (TransformerPass(internalClassName, methodNode, generationState).run()) {
-        }
+        do {
+            val changes = TransformerPass(internalClassName, methodNode, generationState).run()
+        } while (changes)
     }
 
     private class TransformerPass(val internalClassName: String, val methodNode: MethodNode, val generationState: GenerationState) {
         private var changes = false
 
         fun run(): Boolean {
-            if (methodNode.instructions.toArray().none { it.isOptimizable() }) return false
+            if (methodNode.instructions.none { it.isOptimizable() }) return false
 
             val nullabilityAssumptions = NullabilityAssumptionsBuilder().injectNullabilityAssumptions()
 
@@ -69,6 +71,8 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
 
                 val value = when {
                     insn.isInstanceOfOrNullCheck() -> frame.top()
+                    insn.isCheckNotNull() -> frame.top()
+                    insn.isCheckNotNullWithMessage() -> frame.peek(1)
                     insn.isCheckExpressionValueIsNotNull() -> frame.peek(1)
                     else -> null
                 } as? StrictBasicValue ?: continue
@@ -84,10 +88,12 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
             opcode == Opcodes.IFNULL ||
                     opcode == Opcodes.IFNONNULL ||
                     opcode == Opcodes.INSTANCEOF ||
+                    isCheckNotNull() ||
+                    isCheckNotNullWithMessage() ||
                     isCheckExpressionValueIsNotNull()
 
         private fun transformTrivialChecks(nullabilityMap: Map<AbstractInsnNode, StrictBasicValue>) {
-            for ((insn, value) in nullabilityMap) {
+            for ([insn, value] in nullabilityMap) {
                 val nullability = value.getNullability()
                 when (insn.opcode) {
                     Opcodes.IFNULL -> transformTrivialNullJump(insn as JumpInsnNode, nullability == Nullability.NULL)
@@ -95,8 +101,13 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                     Opcodes.INSTANCEOF -> transformInstanceOf(insn as TypeInsnNode, nullability, value)
 
                     Opcodes.INVOKESTATIC -> {
-                        if (insn.isCheckExpressionValueIsNotNull()) {
-                            transformTrivialCheckExpressionValueIsNotNull(insn, nullability)
+                        when {
+                            insn.isCheckNotNull() ->
+                                transformTrivialCheckNotNull(insn, nullability)
+                            insn.isCheckNotNullWithMessage() ->
+                                transformTrivialCheckNotNullWithMessage(insn, nullability)
+                            insn.isCheckExpressionValueIsNotNull() ->
+                                transformTrivialCheckExpressionValueIsNotNull(insn, nullability)
                         }
                     }
                 }
@@ -134,6 +145,26 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
             }
         }
 
+        private fun transformTrivialCheckNotNull(insn: AbstractInsnNode, nullability: Nullability) {
+            if (nullability != Nullability.NOT_NULL) return
+            val previousInsn = insn.previous?.takeIf { it.opcode == Opcodes.DUP || it.opcode == Opcodes.ALOAD } ?: return
+            methodNode.instructions.run {
+                remove(previousInsn)
+                remove(insn)
+            }
+        }
+
+        private fun transformTrivialCheckNotNullWithMessage(insn: AbstractInsnNode, nullability: Nullability) {
+            if (nullability != Nullability.NOT_NULL) return
+            val ldcInsn = insn.previous?.takeIf { it.opcode == Opcodes.LDC } ?: return
+            val previousInsn = ldcInsn.previous?.takeIf { it.opcode == Opcodes.DUP || it.opcode == Opcodes.ALOAD } ?: return
+            methodNode.instructions.run {
+                remove(previousInsn)
+                remove(ldcInsn)
+                remove(insn)
+            }
+        }
+
         private fun transformTrivialCheckExpressionValueIsNotNull(insn: AbstractInsnNode, nullability: Nullability) {
             if (nullability != Nullability.NOT_NULL) return
             val ldcInsn = insn.previous?.takeIf { it.opcode == Opcodes.LDC } ?: return
@@ -154,57 +185,78 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
             }
 
             private fun collectVariableDependentChecks() {
-                insnLoop@ for (insn in methodNode.instructions) {
+                for (insn in methodNode.instructions) {
                     when {
                         insn.isInstanceOfOrNullCheck() -> {
-                            val previous = insn.previous ?: continue@insnLoop
+                            val previous = insn.previous ?: continue
                             if (previous.opcode == Opcodes.ALOAD) {
                                 addDependentCheck(insn, previous as VarInsnNode)
                             } else if (previous.opcode == Opcodes.DUP) {
-                                val previous2 = previous.previous ?: continue@insnLoop
+                                val previous2 = previous.previous ?: continue
                                 if (previous2.opcode == Opcodes.ALOAD) {
                                     addDependentCheck(insn, previous2 as VarInsnNode)
                                 }
                             }
                         }
 
+                        insn.isCheckNotNull() -> {
+                            val checkedValueInsn = insn.previous ?: continue
+                            addDependentCheckForCheckNotNull(insn, checkedValueInsn)
+                        }
+
+                        insn.isCheckNotNullWithMessage() -> {
+                            val ldcInsn = insn.previous?.takeIf { it.opcode == Opcodes.LDC } ?: continue
+                            val checkedValueInsn = ldcInsn.previous ?: continue
+                            addDependentCheckForCheckNotNull(insn, checkedValueInsn)
+                        }
+
                         insn.isCheckParameterIsNotNull() -> {
-                            val ldcInsn = insn.previous ?: continue@insnLoop
-                            if (ldcInsn.opcode != Opcodes.LDC) continue@insnLoop
-                            val aLoadInsn = ldcInsn.previous ?: continue@insnLoop
-                            if (aLoadInsn.opcode != Opcodes.ALOAD) continue@insnLoop
+                            val ldcInsn = insn.previous ?: continue
+                            if (ldcInsn.opcode != Opcodes.LDC) continue
+                            val aLoadInsn = ldcInsn.previous ?: continue
+                            if (aLoadInsn.opcode != Opcodes.ALOAD) continue
                             addDependentCheck(insn, aLoadInsn as VarInsnNode)
                         }
 
                         insn.isCheckExpressionValueIsNotNull() -> {
-                            val ldcInsn = insn.previous ?: continue@insnLoop
-                            if (ldcInsn.opcode != Opcodes.LDC) continue@insnLoop
+                            val ldcInsn = insn.previous ?: continue
+                            if (ldcInsn.opcode != Opcodes.LDC) continue
                             var aLoadInsn: VarInsnNode? = null
-                            val insn1 = ldcInsn.previous ?: continue@insnLoop
+                            val insn1 = ldcInsn.previous ?: continue
                             if (insn1.opcode == Opcodes.ALOAD) {
                                 aLoadInsn = insn1 as VarInsnNode
                             } else if (insn1.opcode == Opcodes.DUP) {
-                                val insn2 = insn1.previous ?: continue@insnLoop
+                                val insn2 = insn1.previous ?: continue
                                 if (insn2.opcode == Opcodes.ALOAD) {
                                     aLoadInsn = insn2 as VarInsnNode
                                 }
                             }
-                            if (aLoadInsn == null) continue@insnLoop
+                            if (aLoadInsn == null) continue
                             addDependentCheck(insn, aLoadInsn)
                         }
                     }
                 }
             }
 
+            private fun addDependentCheckForCheckNotNull(insn: AbstractInsnNode, checkedValueInsn: AbstractInsnNode) {
+                val aLoadInsn = if (checkedValueInsn.opcode == Opcodes.DUP) {
+                    checkedValueInsn.previous ?: return
+                } else {
+                    checkedValueInsn
+                }
+                if (aLoadInsn.opcode != Opcodes.ALOAD) return
+                addDependentCheck(insn, aLoadInsn as VarInsnNode)
+            }
+
             private fun addDependentCheck(insn: AbstractInsnNode, aLoadInsn: VarInsnNode) {
                 checksDependingOnVariable.getOrPut(aLoadInsn.`var`) {
-                    SmartList<AbstractInsnNode>()
+                    SmartList()
                 }.add(insn)
             }
 
             private fun injectAssumptions(): NullabilityAssumptions {
                 val nullabilityAssumptions = NullabilityAssumptions()
-                for ((varIndex, dependentChecks) in checksDependingOnVariable) {
+                for ([varIndex, dependentChecks] in checksDependingOnVariable) {
                     for (checkInsn in dependentChecks) {
                         nullabilityAssumptions.injectAssumptionsForInsn(varIndex, checkInsn)
                     }
@@ -224,8 +276,8 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                         injectAssumptionsForNullCheck(varIndex, insn as JumpInsnNode)
                     Opcodes.INVOKESTATIC -> {
                         when {
-                            insn.isCheckParameterIsNotNull() ||
-                                    insn.isCheckExpressionValueIsNotNull() ->
+                            insn.isCheckNotNull() || insn.isCheckNotNullWithMessage() ||
+                                    insn.isCheckParameterIsNotNull() || insn.isCheckExpressionValueIsNotNull() ->
                                 injectAssumptionsForNotNullAssertion(varIndex, insn)
                             insn.isPseudo(PseudoInsn.STORE_NOT_NULL) ->
                                 injectCodeForStoreNotNull(insn)
@@ -246,7 +298,7 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                 //  <...>   -- v is null here
 
                 val jumpsIfNull = insn.opcode == Opcodes.IFNULL
-                val originalLabel = insn.label
+                val originalLabel = insn.label.linkWithLabel()
                 originalLabels[insn] = originalLabel
                 insn.label = synthetic(LabelNode(Label()))
 
@@ -276,6 +328,18 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
             }
 
             private fun NullabilityAssumptions.injectAssumptionsForNotNullAssertion(varIndex: Int, insn: AbstractInsnNode) {
+                //  (   INVOKESTATIC checkNotNull
+                //  |   LDC <message>; INVOKESTATIC checkNotNull(Object, String)V
+                //  )
+                //  <...>   -- v is not null here (otherwise an exception was thrown)
+
+                //  ALOAD v
+                //  DUP?
+                //  (   INVOKESTATIC checkNotNull
+                //  |   LDC <message>; INVOKESTATIC checkNotNull(Object, String)V
+                //  )
+                //  <...>   -- v is not null here (otherwise an exception was thrown)
+
                 //  ALOAD v
                 //  LDC *
                 //  INVOKESTATIC checkParameterIsNotNull
@@ -284,7 +348,9 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                 //  ALOAD v
                 //  DUP
                 //  LDC *
-                //  INVOKESTATIC checkExpressionValueIsNotNull
+                //  (   INVOKESTATIC checkExpressionValueIsNotNull
+                //  |   INVOKESTATIC checkNotNullExpressionValue
+                //  )
                 //  <...>   -- v is not null here (otherwise an exception was thrown)
 
                 methodNode.instructions.insert(insn, listOfSynthetics {
@@ -310,7 +376,7 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                 val originalLabel: LabelNode?
                 val insertAfterNotNull: AbstractInsnNode
                 if (jumpsIfInstance) {
-                    originalLabel = next.label
+                    originalLabel = next.label.linkWithLabel()
                     originalLabels[next] = next.label
                     val newLabel = synthetic(LabelNode(Label()))
                     methodNode.instructions.add(newLabel)
@@ -383,7 +449,7 @@ class RedundantNullCheckMethodTransformer(private val generationState: Generatio
                 methodNode.instructions.run {
                     syntheticInstructions.forEach { remove(it) }
                 }
-                for ((jumpInsn, originalLabel) in originalLabels) {
+                for ([jumpInsn, originalLabel] in originalLabels) {
                     jumpInsn.label = originalLabel
                 }
             }
@@ -396,17 +462,39 @@ internal fun AbstractInsnNode.isInstanceOfOrNullCheck() =
             opcode == Opcodes.IFNULL ||
             opcode == Opcodes.IFNONNULL
 
+internal fun AbstractInsnNode.isCheckNotNull() =
+    isInsn<MethodInsnNode>(Opcodes.INVOKESTATIC) {
+        owner == IntrinsicMethods.INTRINSICS_CLASS_NAME &&
+                name == "checkNotNull" &&
+                desc == "(Ljava/lang/Object;)V"
+    }
+
+internal fun AbstractInsnNode.isCheckNotNullWithMessage() =
+    isInsn<MethodInsnNode>(Opcodes.INVOKESTATIC) {
+        owner == IntrinsicMethods.INTRINSICS_CLASS_NAME &&
+                name == "checkNotNull" &&
+                desc == "(Ljava/lang/Object;Ljava/lang/String;)V"
+    }
+
+fun MethodNode.usesLocalExceptParameterNullCheck(index: Int): Boolean =
+    instructions.any {
+        it is VarInsnNode && it.opcode == Opcodes.ALOAD && it.`var` == index && !it.isParameterCheckedForNull()
+    }
+
+fun AbstractInsnNode.isParameterCheckedForNull(): Boolean =
+    next?.takeIf { it.opcode == Opcodes.LDC }?.next?.isCheckParameterIsNotNull() == true
+
 internal fun AbstractInsnNode.isCheckParameterIsNotNull() =
     isInsn<MethodInsnNode>(Opcodes.INVOKESTATIC) {
         owner == IntrinsicMethods.INTRINSICS_CLASS_NAME &&
-                name == "checkParameterIsNotNull" &&
+                (name == "checkParameterIsNotNull" || name == "checkNotNullParameter") &&
                 desc == "(Ljava/lang/Object;Ljava/lang/String;)V"
     }
 
 internal fun AbstractInsnNode.isCheckExpressionValueIsNotNull() =
     isInsn<MethodInsnNode>(Opcodes.INVOKESTATIC) {
         owner == IntrinsicMethods.INTRINSICS_CLASS_NAME &&
-                name == "checkExpressionValueIsNotNull" &&
+                (name == "checkExpressionValueIsNotNull" || name == "checkNotNullExpressionValue") &&
                 desc == "(Ljava/lang/Object;Ljava/lang/String;)V"
     }
 

@@ -18,11 +18,12 @@ package org.jetbrains.kotlin.contracts.parsing.effects
 
 import org.jetbrains.kotlin.contracts.description.CallsEffectDeclaration
 import org.jetbrains.kotlin.contracts.description.EffectDeclaration
-import org.jetbrains.kotlin.contracts.description.InvocationKind
+import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
 import org.jetbrains.kotlin.contracts.parsing.*
+import org.jetbrains.kotlin.resolve.ContractsDslNames
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.resolve.calls.model.DefaultValueArgument
 import org.jetbrains.kotlin.resolve.calls.model.ExpressionValueArgument
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
@@ -45,7 +46,7 @@ internal class PsiCallsEffectParser(
         val kindArgument = resolvedCall.valueArgumentsByIndex?.getOrNull(1)
 
         val kind = when (kindArgument) {
-            is DefaultValueArgument -> InvocationKind.UNKNOWN
+            is DefaultValueArgument -> EventOccurrencesRange.UNKNOWN
             is ExpressionValueArgument -> kindArgument.valueArgument?.getArgumentExpression()?.toInvocationKind(callContext.bindingContext)
             else -> null
         }
@@ -59,15 +60,15 @@ internal class PsiCallsEffectParser(
         return CallsEffectDeclaration(lambda, kind)
     }
 
-    private fun KtExpression.toInvocationKind(bindingContext: BindingContext): InvocationKind? {
+    private fun KtExpression.toInvocationKind(bindingContext: BindingContext): EventOccurrencesRange? {
         val descriptor = this.getResolvedCall(bindingContext)?.resultingDescriptor ?: return null
         if (!descriptor.parents.first().isInvocationKindEnum()) return null
 
         return when (descriptor.fqNameSafe.shortName()) {
-            ContractsDslNames.AT_MOST_ONCE_KIND -> InvocationKind.AT_MOST_ONCE
-            ContractsDslNames.EXACTLY_ONCE_KIND -> InvocationKind.EXACTLY_ONCE
-            ContractsDslNames.AT_LEAST_ONCE_KIND -> InvocationKind.AT_LEAST_ONCE
-            ContractsDslNames.UNKNOWN_KIND -> InvocationKind.UNKNOWN
+            ContractsDslNames.AT_MOST_ONCE_KIND.callableName -> EventOccurrencesRange.AT_MOST_ONCE
+            ContractsDslNames.EXACTLY_ONCE_KIND.callableName -> EventOccurrencesRange.EXACTLY_ONCE
+            ContractsDslNames.AT_LEAST_ONCE_KIND.callableName -> EventOccurrencesRange.AT_LEAST_ONCE
+            ContractsDslNames.UNKNOWN_KIND.callableName -> EventOccurrencesRange.UNKNOWN
             else -> null
         }
     }

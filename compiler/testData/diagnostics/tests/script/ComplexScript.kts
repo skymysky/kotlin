@@ -1,5 +1,11 @@
-fun foo(<!UNUSED_PARAMETER!>x<!>: Int) = 1
+// RUN_PIPELINE_TILL: BACKEND
+// DUMP_CFG: LEVELS
+// DIAGNOSTICS: -UNUSED_PARAMETER
+
+fun foo(x: Int) = 1
 
 val y = 2
 
 foo(y)
+
+/* GENERATED_FIR_TAGS: functionDeclaration, integerLiteral, localProperty, propertyDeclaration */

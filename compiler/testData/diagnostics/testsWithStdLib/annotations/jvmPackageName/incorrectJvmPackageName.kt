@@ -1,11 +1,5 @@
-// !DIAGNOSTICS: -INVISIBLE_MEMBER -INVISIBLE_REFERENCE
-// !API_VERSION: 1.2
-
-// FILE: a.kt
-<!JVM_PACKAGE_NAME_NOT_SUPPORTED_IN_MULTIFILE_CLASSES!>@file:JvmPackageName("a")<!>
-@file:JvmMultifileClass
-package a
-fun a() {}
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -INVISIBLE_MEMBER -INVISIBLE_REFERENCE
 
 // FILE: b.kt
 <!JVM_PACKAGE_NAME_CANNOT_BE_EMPTY!>@file:JvmPackageName("")<!>
@@ -24,7 +18,7 @@ class D
 fun d() {}
 
 // FILE: e.kt
-@file:JvmPackageName(<!CONSTANT_EXPECTED_TYPE_MISMATCH!>42<!>)
+@file:JvmPackageName(42)
 package e
 fun e() {}
 
@@ -32,3 +26,6 @@ fun e() {}
 @file:JvmPackageName(<!EXPRESSION_EXPECTED_PACKAGE_FOUND!>f<!>)
 package f
 const val name = "f"
+
+/* GENERATED_FIR_TAGS: annotationUseSiteTargetFile, classDeclaration, const, functionDeclaration, integerLiteral,
+propertyDeclaration, stringLiteral */

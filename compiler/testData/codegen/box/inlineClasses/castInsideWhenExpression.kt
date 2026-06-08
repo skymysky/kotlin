@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo<T>(val x: Any) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo<T>(val x: Any) {
     fun bar() {}
 }
 

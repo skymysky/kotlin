@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: I.java
 
 public interface I {
@@ -53,3 +54,5 @@ fun test() {
     E.bar()
     E.baz()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, javaFunction, javaProperty, javaType */

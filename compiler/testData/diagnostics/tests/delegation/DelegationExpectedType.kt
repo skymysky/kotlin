@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 interface A<T> {
     fun foo(): Int
@@ -21,6 +21,9 @@ class D : A<Int> by baz({ it + 1 })
 
 fun <T> boo(t: T): A<T> = AImpl()
 
-class E : A<Int> by <!NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>boo("")<!>
+class E : A<Int> by <!TYPE_MISMATCH!>boo("")<!>
 
-class F : A<Int> by <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>AImpl<String>()<!>
+class F : A<Int> by <!TYPE_MISMATCH!>AImpl<String>()<!>
+
+/* GENERATED_FIR_TAGS: additiveExpression, classDeclaration, functionDeclaration, functionalType, inheritanceDelegation,
+integerLiteral, interfaceDeclaration, lambdaLiteral, nullableType, override, stringLiteral, typeParameter */

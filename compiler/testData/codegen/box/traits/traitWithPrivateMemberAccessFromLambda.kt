@@ -1,12 +1,11 @@
-// IGNORE_BACKEND: JVM_IR
 interface Z {
 
     fun testFun(): String {
-        return { privateFun() } ()
+        return { privateFun() }.let { it() }
     }
 
     fun testProperty(): String {
-        return { privateProp } ()
+        return { privateProp }.let { it() }
     }
 
     private fun privateFun(): String {

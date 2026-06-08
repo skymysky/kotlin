@@ -1,4 +1,5 @@
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
 // FILE: Collections.java
 import java.util.List;
@@ -23,3 +24,7 @@ fun test() {
 
     checkSubtype<List<String>>(f)
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration,
+functionalType, ifExpression, infix, javaFunction, localProperty, nullableType, propertyDeclaration, typeParameter,
+typeWithExtension */

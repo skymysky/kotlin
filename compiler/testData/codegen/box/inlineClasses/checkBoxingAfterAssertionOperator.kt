@@ -1,13 +1,17 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class WithPrimitive(val a: Int)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class WithPrimitive(val a: Int)
 fun takeWithPrimitive(a: WithPrimitive) {}
 
-inline class WithReference(val a: Any)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class WithReference(val a: Any)
 fun takeWithReference(a: WithReference) {}
 
-inline class WithNullableReference(val a: Any?)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class WithNullableReference(val a: Any?)
 fun takeWithNullableReference(a: WithNullableReference) {}
 
 fun foo(a: WithPrimitive?, b: WithPrimitive) {

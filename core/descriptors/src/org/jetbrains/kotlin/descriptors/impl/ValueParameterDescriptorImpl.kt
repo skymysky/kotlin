@@ -61,16 +61,6 @@ open class ValueParameterDescriptorImpl(
                     WithDestructuringDeclaration(containingDeclaration, original, index, annotations, name, outType,
                                                  declaresDefaultValue, isCrossinline, isNoinline, varargElementType, source,
                                                  destructuringVariables)
-
-        @JvmStatic
-        fun getNameForDestructuredParameterOrNull(valueParameterDescriptor: ValueParameterDescriptor): String? {
-            val variablesOrNull = ValueParameterDescriptorImpl.getDestructuringVariablesOrNull(valueParameterDescriptor)
-            return if (variablesOrNull == null) null else
-                "$" + join(
-                    variablesOrNull.map { descriptor -> if (descriptor.name.isSpecial) "\$_\$" else descriptor.name.asString() },
-                    "_"
-                )
-        }
     }
 
     class WithDestructuringDeclaration internal constructor(
@@ -123,6 +113,9 @@ open class ValueParameterDescriptorImpl(
     override fun isVar() = false
 
     override fun getCompileTimeInitializer() = null
+
+    override fun cleanCompileTimeInitializerCache() {}
+
     override fun copy(newOwner: CallableDescriptor, newName: Name, newIndex: Int): ValueParameterDescriptor {
         return ValueParameterDescriptorImpl(
                 newOwner, null, newIndex, annotations, newName, type, declaresDefaultValue(),
@@ -130,7 +123,7 @@ open class ValueParameterDescriptorImpl(
         )
     }
 
-    override fun getVisibility() = Visibilities.LOCAL
+    override fun getVisibility() = DescriptorVisibilities.LOCAL
 
     override fun getOverriddenDescriptors(): Collection<ValueParameterDescriptor> {
         return containingDeclaration.overriddenDescriptors.map {

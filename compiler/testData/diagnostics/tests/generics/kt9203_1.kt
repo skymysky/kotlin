@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 public interface Collector<T, R>
 
 class A<out T> {
@@ -11,8 +12,11 @@ interface Stream<T> {
 }
 fun stream(): Stream<String> = null!!
 
-fun main(args: Array<String>) {
+fun main() {
     val stream: Stream<String> = stream()
     val xs = stream.collect(toList())
     xs.foo()
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, classDeclaration, functionDeclaration, inProjection, interfaceDeclaration,
+localProperty, nullableType, out, propertyDeclaration, typeParameter */

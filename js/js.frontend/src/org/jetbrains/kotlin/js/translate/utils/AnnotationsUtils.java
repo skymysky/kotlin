@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.kotlin.js.PredefinedAnnotation;
 import org.jetbrains.kotlin.name.FqName;
+import org.jetbrains.kotlin.name.JsStandardClassIds.Annotations;
 import org.jetbrains.kotlin.psi.KtAnnotationEntry;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.resolve.BindingContext;
@@ -39,10 +40,13 @@ import java.util.List;
 import static org.jetbrains.kotlin.resolve.descriptorUtil.DescriptorUtilsKt.isEffectivelyExternal;
 
 public final class AnnotationsUtils {
-    private static final String JS_NAME = "kotlin.js.JsName";
-    public static final FqName JS_MODULE_ANNOTATION = new FqName("kotlin.js.JsModule");
-    private static final FqName JS_NON_MODULE_ANNOTATION = new FqName("kotlin.js.JsNonModule");
-    public static final FqName JS_QUALIFIER_ANNOTATION = new FqName("kotlin.js.JsQualifier");
+    private static final FqName JS_NAME = Annotations.JsName.asSingleFqName();
+    private static final FqName JS_EXPORT = Annotations.JsExport.asSingleFqName();
+    private static final FqName JS_EXPORT_IGNORE = Annotations.JsExportIgnore.asSingleFqName();
+    private static final FqName JS_MODULE_ANNOTATION = Annotations.JsModule.asSingleFqName();
+    private static final FqName JS_NON_MODULE_ANNOTATION = Annotations.JsNonModule.asSingleFqName();
+    private static final FqName JS_EXTERNAL_INHERITORS_ONLY = Annotations.JsExternalInheritorsOnly.asSingleFqName();
+    private static final FqName JS_EXTERNAL_ARGUMENT = Annotations.JsExternalArgument.asSingleFqName();
 
     private AnnotationsUtils() {
     }
@@ -83,7 +87,10 @@ public final class AnnotationsUtils {
     }
 
     @Nullable
-    public static String getNameForAnnotatedObject(@NotNull DeclarationDescriptor descriptor) {
+    public static String getNameForAnnotatedObject(
+            @NotNull DeclarationDescriptor descriptor,
+            @NotNull BindingContext bindingContext
+    ) {
         String defaultJsName = getJsName(descriptor);
 
         for (PredefinedAnnotation annotation : PredefinedAnnotation.Companion.getWITH_CUSTOM_NAME()) {
@@ -97,7 +104,7 @@ public final class AnnotationsUtils {
             return name != null ? name : descriptor.getName().asString();
         }
 
-        if (defaultJsName == null && isEffectivelyExternalMember(descriptor)) {
+        if (defaultJsName == null && (isEffectivelyExternalMember(descriptor) || isExportedObject(descriptor, bindingContext))) {
             return descriptor.getName().asString();
         }
 
@@ -110,6 +117,31 @@ public final class AnnotationsUtils {
             @NotNull PredefinedAnnotation annotation
     ) {
         return descriptor.getAnnotations().findAnnotation(annotation.getFqName());
+    }
+
+    public static boolean isExportedObject(@NotNull DeclarationDescriptor descriptor, @NotNull BindingContext bindingContext) {
+        if (descriptor instanceof MemberDescriptor) {
+            MemberDescriptor memberDescriptor = (MemberDescriptor) descriptor;
+            DescriptorVisibility visibility = memberDescriptor.getVisibility();
+            if (visibility != DescriptorVisibilities.PUBLIC && visibility != DescriptorVisibilities.PROTECTED) return false;
+        }
+
+        if (hasAnnotationOrInsideAnnotatedClass(descriptor, JS_EXPORT_IGNORE)) return false;
+
+        if (descriptor instanceof PropertyAccessorDescriptor) {
+            PropertyAccessorDescriptor propertyAccessor = (PropertyAccessorDescriptor) descriptor;
+            if (propertyAccessor.getCorrespondingProperty().getAnnotations().hasAnnotation(JS_EXPORT_IGNORE)) return false;
+        }
+
+        if (hasAnnotationOrInsideAnnotatedClass(descriptor, JS_EXPORT)) return true;
+
+        if (CollectionsKt.any(getContainingFileAnnotations(bindingContext, descriptor), annotation ->
+                JS_EXPORT.equals(annotation.getFqName())
+        )) {
+            return true;
+        }
+
+        return false;
     }
 
     public static boolean isNativeObject(@NotNull DeclarationDescriptor descriptor) {
@@ -151,7 +183,12 @@ public final class AnnotationsUtils {
 
     @Nullable
     public static AnnotationDescriptor getJsNameAnnotation(@NotNull DeclarationDescriptor descriptor) {
-        return descriptor.getAnnotations().findAnnotation(new FqName(JS_NAME));
+        return descriptor.getAnnotations().findAnnotation(JS_NAME);
+    }
+
+    @Nullable
+    public static AnnotationDescriptor getJsExportAnnotation(@NotNull DeclarationDescriptor descriptor) {
+        return descriptor.getAnnotations().findAnnotation(JS_EXPORT);
     }
 
     public static boolean isPredefinedObject(@NotNull DeclarationDescriptor descriptor) {
@@ -200,11 +237,6 @@ public final class AnnotationsUtils {
     }
 
     @Nullable
-    public static String getFileQualifier(@NotNull BindingContext bindingContext, @NotNull DeclarationDescriptor declaration) {
-        return getSingleStringAnnotationArgument(bindingContext, declaration, JS_QUALIFIER_ANNOTATION);
-    }
-
-    @Nullable
     private static String getSingleStringAnnotationArgument(
             @NotNull BindingContext bindingContext,
             @NotNull DeclarationDescriptor declaration,
@@ -226,6 +258,14 @@ public final class AnnotationsUtils {
         return CollectionsKt.any(getContainingFileAnnotations(bindingContext, declaration), annotation ->
                 JS_NON_MODULE_ANNOTATION.equals(annotation.getFqName())
         );
+    }
+
+    public static boolean isJsExternalInheritorsOnly(@NotNull ClassDescriptor declaration) {
+        return declaration.getAnnotations().hasAnnotation(JS_EXTERNAL_INHERITORS_ONLY);
+    }
+
+    public static boolean isJsExternalArgument(@NotNull ValueParameterDescriptor declaration) {
+        return declaration.getAnnotations().hasAnnotation(JS_EXTERNAL_ARGUMENT);
     }
 
     @Nullable

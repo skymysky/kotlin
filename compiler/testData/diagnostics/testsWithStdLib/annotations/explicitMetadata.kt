@@ -1,9 +1,13 @@
-<!EXPLICIT_METADATA_IS_DISALLOWED!>@Metadata<!>
+// RUN_PIPELINE_TILL: FRONTEND
+@Metadata
 class A
 
-<!EXPLICIT_METADATA_IS_DISALLOWED!>@Metadata(extraString = "_")<!>
+@Metadata(extraString = "_")
 annotation class B(val m: Metadata)
 
-<!WRONG_ANNOTATION_TARGET, EXPLICIT_METADATA_IS_DISALLOWED!>@Metadata(extraInt = 0)<!>
+<!WRONG_ANNOTATION_TARGET!>@Metadata(extraInt = 0)<!>
 @B(Metadata())
 fun f() {}
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, functionDeclaration, integerLiteral, primaryConstructor,
+propertyDeclaration, stringLiteral */

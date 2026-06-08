@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1288
 // FILE: main.kt
 
 package foo

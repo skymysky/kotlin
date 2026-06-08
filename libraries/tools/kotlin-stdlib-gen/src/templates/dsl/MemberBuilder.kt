@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package templates
@@ -13,7 +13,7 @@ private fun getDefaultSourceFile(f: Family): SourceFile = when (f) {
     Iterables, Collections, Lists -> SourceFile.Collections
     Sequences -> SourceFile.Sequences
     Sets -> SourceFile.Sets
-    Ranges, RangesOfPrimitives, ProgressionsOfPrimitives -> SourceFile.Ranges
+    Ranges, OpenRanges, RangesOfPrimitives, ProgressionsOfPrimitives -> SourceFile.Ranges
     ArraysOfObjects, InvariantArraysOfObjects, ArraysOfPrimitives -> SourceFile.Arrays
     ArraysOfUnsigned -> SourceFile.UArrays
     Maps -> SourceFile.Maps
@@ -25,7 +25,7 @@ private fun getDefaultSourceFile(f: Family): SourceFile = when (f) {
 @TemplateDsl
 class MemberBuilder(
         val allowedPlatforms: Set<Platform>,
-        val platform: Platform,
+        val target: KotlinTarget,
         var family: Family,
         var sourceFile: SourceFile = getDefaultSourceFile(family),
         var primitive: PrimitiveType? = null
@@ -45,7 +45,7 @@ class MemberBuilder(
 
     var doc: String? = null; private set
 
-    val samples = mutableListOf<String>()
+    var samples = listOf<String>()
 
     val sequenceClassification = mutableListOf<SequenceClass>()
     var deprecate: Deprecation? = null; private set
@@ -57,22 +57,30 @@ class MemberBuilder(
     var inline: Inline = Inline.No; private set
     var infix: Boolean = false; private set
     var operator: Boolean = false; private set
+    var explicitActual: Boolean = false; private set
     val typeParams = mutableListOf<String>()
     var primaryTypeParameter: String? = null; private set
     var customReceiver: String? = null; private set
-    var receiverAsterisk: Boolean = false // TODO: rename to genericStarProjection
+    var genericStarProjection: Boolean = false
     var toNullableT: Boolean = false
 
     var returns: String? = null; private set
+    val throwsExceptions = mutableListOf<ThrowsException>()
     var body: String? = null; private set
-    val annotations: MutableList<String> = mutableListOf()
+    val annotations: MutableSet<String> = mutableSetOf()
     val suppressions: MutableList<String> = mutableListOf()
+    val wasExperimentalAnnotations: MutableSet<String> = mutableSetOf()
 
     fun sourceFile(file: SourceFile) { sourceFile = file }
 
     fun deprecate(value: Deprecation) { deprecate = value }
     fun deprecate(value: String) { deprecate = Deprecation(value) }
     fun since(value: String) { since = value }
+    fun sinceAtLeast(value: String) {
+        // TODO: comparing versions as strings, will work only up until Kotlin 1.10 or Kotlin 10.0
+        since = maxOf(since, value, nullsFirst())
+    }
+
     fun platformName(name: String) { platformName = name }
 
     fun visibility(value: String) { visibility = value }
@@ -87,6 +95,7 @@ class MemberBuilder(
         }
     }
     fun inlineOnly() { inline = Inline.Only }
+    fun explicitActual(value: Boolean = true) { explicitActual = value }
 
     fun receiver(value: String) { customReceiver = value }
     @Deprecated("Use receiver()", ReplaceWith("receiver(value)"))
@@ -98,6 +107,8 @@ class MemberBuilder(
     fun returns(type: String) { returns = type }
     @Deprecated("Use specialFor", ReplaceWith("specialFor(*fs) { returns(run(valueBuilder)) }"))
     fun returns(vararg fs: Family, valueBuilder: () -> String) = specialFor(*fs) { returns(run(valueBuilder)) }
+
+    fun throws(exceptionType: String, reason: String) { throwsExceptions += ThrowsException(exceptionType, reason) }
 
     fun typeParam(typeParameterName: String, primary: Boolean = false) {
         typeParams += typeParameterName
@@ -115,6 +126,10 @@ class MemberBuilder(
         suppressions += diagnostic
     }
 
+    fun wasExperimental(annotation: String) {
+        wasExperimentalAnnotations += annotation
+    }
+
     fun sequenceClassification(vararg sequenceClass: SequenceClass) {
         sequenceClassification += sequenceClass
     }
@@ -126,10 +141,9 @@ class MemberBuilder(
     @Deprecated("Use specialFor", ReplaceWith("specialFor(*fs) { doc(valueBuilder) }"))
     fun doc(vararg fs: Family, valueBuilder: DocExtensions.() -> String) = specialFor(*fs) { doc(valueBuilder) }
 
-    fun sample(sampleRef: String) {
-        samples += sampleRef
+    fun sample(vararg sampleRef: String) {
+        samples = sampleRef.asList()
     }
-
     fun body(valueBuilder: () -> String) {
         body = valueBuilder()
     }
@@ -143,11 +157,16 @@ class MemberBuilder(
 
     fun on(platform: Platform, action: () -> Unit) {
         require(platform in allowedPlatforms) { "Platform $platform is not in the list of allowed platforms $allowedPlatforms" }
-        if (this.platform == platform)
+        if (target.platform == platform)
             action()
         else {
             hasPlatformSpecializations = true
         }
+    }
+
+    fun on(backend: Backend, action: () -> Unit) {
+        require(target.platform == Platform.JS || target.platform == Platform.Native)
+        if (target.backend == backend) action()
     }
 
     fun specialFor(f: Family, action: () -> Unit) {
@@ -165,14 +184,14 @@ class MemberBuilder(
         val headerOnly: Boolean
         val isImpl: Boolean
         if (!legacyMode) {
-            headerOnly = platform == Platform.Common && hasPlatformSpecializations
-            isImpl = platform != Platform.Common && Platform.Common in allowedPlatforms
+            headerOnly = target.platform == Platform.Common && hasPlatformSpecializations
+            isImpl = explicitActual || target.platform != Platform.Common && Platform.Common in allowedPlatforms
         }
         else {
             // legacy mode when all is headerOnly + no_impl
             // except functions with optional parameters - they are common + no_impl
             val hasOptionalParams = signature.contains("=")
-            headerOnly =  platform == Platform.Common && !hasOptionalParams
+            headerOnly =  target.platform == Platform.Common && !hasOptionalParams
             isImpl = false
         }
 
@@ -189,28 +208,19 @@ class MemberBuilder(
                     "RECEIVER" -> receiver
                     "SELF" -> self
                     "PRIMITIVE" -> primitive?.name ?: token
-                    "SUM" -> {
-                        when (primitive) {
-                            PrimitiveType.Byte, PrimitiveType.Short, PrimitiveType.Char -> "Int"
-                            else -> primitive
-                        }
-                    }
-                    "ZERO" -> when (primitive) {
-                        PrimitiveType.Double -> "0.0"
-                        PrimitiveType.Float -> "0.0f"
-                        PrimitiveType.Long -> "0L"
-                        else -> "0"
-                    }
                     "ONE" -> when (primitive) {
                         PrimitiveType.Double -> "1.0"
                         PrimitiveType.Float -> "1.0f"
                         PrimitiveType.Long -> "1L"
+                        PrimitiveType.ULong -> "1uL"
+                        in PrimitiveType.unsignedPrimitives -> "1u"
                         else -> "1"
                     }
                     "-ONE" -> when (primitive) {
                         PrimitiveType.Double -> "-1.0"
                         PrimitiveType.Float -> "-1.0f"
                         PrimitiveType.Long -> "-1L"
+                        in PrimitiveType.unsignedPrimitives -> error("-ONE is not in the domain of unsigned primitives")
                         else -> "-1"
                     }
                     "TCollection" -> {
@@ -246,19 +256,20 @@ class MemberBuilder(
             return answer.toString()
         }
 
-        val isAsteriskOrT = if (receiverAsterisk) "*" else primaryTypeParameter
+        val receiverT = if (genericStarProjection) "*" else primaryTypeParameter
         val self = (when (family) {
-            Iterables -> "Iterable<$isAsteriskOrT>"
-            Collections -> "Collection<$isAsteriskOrT>"
-            Lists -> "List<$isAsteriskOrT>"
+            Iterables -> "Iterable<$receiverT>"
+            Collections -> "Collection<$receiverT>"
+            Lists -> "List<$receiverT>"
             Maps -> "Map<out K, V>"
-            Sets -> "Set<$isAsteriskOrT>"
-            Sequences -> "Sequence<$isAsteriskOrT>"
+            Sets -> "Set<$receiverT>"
+            Sequences -> "Sequence<$receiverT>"
             InvariantArraysOfObjects -> "Array<$primaryTypeParameter>"
-            ArraysOfObjects -> "Array<${isAsteriskOrT.replace(primaryTypeParameter, "out $primaryTypeParameter")}>"
+            ArraysOfObjects -> "Array<${receiverT.replace(primaryTypeParameter, "out $primaryTypeParameter")}>"
             Strings -> "String"
             CharSequences -> "CharSequence"
-            Ranges -> "ClosedRange<$isAsteriskOrT>"
+            Ranges -> "ClosedRange<$receiverT>"
+            OpenRanges -> "OpenEndRange<$receiverT>"
             ArraysOfPrimitives, ArraysOfUnsigned -> primitive?.let { it.name + "Array" } ?: throw IllegalArgumentException("Primitive array should specify primitive type")
             RangesOfPrimitives -> primitive?.let { it.name + "Range" } ?: throw IllegalArgumentException("Primitive range should specify primitive type")
             ProgressionsOfPrimitives -> primitive?.let { it.name + "Progression" } ?: throw IllegalArgumentException("Primitive progression should specify primitive type")
@@ -304,9 +315,13 @@ class MemberBuilder(
                 builder.append(" *\n")
                 builder.append(" * The operation is ${sequenceClassification.joinToString(" and ") { "_${it}_" }}.\n")
             }
+            if (throwsExceptions.any()) {
+                builder.append(" * \n")
+                throwsExceptions.forEach { (val exceptionType, val reason) -> builder.append(" * @throws $exceptionType $reason\n") }
+            }
             if (samples.any()) {
                 builder.append(" * \n")
-                samples.forEach { builder.append(" * @sample $it\n")}
+                samples.forEach { builder.append(" * @sample $it\n") }
             }
             builder.append(" */\n")
         }
@@ -319,7 +334,15 @@ class MemberBuilder(
                     deprecated.replaceWith?.let { "ReplaceWith(\"$it\")" },
                     deprecated.level.let { if (it != DeprecationLevel.WARNING) "level = DeprecationLevel.$it" else null }
             )
-            builder.append("@Deprecated(${args.joinToString(", ")})\n")
+            builder.appendLine("@Deprecated(${args.joinToString(", ")})")
+            val versionArgs = listOfNotNull(
+                deprecated.warningSince?.let { "warningSince = \"$it\"" },
+                deprecated.errorSince?.let { "errorSince = \"$it\"" },
+                deprecated.hiddenSince?.let { "hiddenSince = \"$it\"" }
+            )
+            if (versionArgs.any()) {
+                builder.appendLine("@DeprecatedSinceKotlin(${versionArgs.joinToString(", ")})")
+            }
         }
 
         if (!f.isPrimitiveSpecialization && primitive != null) {
@@ -332,11 +355,15 @@ class MemberBuilder(
             builder.append("@SinceKotlin(\"$since\")\n")
         }
 
+        if (wasExperimentalAnnotations.isNotEmpty()) {
+            annotation("@WasExperimental(${wasExperimentalAnnotations.joinToString(", ") { "$it::class" }})")
+        }
         annotations.forEach { builder.append(it.trimIndent()).append('\n') }
 
         when (inline) {
             Inline.Only -> builder.append("@kotlin.internal.InlineOnly").append('\n')
             Inline.YesSuppressWarning -> suppressions.add("NOTHING_TO_INLINE")
+            else -> {}
         }
 
         if (suppressions.isNotEmpty()) {
@@ -376,7 +403,7 @@ class MemberBuilder(
 
         val body = (body ?:
                 deprecate?.replaceWith?.let { "return $it" } ?:
-                throw RuntimeException("$signature for ${platform.fullName}: no body specified for ${family to primitive}")
+                """TODO("Body is not provided")""".also { System.err.println("ERROR: $signature for ${target.fullName}: no body specified for ${family to primitive}") }
                 ).trim('\n')
         val indent: Int = body.takeWhile { it == ' ' }.length
 

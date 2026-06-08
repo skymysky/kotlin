@@ -1,8 +1,13 @@
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
-@COROUTINES_PACKAGE.RestrictsSuspension
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.RequiresOptIn
+
+@file:OptIn(ExperimentalTypeInference::class)
+
+import kotlin.experimental.ExperimentalTypeInference
+
+@kotlin.coroutines.RestrictsSuspension
 class RestrictedController<T> {
-    suspend fun yield(<!UNUSED_PARAMETER!>x<!>: T) {}
+    suspend fun yield(x: T) {}
 
     suspend fun anotherYield(x: T) {
         yield(x)
@@ -21,8 +26,9 @@ class RestrictedController<T> {
     }
 }
 
-fun <T> buildSequence(<!UNUSED_PARAMETER!>c<!>: suspend RestrictedController<T>.() -> Unit) {}
-suspend fun <T> RestrictedController<T>.yield2(<!UNUSED_PARAMETER!>x<!>: T) {}
+fun <T> buildSequence(c: suspend RestrictedController<T>.() -> Unit) {}
+
+suspend fun <T> RestrictedController<T>.yield2(x: T) {}
 
 fun test() {
     buildSequence<Int> a@{
@@ -89,3 +95,7 @@ fun test() {
         RestrictedController<String>().<!ILLEGAL_RESTRICTED_SUSPENDING_FUNCTION_CALL!>yield<!>("1")
     }
 }
+
+/* GENERATED_FIR_TAGS: annotationUseSiteTargetFile, classDeclaration, classReference, funWithExtensionReceiver,
+functionDeclaration, functionalType, integerLiteral, lambdaLiteral, nullableType, stringLiteral, suspend, thisExpression,
+typeParameter, typeWithExtension */

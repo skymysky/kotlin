@@ -1,17 +1,21 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
+// FIR_DUMP
 
 fun test1() {
-    <!OI;TYPE_MISMATCH!>1<!>. <!NI;FUNCTION_EXPECTED!>(fun String.(i: Int) = i )<!>(1)
-    <!OI;TYPE_MISMATCH!>1<!>.<!NI;FUNCTION_EXPECTED!>(label@ fun String.(i: Int) = i )<!>(1)
+    1. <!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>(fun String.(i: Int) = i )<!>(1)
+    1.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>(label@ fun String.(i: Int) = i )<!>(1)
 }
 
 fun test2(f: String.(Int) -> Unit) {
-    <!OI;TYPE_MISMATCH!>11<!>.<!NI;FUNCTION_EXPECTED!>(f)<!>(1)
-    <!OI;TYPE_MISMATCH!>11<!>.<!NI;FUNCTION_EXPECTED!>(f)<!>(<!OI;NO_VALUE_FOR_PARAMETER!>)<!>
+    11.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>(f)<!>(1)
+    11.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>(f)<!>()
 }
 
 fun test3() {
     fun foo(): String.(Int) -> Unit = {}
 
-    <!OI;TYPE_MISMATCH!>1<!>.<!NI;FUNCTION_EXPECTED!>(foo())<!>(1)
+    1.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>(foo())<!>(1)
 }
+
+/* GENERATED_FIR_TAGS: anonymousFunction, functionDeclaration, functionalType, integerLiteral, lambdaLiteral,
+localFunction, typeWithExtension */

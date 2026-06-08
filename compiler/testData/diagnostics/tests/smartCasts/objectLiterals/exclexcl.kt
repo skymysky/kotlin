@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: BACKEND
 abstract class Runnable {
     abstract fun run()
 }
@@ -9,14 +9,18 @@ fun foo(): Int {
     if (c is Int) {
         val k = object: Runnable() {
             init {
-                a!!.toInt()
+                a!!
             }
             override fun run() = Unit
         }
         k.run()
-        val d: Int = <!DEBUG_INFO_SMARTCAST!>c<!>
+        val d: Int = c
         // a is not null because of k constructor, but we do not know it
-        return a <!UNSAFE_OPERATOR_CALL!>+<!> d
+        return a + d
     }
     else return -1
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, anonymousObjectExpression, checkNotNullCall, classDeclaration,
+functionDeclaration, ifExpression, init, integerLiteral, isExpression, localProperty, nullableType, override,
+propertyDeclaration, smartcast */

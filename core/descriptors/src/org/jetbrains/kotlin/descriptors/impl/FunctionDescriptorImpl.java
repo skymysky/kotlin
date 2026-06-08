@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.descriptors.impl;
@@ -13,7 +13,9 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationsKt;
 import org.jetbrains.kotlin.name.Name;
+import org.jetbrains.kotlin.resolve.DescriptorFactory;
 import org.jetbrains.kotlin.resolve.scopes.receivers.ExtensionReceiver;
+import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitContextReceiver;
 import org.jetbrains.kotlin.types.*;
 import org.jetbrains.kotlin.utils.SmartList;
 
@@ -23,10 +25,11 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     private List<TypeParameterDescriptor> typeParameters;
     private List<ValueParameterDescriptor> unsubstitutedValueParameters;
     private KotlinType unsubstitutedReturnType;
+    private List<ReceiverParameterDescriptor> contextReceiverParameters;
     private ReceiverParameterDescriptor extensionReceiverParameter;
     private ReceiverParameterDescriptor dispatchReceiverParameter;
     private Modality modality;
-    private Visibility visibility = Visibilities.UNKNOWN;
+    private DescriptorVisibility visibility = DescriptorVisibilities.UNKNOWN;
     private boolean isOperator = false;
     private boolean isInfix = false;
     private boolean isExternal = false;
@@ -68,11 +71,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     public FunctionDescriptorImpl initialize(
             @Nullable ReceiverParameterDescriptor extensionReceiverParameter,
             @Nullable ReceiverParameterDescriptor dispatchReceiverParameter,
+            @NotNull List<ReceiverParameterDescriptor> contextReceiverParameters,
             @NotNull List<? extends TypeParameterDescriptor> typeParameters,
             @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters,
             @Nullable KotlinType unsubstitutedReturnType,
             @Nullable Modality modality,
-            @NotNull Visibility visibility
+            @NotNull DescriptorVisibility visibility
     ) {
         this.typeParameters = CollectionsKt.toList(typeParameters);
         this.unsubstitutedValueParameters = CollectionsKt.toList(unsubstitutedValueParameters);
@@ -81,6 +85,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         this.visibility = visibility;
         this.extensionReceiverParameter = extensionReceiverParameter;
         this.dispatchReceiverParameter = dispatchReceiverParameter;
+        this.contextReceiverParameters = contextReceiverParameters;
 
         for (int i = 0; i < typeParameters.size(); ++i) {
             TypeParameterDescriptor typeParameterDescriptor = typeParameters.get(i);
@@ -101,7 +106,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         return this;
     }
 
-    public void setVisibility(@NotNull Visibility visibility) {
+    public void setVisibility(@NotNull DescriptorVisibility visibility) {
         this.visibility = visibility;
     }
 
@@ -165,6 +170,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         this.extensionReceiverParameter = extensionReceiverParameter;
     }
 
+    @NotNull
+    @Override
+    public List<ReceiverParameterDescriptor> getContextReceiverParameters() {
+        return contextReceiverParameters;
+    }
+
     @Nullable
     @Override
     public ReceiverParameterDescriptor getExtensionReceiverParameter() {
@@ -204,7 +215,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
 
     @NotNull
     @Override
-    public Visibility getVisibility() {
+    public DescriptorVisibility getVisibility() {
         return visibility;
     }
 
@@ -261,9 +272,9 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <V> V getUserData(UserDataKey<V> key) {
         if (userDataMap == null) return null;
-        //noinspection unchecked
         return (V) userDataMap.get(key);
     }
 
@@ -273,8 +284,8 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void setOverriddenDescriptors(@NotNull Collection<? extends CallableMemberDescriptor> overriddenDescriptors) {
-        //noinspection unchecked
         overriddenFunctions = (Collection<? extends FunctionDescriptor>) overriddenDescriptors;
         for (FunctionDescriptor function : overriddenFunctions) {
             if (function.isHiddenForResolutionEverywhereBesideSupercalls()) {
@@ -287,7 +298,17 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     @Override
     @NotNull
     public List<TypeParameterDescriptor> getTypeParameters() {
-        return typeParameters;
+        List<TypeParameterDescriptor> parameters = typeParameters;
+        // Diagnostics for EA-141456
+        if (parameters == null) {
+            throw new IllegalStateException("typeParameters == null for " + this);
+        }
+        return parameters;
+    }
+
+    @Override
+    public void validate() {
+        getTypeParameters();
     }
 
     @Override
@@ -328,7 +349,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         if (originalSubstitutor.isEmpty()) {
             return this;
         }
-        return newCopyBuilder(originalSubstitutor).setOriginal(getOriginal()).setJustForTypeSubstitution(true).build();
+
+        return newCopyBuilder(originalSubstitutor)
+                .setOriginal(getOriginal())
+                .setPreserveSourceElement()
+                .setJustForTypeSubstitution(true)
+                .build();
     }
 
     @Nullable
@@ -346,10 +372,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         protected @NotNull TypeSubstitution substitution;
         protected @NotNull DeclarationDescriptor newOwner;
         protected @NotNull Modality newModality;
-        protected @NotNull Visibility newVisibility;
+        protected @NotNull
+        DescriptorVisibility newVisibility;
         protected @Nullable FunctionDescriptor original = null;
         protected @NotNull Kind kind;
         protected @NotNull List<ValueParameterDescriptor> newValueParameterDescriptors;
+        protected @NotNull List<ReceiverParameterDescriptor> newContextReceiverParameters;
         protected @Nullable ReceiverParameterDescriptor newExtensionReceiverParameter;
         protected @Nullable ReceiverParameterDescriptor dispatchReceiverParameter = FunctionDescriptorImpl.this.dispatchReceiverParameter;
         protected @NotNull KotlinType newReturnType;
@@ -370,9 +398,10 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
                 @NotNull TypeSubstitution substitution,
                 @NotNull DeclarationDescriptor newOwner,
                 @NotNull Modality newModality,
-                @NotNull Visibility newVisibility,
+                @NotNull DescriptorVisibility newVisibility,
                 @NotNull Kind kind,
                 @NotNull List<ValueParameterDescriptor> newValueParameterDescriptors,
+                @NotNull List<ReceiverParameterDescriptor> newContextReceiverParameters,
                 @Nullable ReceiverParameterDescriptor newExtensionReceiverParameter,
                 @NotNull KotlinType newReturnType,
                 @Nullable Name name
@@ -383,6 +412,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
             this.newVisibility = newVisibility;
             this.kind = kind;
             this.newValueParameterDescriptors = newValueParameterDescriptors;
+            this.newContextReceiverParameters = newContextReceiverParameters;
             this.newExtensionReceiverParameter = newExtensionReceiverParameter;
             this.newReturnType = newReturnType;
             this.name = name;
@@ -404,7 +434,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
 
         @Override
         @NotNull
-        public CopyConfiguration setVisibility(@NotNull Visibility visibility) {
+        public CopyConfiguration setVisibility(@NotNull DescriptorVisibility visibility) {
             this.newVisibility = visibility;
             return this;
         }
@@ -448,6 +478,13 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         @Override
         public CopyConfiguration setReturnType(@NotNull KotlinType type) {
             this.newReturnType = type;
+            return this;
+        }
+
+        @NotNull
+        @Override
+        public CopyBuilder<FunctionDescriptor> setContextReceiverParameters(@NotNull List<ReceiverParameterDescriptor> contextReceiverParameters) {
+            this.newContextReceiverParameters = contextReceiverParameters;
             return this;
         }
 
@@ -566,9 +603,8 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     protected CopyConfiguration newCopyBuilder(@NotNull TypeSubstitutor substitutor) {
         return new CopyConfiguration(
                 substitutor.getSubstitution(),
-                getContainingDeclaration(), getModality(), getVisibility(), getKind(), getValueParameters(),
-                getExtensionReceiverParameter(), getReturnType(), null
-        );
+                getContainingDeclaration(), getModality(), getVisibility(), getKind(), getValueParameters(), getContextReceiverParameters(),
+                getExtensionReceiverParameter(), getReturnType(), null);
     }
 
     @Nullable
@@ -594,6 +630,26 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
                 unsubstitutedTypeParameters, configuration.substitution, substitutedDescriptor, substitutedTypeParameters, wereChanges
         );
         if (substitutor == null) return null;
+
+        List<ReceiverParameterDescriptor> substitutedContextReceiverParameters = new ArrayList<ReceiverParameterDescriptor>();
+        if (!configuration.newContextReceiverParameters.isEmpty()) {
+            int index = 0;
+            for (ReceiverParameterDescriptor newContextReceiverParameter : configuration.newContextReceiverParameters) {
+                KotlinType substitutedContextReceiverType =
+                        substitutor.substitute(newContextReceiverParameter.getType(), Variance.IN_VARIANCE);
+                if (substitutedContextReceiverType == null) {
+                    return null;
+                }
+                ReceiverParameterDescriptor substitutedContextReceiverParameter =
+                        DescriptorFactory.createContextReceiverParameterForCallable(substitutedDescriptor, substitutedContextReceiverType,
+                                                                                    ((ImplicitContextReceiver)newContextReceiverParameter.getValue()).getCustomLabelName(),
+                                                                                    newContextReceiverParameter.getAnnotations(),
+                                                                                    index++);
+                substitutedContextReceiverParameters.add(substitutedContextReceiverParameter);
+
+                wereChanges[0] |= substitutedContextReceiverType != newContextReceiverParameter.getType();
+            }
+        }
 
         ReceiverParameterDescriptor substitutedReceiverParameter = null;
         if (configuration.newExtensionReceiverParameter != null) {
@@ -653,8 +709,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         }
 
         substitutedDescriptor.initialize(
-                substitutedReceiverParameter,
-                substitutedExpectedThis,
+                substitutedReceiverParameter, substitutedExpectedThis, substitutedContextReceiverParameters,
                 substitutedTypeParameters,
                 substitutedValueParameters,
                 substitutedReturnType,
@@ -736,7 +791,7 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     public FunctionDescriptor copy(
             DeclarationDescriptor newOwner,
             Modality modality,
-            Visibility visibility,
+            DescriptorVisibility visibility,
             Kind kind,
             boolean copyOverrides
     ) {
@@ -802,8 +857,22 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
                     wereChanges[0] = true;
                 }
             }
+
+            Function0<List<VariableDescriptor>> destructuringVariablesAction = null;
+            if (unsubstitutedValueParameter instanceof ValueParameterDescriptorImpl.WithDestructuringDeclaration) {
+                final List<VariableDescriptor> destructuringVariables =
+                        ((ValueParameterDescriptorImpl.WithDestructuringDeclaration) unsubstitutedValueParameter)
+                                .getDestructuringVariables();
+                destructuringVariablesAction = new Function0<List<VariableDescriptor>>() {
+                    @Override
+                    public List<VariableDescriptor> invoke() {
+                        return destructuringVariables;
+                    }
+                };
+            }
+
             result.add(
-                    new ValueParameterDescriptorImpl(
+                    ValueParameterDescriptorImpl.createWithDestructuringDeclarations(
                             substitutedDescriptor,
                             dropOriginal ? null : unsubstitutedValueParameter,
                             unsubstitutedValueParameter.getIndex(),
@@ -814,7 +883,8 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
                             unsubstitutedValueParameter.isCrossinline(),
                             unsubstitutedValueParameter.isNoinline(),
                             substituteVarargElementType,
-                            preserveSourceElement ? unsubstitutedValueParameter.getSource() : SourceElement.NO_SOURCE
+                            preserveSourceElement ? unsubstitutedValueParameter.getSource() : SourceElement.NO_SOURCE,
+                            destructuringVariablesAction
                     )
             );
         }

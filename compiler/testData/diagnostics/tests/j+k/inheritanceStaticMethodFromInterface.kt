@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: I.java
 
 public interface I {
@@ -16,9 +17,9 @@ public class C implements I {
 
 class K : C()
 
-fun main(args: Array<String>) {
+fun main() {
     I.a
-    I.<!INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>foo<!>()
+    I.foo()
 
     C.a
     C.b
@@ -30,3 +31,5 @@ fun main(args: Array<String>) {
     K.<!UNRESOLVED_REFERENCE!>foo<!>()
     K.<!UNRESOLVED_REFERENCE!>bar<!>()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, javaFunction, javaProperty, javaType */

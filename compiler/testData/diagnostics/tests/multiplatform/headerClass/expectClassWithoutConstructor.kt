@@ -1,4 +1,5 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: FRONTEND
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -10,16 +11,18 @@ expect class FooBar {
 }
 
 fun test() {
-    <!RESOLUTION_TO_CLASSIFIER!>Foo<!>()
+    <!EXPECT_CLASS_AS_FUNCTION!>Foo<!>()
     Bar()
     Baz()
     FooBar()
 }
 
-// MODULE: m2-jvm(m1-common)
+// MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual class Foo
 actual class Bar
 actual class Baz
 actual class FooBar
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, expect, functionDeclaration, primaryConstructor, secondaryConstructor */

@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 open class A protected constructor(x: Int) {
     protected constructor() : this(1)
@@ -8,14 +8,14 @@ open class A protected constructor(x: Int) {
 
 class B4 : A(1) {
     init {
-        <!OI;PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>()
-        <!OI;PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>(1)
+        <!PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>()
+        <!PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>(1)
         A(5.0)
     }
 
     fun foo() {
-        <!OI;PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>()
-        <!OI;PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>(1)
+        <!PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>()
+        <!PROTECTED_CONSTRUCTOR_NOT_IN_SUPER_CALL!>A<!>(1)
         A(5.0)
 
         object : A() {}
@@ -25,3 +25,6 @@ class B4 : A(1) {
         class Local : A()
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, classDeclaration, functionDeclaration, init, integerLiteral,
+localClass, primaryConstructor, secondaryConstructor */

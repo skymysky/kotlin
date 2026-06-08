@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.builtins.jvm
@@ -21,13 +21,13 @@ class CloneableClassScope(
     override fun computeDeclaredFunctions(): List<FunctionDescriptor> = listOf(
         SimpleFunctionDescriptorImpl.create(containingClass, Annotations.EMPTY, CLONE_NAME, DECLARATION, SourceElement.NO_SOURCE).apply {
             initialize(
-                null, containingClass.thisAsReceiverParameter, emptyList(), emptyList(), containingClass.builtIns.anyType,
-                Modality.OPEN, Visibilities.PROTECTED
+                null, containingClass.thisAsReceiverParameter, emptyList(), emptyList(), emptyList(), containingClass.builtIns.anyType,
+                Modality.OPEN, DescriptorVisibilities.PROTECTED
             )
         }
     )
 
     companion object {
-        internal val CLONE_NAME = Name.identifier("clone")
+        val CLONE_NAME = Name.identifier("clone")
     }
 }

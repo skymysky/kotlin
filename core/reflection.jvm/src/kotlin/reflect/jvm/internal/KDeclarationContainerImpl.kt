@@ -16,19 +16,27 @@
 
 package kotlin.reflect.jvm.internal
 
-import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.impl.DeclarationDescriptorVisitorEmptyBodies
+import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.descriptors.PropertyDescriptor
+import org.jetbrains.kotlin.descriptors.runtime.components.RuntimeModuleData
+import org.jetbrains.kotlin.descriptors.runtime.components.tryLoadClass
+import org.jetbrains.kotlin.descriptors.runtime.structure.safeClassLoader
+import org.jetbrains.kotlin.descriptors.runtime.structure.wrapperByPrimitive
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import java.lang.reflect.Constructor
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import kotlin.jvm.internal.ClassBasedDeclarationContainer
-import kotlin.reflect.jvm.internal.components.RuntimeModuleData
-import kotlin.reflect.jvm.internal.structure.createArrayType
-import kotlin.reflect.jvm.internal.structure.safeClassLoader
-import kotlin.reflect.jvm.internal.structure.wrapperByPrimitive
+import kotlin.metadata.KmConstructor
+import kotlin.metadata.KmFunction
+import kotlin.metadata.KmProperty
+import kotlin.metadata.isVar
+import kotlin.metadata.jvm.signature
+import kotlin.reflect.KProperty0
 
 internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContainer {
     abstract inner class Data {
@@ -41,68 +49,59 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
     protected open val methodOwner: Class<*>
         get() = jClass.wrapperByPrimitive ?: jClass
 
+    abstract val functionsMetadata: Collection<KmFunction>
+
+    abstract val propertiesMetadata: Collection<KmProperty>
+
+    abstract val constructorsMetadata: Collection<KmConstructor>
+
     abstract val constructorDescriptors: Collection<ConstructorDescriptor>
 
     abstract fun getProperties(name: Name): Collection<PropertyDescriptor>
 
     abstract fun getFunctions(name: Name): Collection<FunctionDescriptor>
 
-    abstract fun getLocalProperty(index: Int): PropertyDescriptor?
+    abstract fun getLocalPropertyDescriptor(index: Int): PropertyDescriptor?
 
-    protected fun getMembers(scope: MemberScope, belonginess: MemberBelonginess): Collection<KCallableImpl<*>> {
-        val visitor = object : DeclarationDescriptorVisitorEmptyBodies<KCallableImpl<*>, Unit>() {
-            override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: Unit): KCallableImpl<*> =
-                createProperty(descriptor)
+    abstract fun getLocalPropertyMetadata(index: Int): KmProperty?
 
-            override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: Unit): KCallableImpl<*> =
-                KFunctionImpl(this@KDeclarationContainerImpl, descriptor)
+    private val classLoader: ClassLoader get() = jClass.safeClassLoader
 
-            override fun visitConstructorDescriptor(descriptor: ConstructorDescriptor, data: Unit): KCallableImpl<*> =
-                throw IllegalStateException("No constructors should appear in this scope: $descriptor")
+    fun createLocalProperty(index: Int, signature: String): KProperty0<*>? {
+        val kmProperty = getLocalPropertyMetadata(index) ?: return null
+        if (kmProperty.receiverParameterType != null) {
+            throw KotlinReflectionInternalError("Local property ${kmProperty.name} is an extension, which is not yet supported")
         }
 
-        return scope.getContributedDescriptors().mapNotNull { descriptor ->
-            if (descriptor is CallableMemberDescriptor &&
-                descriptor.visibility != Visibilities.INVISIBLE_FAKE &&
-                belonginess.accept(descriptor)
-            ) descriptor.accept(visitor, Unit) else null
-        }.toList()
+        return if (kmProperty.isVar)
+            KotlinKMutableProperty0<Any?>(this, signature, rawBoundReceiver = null, kmProperty, KCallableOverriddenStorage.EMPTY)
+        else
+            KotlinKProperty0<Any?>(this, signature, rawBoundReceiver = null, kmProperty, KCallableOverriddenStorage.EMPTY)
     }
 
-    protected enum class MemberBelonginess {
-        DECLARED,
-        INHERITED;
+    fun findPropertyMetadata(name: String, signature: String): KmProperty {
+        // For class properties, we'll also need to support the case when there are several properties with the same name,
+        // see `findPropertyDescriptor`.
+        require(this is KPackageImpl) { "Only top-level properties are supported for now: $this/$name ($signature)" }
 
-        fun accept(member: CallableMemberDescriptor): Boolean =
-            member.kind.isReal == (this == DECLARED)
-    }
-
-    private fun createProperty(descriptor: PropertyDescriptor): KPropertyImpl<*> {
-        val receiverCount = (descriptor.dispatchReceiverParameter?.let { 1 } ?: 0) +
-                (descriptor.extensionReceiverParameter?.let { 1 } ?: 0)
-
-        when {
-            descriptor.isVar -> when (receiverCount) {
-                0 -> return KMutableProperty0Impl<Any?>(this, descriptor)
-                1 -> return KMutableProperty1Impl<Any?, Any?>(this, descriptor)
-                2 -> return KMutableProperty2Impl<Any?, Any?, Any?>(this, descriptor)
-            }
-            else -> when (receiverCount) {
-                0 -> return KProperty0Impl<Any?>(this, descriptor)
-                1 -> return KProperty1Impl<Any?, Any?>(this, descriptor)
-                2 -> return KProperty2Impl<Any?, Any?, Any?>(this, descriptor)
-            }
+        val properties = propertiesMetadata.filter { it.name == name && it.computeJvmSignature(this) == signature }
+        if (properties.isEmpty()) {
+            throw KotlinReflectionInternalError("Property '$name' (JVM signature: $signature) not resolved in $this")
         }
 
-        throw KotlinReflectionInternalError("Unsupported property: $descriptor")
+        if (properties.size > 1) {
+            throw KotlinReflectionInternalError("Property '$name' (JVM signature: $signature) resolved in several methods in $this")
+        }
+
+        return properties.single()
     }
 
     fun findPropertyDescriptor(name: String, signature: String): PropertyDescriptor {
         val match = LOCAL_PROPERTY_SIGNATURE.matchEntire(signature)
         if (match != null) {
             val (number) = match.destructured
-            return getLocalProperty(number.toInt())
-                    ?: throw KotlinReflectionInternalError("Local property #$number not found in $jClass")
+            return getLocalPropertyDescriptor(number.toInt())
+                ?: throw KotlinReflectionInternalError("Local property #$number not found in $jClass")
         }
 
         val properties = getProperties(Name.identifier(name))
@@ -127,15 +126,15 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
 
             val mostVisibleProperties = properties
                 .groupBy { it.visibility }
-                .toSortedMap(Comparator { first, second ->
-                    Visibilities.compare(first, second) ?: 0
-                }).values.last()
+                .toSortedMap { first, second ->
+                    DescriptorVisibilities.compare(first, second) ?: 0
+                }.values.last()
             if (mostVisibleProperties.size == 1) {
                 return mostVisibleProperties.first()
             }
 
             val allMembers = getProperties(Name.identifier(name)).joinToString("\n") { descriptor ->
-                DescriptorRenderer.DEBUG_TEXT.render(descriptor) + " | " + RuntimeTypeMapper.mapPropertySignature(descriptor)
+                DescriptorRenderer.DEBUG_TEXT.render(descriptor) + " | " + RuntimeTypeMapper.mapPropertySignature(descriptor).asString()
             }
             throw KotlinReflectionInternalError(
                 "Property '$name' (JVM signature: $signature) not resolved in $this:" +
@@ -146,6 +145,23 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
         return properties.single()
     }
 
+    fun findFunctionMetadata(name: String, signature: String): KmFunction {
+        require(this is KPackageImpl) { "Only top-level functions are supported for now: $this/$name ($signature)" }
+
+        val functions = functionsMetadata.filter { it.name == name && it.signature.toString() == signature }
+        if (functions.size != 1) {
+            val allMembers = functionsMetadata.joinToString("\n") { function ->
+                function.name + " | " + function.signature
+            }
+            throw KotlinReflectionInternalError(
+                "Function '$name' (JVM signature: $signature) not resolved in $this:" +
+                        if (allMembers.isEmpty()) " no members found" else " several matching members found:\n$allMembers"
+            )
+        }
+
+        return functions.single()
+    }
+
     fun findFunctionDescriptor(name: String, signature: String): FunctionDescriptor {
         val members = if (name == "<init>") constructorDescriptors.toList() else getFunctions(Name.identifier(name))
         val functions = members.filter { descriptor ->
@@ -154,7 +170,7 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
 
         if (functions.size != 1) {
             val allMembers = members.joinToString("\n") { descriptor ->
-                DescriptorRenderer.DEBUG_TEXT.render(descriptor) + " | " + RuntimeTypeMapper.mapSignature(descriptor)
+                DescriptorRenderer.DEBUG_TEXT.render(descriptor) + " | " + RuntimeTypeMapper.mapSignature(descriptor).asString()
             }
             throw KotlinReflectionInternalError(
                 "Function '$name' (JVM signature: $signature) not resolved in $this:" +
@@ -165,35 +181,77 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
         return functions.single()
     }
 
-    private fun Class<*>.lookupMethod(name: String, parameterTypes: List<Class<*>>, returnType: Class<*>, isPublic: Boolean): Method? {
-        val parametersArray = parameterTypes.toTypedArray()
+    fun findJavaMethod(name: String, nameAndDesc: String): Method {
+        val desc = nameAndDesc.substring(nameAndDesc.indexOf('('), nameAndDesc.length)
+        val signature = classLoader.parseAndLoadDescriptor(desc, loadReturnType = true)
+        val parameterTypes = signature.parameters.toTypedArray()
+        val returnType = signature.returnType!!
+        return methodOwner.lookupMethod(name, parameterTypes, returnType, false) ?: run {
+            val allMembers = jClass.declaredMethods.joinToString("\n") { method -> method.jvmSignature }
+            throw KotlinReflectionInternalError(
+                "Method '$name' (JVM signature: $desc) not resolved in $this:" +
+                        if (allMembers.isEmpty()) " no methods found" else "\n$allMembers"
+            )
+        }
+    }
 
-        // If we're looking for a public method, use Java reflection's getMethod/getMethods first
-        if (isPublic) {
-            val result = tryGetMethod(name, parametersArray, returnType, declared = false)
-            if (result != null) return result
-
-            // Methods from java.lang.Object cannot be found in the interface via Class.getMethod/getDeclaredMethod
-            if (isInterface) {
-                val fromObject = Any::class.java.lookupMethod(name, parameterTypes, returnType, isPublic)
-                if (fromObject != null) return fromObject
-            }
+    fun findConstructorMetadata(signature: String): KmConstructor =
+        constructorsMetadata.singleOrNull { it.signature.toString() == signature } ?: run {
+            val allMembers = constructorsMetadata.joinToString("\n") { constructor -> constructor.signature.toString() }
+            throw KotlinReflectionInternalError(
+                "Constructor (JVM signature: $signature) not resolved in $this:" +
+                        if (allMembers.isEmpty()) " no constructors found" else " several matching constructors found:\n$allMembers"
+            )
         }
 
-        // If we're looking for a non-public method, it might be located not only in this class, but also in any of its superclasses
-        var klass: Class<*>? = this
-        while (klass != null) {
-            val method = klass.tryGetMethod(name, parametersArray, returnType, declared = true)
-            if (method != null) return method
-            klass = klass.superclass
+    fun findJavaConstructor(signature: String): Constructor<*> =
+        jClass.declaredConstructors.singleOrNull { it.jvmSignature == signature } ?: run {
+            val allMembers = jClass.declaredConstructors.joinToString("\n") { constructor -> constructor.jvmSignature }
+            throw KotlinReflectionInternalError(
+                "Constructor (JVM signature: $signature) not resolved in $this:" +
+                        if (allMembers.isEmpty()) " no constructors found" else "\n$allMembers"
+            )
+        }
+
+    fun findJavaField(name: String): Field =
+        jClass.getDeclaredField(name) ?: throw KotlinReflectionInternalError(
+            "Field $name not found in $jClass:" + jClass.declaredFields.let { fields ->
+                if (fields.isEmpty()) " no fields found" else "\n" + fields.joinToString("\n") { it.name + " " + it.type }
+            }
+        )
+
+    private fun Class<*>.lookupMethod(
+        name: String, parameterTypes: Array<Class<*>>, returnType: Class<*>, isStaticDefault: Boolean,
+    ): Method? {
+        // Static "$default" method in any class takes an instance of that class as the first parameter.
+        if (isStaticDefault) {
+            parameterTypes[0] = this
+        }
+
+        tryGetMethod(name, parameterTypes, returnType)?.let { return it }
+
+        superclass?.lookupMethod(name, parameterTypes, returnType, isStaticDefault)?.let { return it }
+
+        // TODO: avoid exponential complexity here
+        for (superInterface in interfaces) {
+            superInterface.lookupMethod(name, parameterTypes, returnType, isStaticDefault)?.let { return it }
+
+            // Static "$default" methods should be looked up in each DefaultImpls class, see KT-33430
+            if (isStaticDefault) {
+                val defaultImpls = superInterface.safeClassLoader.tryLoadClass(superInterface.name + JvmAbi.DEFAULT_IMPLS_SUFFIX)
+                if (defaultImpls != null) {
+                    parameterTypes[0] = superInterface
+                    defaultImpls.tryGetMethod(name, parameterTypes, returnType)?.let { return it }
+                }
+            }
         }
 
         return null
     }
 
-    private fun Class<*>.tryGetMethod(name: String, parameterTypes: Array<Class<*>>, returnType: Class<*>, declared: Boolean): Method? =
+    private fun Class<*>.tryGetMethod(name: String, parameterTypes: Array<Class<*>>, returnType: Class<*>): Method? =
         try {
-            val result = if (declared) getDeclaredMethod(name, *parameterTypes) else getMethod(name, *parameterTypes)
+            val result = getDeclaredMethod(name, *parameterTypes)
 
             if (result.returnType == returnType) result
             else {
@@ -201,105 +259,89 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
                 // with the given parameter types and Java reflection API has returned not the one we're looking for.
                 // Falling back to enumerating all methods in the class in this (rather rare) case.
                 // Example: class A(val x: Int) { fun getX(): String = ... }
-                val allMethods = if (declared) declaredMethods else methods
-                allMethods.firstOrNull { method ->
-                    method.name == name &&
-                            method.returnType == returnType &&
-                            method.parameterTypes!!.contentEquals(parameterTypes)
+                declaredMethods.firstOrNull { method ->
+                    method.name == name && method.returnType == returnType && method.parameterTypes.contentEquals(parameterTypes)
                 }
             }
         } catch (e: NoSuchMethodException) {
             null
         }
 
-    private fun Class<*>.tryGetConstructor(parameterTypes: List<Class<*>>, declared: Boolean): Constructor<*>? =
+    private fun Class<*>.tryGetConstructor(parameterTypes: List<Class<*>>): Constructor<*>? =
         try {
-            if (declared) getDeclaredConstructor(*parameterTypes.toTypedArray())
-            else getConstructor(*parameterTypes.toTypedArray())
+            getDeclaredConstructor(*parameterTypes.toTypedArray())
         } catch (e: NoSuchMethodException) {
             null
         }
 
-    fun findMethodBySignature(name: String, desc: String, isPublic: Boolean): Method? {
+    fun findMethodBySignature(name: String, desc: String): Method? {
         if (name == "<init>") return null
 
-        return methodOwner.lookupMethod(name, loadParameterTypes(desc), loadReturnType(desc), isPublic)
+        val functionJvmDescriptor = classLoader.parseAndLoadDescriptor(desc, loadReturnType = true)
+        val parameterTypes = functionJvmDescriptor.parameters.toTypedArray()
+        val returnType = functionJvmDescriptor.returnType!!
+        methodOwner.lookupMethod(name, parameterTypes, returnType, false)?.let { return it }
+
+        // Methods from java.lang.Object (equals, hashCode, toString) cannot be found in the interface via
+        // Class.getMethod/getDeclaredMethod, so for interfaces, we also look in java.lang.Object.
+        if (methodOwner.isInterface) {
+            Any::class.java.lookupMethod(name, parameterTypes, returnType, false)?.let { return it }
+        }
+
+        return null
     }
 
-    fun findDefaultMethod(name: String, desc: String, isMember: Boolean, isPublic: Boolean): Method? {
+    fun findDefaultMethod(name: String, desc: String, isMember: Boolean, hasExtensionParameter: Boolean): Method? {
         if (name == "<init>") return null
 
         val parameterTypes = arrayListOf<Class<*>>()
         if (isMember) {
+            // Note that this value is replaced inside the lookupMethod call below, for each class/interface in the hierarchy.
             parameterTypes.add(jClass)
         }
-        addParametersAndMasks(parameterTypes, desc, false)
+        val jvmDescriptor = classLoader.parseAndLoadDescriptor(desc, loadReturnType = true)
+        addParametersAndMasks(parameterTypes, jvmDescriptor.parameters, isConstructor = false, hasExtensionParameter)
 
-        return methodOwner.lookupMethod(name + JvmAbi.DEFAULT_PARAMS_IMPL_SUFFIX, parameterTypes, loadReturnType(desc), isPublic)
+        return methodOwner.lookupMethod(
+            name + JvmAbi.DEFAULT_PARAMS_IMPL_SUFFIX, parameterTypes.toTypedArray(), jvmDescriptor.returnType!!, isStaticDefault = isMember
+        )
     }
 
-    fun findConstructorBySignature(desc: String, isPublic: Boolean): Constructor<*>? {
-        return jClass.tryGetConstructor(loadParameterTypes(desc), declared = !isPublic)
-    }
+    fun findConstructorBySignature(desc: String): Constructor<*>? =
+        jClass.tryGetConstructor(classLoader.parseAndLoadDescriptor(desc, loadReturnType = false).parameters)
 
-    fun findDefaultConstructor(desc: String, isPublic: Boolean): Constructor<*>? {
-        val parameterTypes = arrayListOf<Class<*>>()
-        addParametersAndMasks(parameterTypes, desc, true)
+    fun findDefaultConstructor(desc: String): Constructor<*>? =
+        jClass.tryGetConstructor(arrayListOf<Class<*>>().also { parameterTypes ->
+            val parsedParameters = classLoader.parseAndLoadDescriptor(desc, loadReturnType = false).parameters
+            addParametersAndMasks(parameterTypes, parsedParameters, isConstructor = true, hasExtensionParameter = false)
+        })
 
-        return jClass.tryGetConstructor(parameterTypes, declared = !isPublic)
-    }
+    private fun addParametersAndMasks(
+        result: MutableList<Class<*>>,
+        parameters: List<Class<*>>,
+        isConstructor: Boolean,
+        hasExtensionParameter: Boolean,
+    ) {
+        // Constructors that include parameters of inline class types contain an extra trailing DEFAULT_CONSTRUCTOR_MARKER parameter,
+        // which should be excluded when calculating mask size.
+        val withoutMarker =
+            if (parameters.lastOrNull() == DEFAULT_CONSTRUCTOR_MARKER) parameters.subList(0, parameters.size - 1)
+            else parameters
 
-    private fun addParametersAndMasks(result: MutableList<Class<*>>, desc: String, isConstructor: Boolean) {
-        val valueParameters = loadParameterTypes(desc)
-        result.addAll(valueParameters)
-        repeat((valueParameters.size + Integer.SIZE - 1) / Integer.SIZE) {
+        val allocatedBitsForDefaultMask = if (hasExtensionParameter) withoutMarker.size - 1 else withoutMarker.size
+
+        result.addAll(withoutMarker)
+        repeat((allocatedBitsForDefaultMask + Integer.SIZE - 1) / Integer.SIZE) {
             result.add(Integer.TYPE)
         }
+
         result.add(if (isConstructor) DEFAULT_CONSTRUCTOR_MARKER else Any::class.java)
     }
-
-    private fun loadParameterTypes(desc: String): List<Class<*>> {
-        val result = arrayListOf<Class<*>>()
-
-        var begin = 1
-        while (desc[begin] != ')') {
-            var end = begin
-            while (desc[end] == '[') end++
-            when (desc[end]) {
-                in "VZCBSIFJD" -> end++
-                'L' -> end = desc.indexOf(';', begin) + 1
-                else -> throw KotlinReflectionInternalError("Unknown type prefix in the method signature: $desc")
-            }
-
-            result.add(parseType(desc, begin, end))
-            begin = end
-        }
-
-        return result
-    }
-
-    private fun parseType(desc: String, begin: Int, end: Int): Class<*> =
-        when (desc[begin]) {
-            'L' -> jClass.safeClassLoader.loadClass(desc.substring(begin + 1, end - 1).replace('/', '.'))
-            '[' -> parseType(desc, begin + 1, end).createArrayType()
-            'V' -> Void.TYPE
-            'Z' -> Boolean::class.java
-            'C' -> Char::class.java
-            'B' -> Byte::class.java
-            'S' -> Short::class.java
-            'I' -> Int::class.java
-            'F' -> Float::class.java
-            'J' -> Long::class.java
-            'D' -> Double::class.java
-            else -> throw KotlinReflectionInternalError("Unknown type prefix in the method signature: $desc")
-        }
-
-    private fun loadReturnType(desc: String): Class<*> =
-        parseType(desc, desc.indexOf(')') + 1, desc.length)
 
     companion object {
         private val DEFAULT_CONSTRUCTOR_MARKER = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker")
 
-        internal val LOCAL_PROPERTY_SIGNATURE = "<v#(\\d+)>".toRegex()
+        @JvmField
+        val LOCAL_PROPERTY_SIGNATURE = "<v#(\\d+)>".toRegex()
     }
 }

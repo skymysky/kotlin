@@ -1,10 +1,5 @@
-compiler/testData/cli/jvm/progressive/dataClassOverridingCopy.kt:5:1: warning: function 'copy' generated for the data class has default values for parameters, and conflicts with member of supertype 'WithCopy'
-data class Test(val str: String): WithCopy<String>
-^
-compiler/testData/cli/jvm/progressive/nonConstValueAsVarargInAnnotation.kt:5:15: warning: an annotation argument must be a compile-time constant
-@Anno(value = nonConstArray)
-              ^
-compiler/testData/cli/jvm/progressive/valReassignmentViaBackingField.kt:3:9: warning: reassignment of read-only property via backing field is deprecated
-        field++
-        ^
+warning: language version 2.1 is deprecated and its support will be removed in a future version of Kotlin. Update the version to 2.2.
+compiler/testData/cli/jvm/progressive/progressiveTest.kt:3:10: warning: 'public' generic exposes its 'internal' parameter bound type 'Foo'. This will be prohibited in the future.
+fun <T : Foo> foo(x: T?) = x
+         ^^^
 OK

@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 package test
 
@@ -18,9 +17,8 @@ import test.*
 var result = "fail"
 fun box(): String {
     inline1 {
-        inline2 { { result ="OK" }() }()
+        inline2 { { result ="OK" }.let { it() } }()
     }
 
     return result
 }
-

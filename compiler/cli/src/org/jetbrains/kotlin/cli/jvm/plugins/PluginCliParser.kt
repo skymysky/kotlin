@@ -16,60 +16,254 @@
 
 package org.jetbrains.kotlin.cli.jvm.plugins
 
-import com.intellij.util.containers.MultiMap
-import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_ERROR
 import org.jetbrains.kotlin.cli.common.ExitCode
-import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.common.messages.MessageCollectorUtil
-import org.jetbrains.kotlin.cli.jvm.BundledCompilerPlugins
+import org.jetbrains.kotlin.cli.plugins.*
+import org.jetbrains.kotlin.cli.report
+import org.jetbrains.kotlin.cli.reportException
 import org.jetbrains.kotlin.compiler.plugin.*
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.util.ServiceLoaderLite
+import org.jetbrains.kotlin.utils.topologicalSort
 import java.io.File
-import java.util.*
+import java.lang.ref.WeakReference
+import java.net.URLClassLoader
 
 object PluginCliParser {
     @JvmStatic
-    fun loadPluginsSafe(pluginClasspaths: Array<String>?, pluginOptions: Array<String>?, configuration: CompilerConfiguration): ExitCode =
-        loadPluginsSafe(pluginClasspaths?.asIterable(), pluginOptions?.asIterable(), configuration)
-
-    @JvmStatic
+    @Deprecated(
+        "Use loadPluginsSafe with order constraints instead",
+        ReplaceWith("loadPluginsSafe(pluginClasspaths, pluginOptions, pluginConfigurations, emptyList(), configuration, parentDisposable)")
+    )
     fun loadPluginsSafe(
-        pluginClasspaths: Iterable<String>?,
-        pluginOptions: Iterable<String>?,
-        configuration: CompilerConfiguration
+        pluginClasspaths: Array<String>?,
+        pluginOptions: Array<String>?,
+        pluginConfigurations: Array<String>?,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
     ): ExitCode {
-        val messageCollector = configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY)
-
-        try {
-            PluginCliParser.loadPlugins(pluginClasspaths, pluginOptions, configuration)
-        } catch (e: PluginCliOptionProcessingException) {
-            val message = e.message + "\n\n" + cliPluginUsageString(e.pluginId, e.options)
-            messageCollector.report(CompilerMessageSeverity.ERROR, message)
-            return ExitCode.INTERNAL_ERROR
-        } catch (e: CliOptionProcessingException) {
-            messageCollector.report(CompilerMessageSeverity.ERROR, e.message!!)
-            return ExitCode.INTERNAL_ERROR
-        } catch (t: Throwable) {
-            MessageCollectorUtil.reportException(messageCollector, t)
-            return ExitCode.INTERNAL_ERROR
-        }
-        return ExitCode.OK
+        return loadPluginsSafe(
+            pluginClasspaths?.asList().orEmpty(),
+            pluginOptions?.asList().orEmpty(),
+            pluginConfigurations?.asList().orEmpty(),
+            emptyList(),
+            configuration,
+            parentDisposable,
+        )
     }
 
     @JvmStatic
-    fun loadPlugins(pluginClasspaths: Iterable<String>?, pluginOptions: Iterable<String>?, configuration: CompilerConfiguration) {
-        val classLoader = PluginURLClassLoader(
-            pluginClasspaths
-                ?.map { File(it).toURI().toURL() }
-                ?.toTypedArray()
-                ?: emptyArray(),
-            this::class.java.classLoader
+    fun loadPluginsSafe(
+        pluginClasspaths: Array<String>?,
+        pluginOptions: Array<String>?,
+        pluginConfigurations: Array<String>?,
+        pluginOrderConstraints: Array<String>?,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
+    ): ExitCode {
+        return loadPluginsSafe(
+            pluginClasspaths?.asList().orEmpty(),
+            pluginOptions?.asList().orEmpty(),
+            pluginConfigurations?.asList().orEmpty(),
+            pluginOrderConstraints?.asList().orEmpty(),
+            configuration,
+            parentDisposable,
+        )
+    }
+
+    @JvmStatic
+    @Deprecated(
+        "Use loadPluginsSafe with order constraints instead",
+        ReplaceWith("loadPluginsSafe(pluginClasspaths, pluginOptions, pluginConfigurations, emptyList(), configuration, parentDisposable)")
+    )
+    fun loadPluginsSafe(
+        pluginClasspaths: Collection<String>,
+        pluginOptions: Collection<String>,
+        pluginConfigurations: Collection<String>,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
+    ): ExitCode {
+        return loadPluginsSafe(pluginClasspaths, pluginOptions, pluginConfigurations, emptyList(), configuration, parentDisposable)
+    }
+
+    @JvmStatic
+    fun loadPluginsSafe(
+        pluginClasspaths: Collection<String>,
+        pluginOptions: Collection<String>,
+        pluginConfigurations: Collection<String>,
+        pluginOrderConstraints: Collection<String>,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
+    ): ExitCode {
+        try {
+            // Parse order constraints before creating class loaders and loading services.
+            val orderConstraints = pluginOrderConstraints.map { rawConstraint ->
+                extractPluginOrderConstraint(rawConstraint)
+                    ?: throw PluginProcessingException("Could not parse plugin order constraint: $rawConstraint")
+            }
+
+            loadPluginsLegacyStyle(pluginClasspaths, orderConstraints, pluginOptions, configuration, parentDisposable)
+            loadPluginsModernStyle(pluginConfigurations, orderConstraints, configuration, parentDisposable)
+            return ExitCode.OK
+        } catch (e: PluginProcessingException) {
+            configuration.report(COMPILER_ARGUMENTS_ERROR, e.message!!)
+        } catch (e: PluginCliOptionProcessingException) {
+            val message = e.message + "\n\n" + cliPluginUsageString(e.pluginId, e.options)
+            configuration.report(COMPILER_ARGUMENTS_ERROR, message)
+        } catch (e: CliOptionProcessingException) {
+            configuration.report(COMPILER_ARGUMENTS_ERROR, e.message!!)
+        } catch (t: Throwable) {
+            configuration.reportException(t)
+        }
+        return ExitCode.INTERNAL_ERROR
+    }
+
+    class RegisteredPluginInfo(
+        @Suppress("DEPRECATION_ERROR") val componentRegistrar: ComponentRegistrar?,
+        val compilerPluginRegistrar: CompilerPluginRegistrar?,
+        val commandLineProcessor: CommandLineProcessor?,
+        val pluginOptions: List<CliOptionValue>,
+    )
+
+    @Suppress("DEPRECATION_ERROR")
+    private fun loadRegisteredPluginsInfo(
+        rawPluginConfigurations: Iterable<String>,
+        orderConstraints: List<PluginOrderConstraint>,
+        parentDisposable: Disposable,
+    ): List<RegisteredPluginInfo> {
+        val pluginConfigurations = extractPluginClasspathAndOptions(rawPluginConfigurations)
+
+        val pluginInfos = pluginConfigurations.map { pluginConfiguration ->
+            val classLoader = createClassLoader(pluginConfiguration.classpath, parentDisposable)
+            val componentRegistrars = ServiceLoaderLite.loadImplementations(ComponentRegistrar::class.java, classLoader)
+            val compilerPluginRegistrars = ServiceLoaderLite.loadImplementations(CompilerPluginRegistrar::class.java, classLoader)
+
+            fun multiplePluginsErrorMessage(pluginObjects: List<Any>): String {
+                return buildString {
+                    append("Multiple plugins found in given classpath: ")
+                    val extensionNames = pluginObjects.mapNotNull { it::class.qualifiedName }
+                    appendLine(extensionNames.joinToString(", "))
+                    append("  Plugin configuration is: ${pluginConfiguration.rawArgument}")
+                }
+            }
+
+            when (componentRegistrars.size + compilerPluginRegistrars.size) {
+                0 -> throw PluginProcessingException("No plugins found in given classpath: ${pluginConfiguration.classpath.joinToString(",")}")
+                1 -> {}
+                else -> throw PluginProcessingException(multiplePluginsErrorMessage(componentRegistrars + compilerPluginRegistrars))
+            }
+
+            val commandLineProcessors = ServiceLoaderLite.loadImplementations(CommandLineProcessor::class.java, classLoader)
+            if (commandLineProcessors.size > 1) {
+                throw PluginProcessingException(multiplePluginsErrorMessage(commandLineProcessors))
+            }
+
+            val commandLineProcessor = commandLineProcessors.firstOrNull()
+            val compilerPluginRegistrar = compilerPluginRegistrars.firstOrNull()
+            if (commandLineProcessor != null && !compilerPluginRegistrar?.pluginId.isNullOrEmpty() &&
+                commandLineProcessor.pluginId != compilerPluginRegistrar.pluginId
+            ) {
+                throw PluginProcessingException(
+                    "Mismatched 'pluginId's between registrar (${compilerPluginRegistrar.pluginId}) and processor (${commandLineProcessor.pluginId})}"
+                )
+            }
+
+            RegisteredPluginInfo(
+                componentRegistrars.firstOrNull(),
+                compilerPluginRegistrar,
+                commandLineProcessor,
+                pluginConfiguration.options
+            )
+        }
+
+        val registrarsById = pluginInfos
+            .filter { !it.compilerPluginRegistrar?.pluginId.isNullOrEmpty() }
+            .associateBy { it.compilerPluginRegistrar!!.pluginId }
+
+        val dependenciesById = orderConstraints
+            .filter { it.before in registrarsById && it.after in registrarsById }
+            .groupBy(keySelector = { it.after }, valueTransform = { registrarsById.getValue(it.before) })
+
+        val topologicalSort = topologicalSort(
+            pluginInfos,
+            reportCycle = {
+                val pluginId = it.compilerPluginRegistrar?.pluginId
+                throw PluginProcessingException(
+                    "Compiler plugin '$pluginId' is part of an constraint cycle: ${orderConstraints.joinToString(", ")}"
+                )
+            },
+            dependencies = { dependenciesById[compilerPluginRegistrar?.pluginId].orEmpty() }
         )
 
-        val componentRegistrars = ServiceLoader.load(ComponentRegistrar::class.java, classLoader).toMutableList()
-        componentRegistrars.addAll(BundledCompilerPlugins.componentRegistrars)
+        return topologicalSort.asReversed()
+    }
+
+    private fun loadPluginsModernStyle(
+        rawPluginConfigurations: Iterable<String>,
+        orderConstraints: List<PluginOrderConstraint>,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
+    ) {
+        val pluginInfos = loadRegisteredPluginsInfo(rawPluginConfigurations, orderConstraints, parentDisposable)
+        for (pluginInfo in pluginInfos) {
+            pluginInfo.componentRegistrar?.let {
+                @Suppress("DEPRECATION_ERROR")
+                configuration.add(ComponentRegistrar.PLUGIN_COMPONENT_REGISTRARS, it)
+            }
+            pluginInfo.compilerPluginRegistrar?.let { configuration.add(CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS, it) }
+
+            if (pluginInfo.pluginOptions.isEmpty()) continue
+            val commandLineProcessor = pluginInfo.commandLineProcessor ?: throw RuntimeException() // TODO: proper exception
+            processCompilerPluginOptions(commandLineProcessor, pluginInfo.pluginOptions, configuration)
+        }
+    }
+
+    @JvmStatic
+    @Suppress("DEPRECATION_ERROR")
+    private fun loadPluginsLegacyStyle(
+        pluginClasspaths: Iterable<String>?,
+        orderConstraints: List<PluginOrderConstraint>,
+        pluginOptions: Iterable<String>?,
+        configuration: CompilerConfiguration,
+        parentDisposable: Disposable,
+    ) {
+        val classLoader = createClassLoader(pluginClasspaths ?: emptyList(), parentDisposable)
+        val componentRegistrars = ServiceLoaderLite.loadImplementations(ComponentRegistrar::class.java, classLoader)
         configuration.addAll(ComponentRegistrar.PLUGIN_COMPONENT_REGISTRARS, componentRegistrars)
+
+        val compilerPluginRegistrars = ServiceLoaderLite.loadImplementations(CompilerPluginRegistrar::class.java, classLoader)
+
+        val registrarsById = compilerPluginRegistrars
+            .filter {
+                try {
+                    it.pluginId.isNotEmpty()
+                } catch (e: LinkageError) {
+                    throw PluginProcessingError(
+                        message = "Plugin ${it::class.qualifiedName} is incompatible with the current version of the compiler.",
+                        cause = e
+                    )
+                }
+            }
+            .associateBy { it.pluginId }
+
+        val dependenciesById = orderConstraints
+            .filter { it.before in registrarsById && it.after in registrarsById }
+            .groupBy(keySelector = { it.after }, valueTransform = { registrarsById.getValue(it.before) })
+
+        val topologicalSort = topologicalSort(
+            compilerPluginRegistrars,
+            reportCycle = {
+                val pluginId = it.pluginId
+                throw PluginProcessingException(
+                    "Compiler plugin '$pluginId' is part of an constraint cycle: ${orderConstraints.joinToString(", ")}"
+                )
+            },
+            dependencies = { dependenciesById[pluginId].orEmpty() }
+        )
+
+        configuration.addAll(CompilerPluginRegistrar.COMPILER_PLUGIN_REGISTRARS, topologicalSort.asReversed())
 
         processPluginOptions(pluginOptions, configuration, classLoader)
     }
@@ -77,47 +271,34 @@ object PluginCliParser {
     private fun processPluginOptions(
         pluginOptions: Iterable<String>?,
         configuration: CompilerConfiguration,
-        classLoader: ClassLoader
+        classLoader: URLClassLoader
     ) {
-        val optionValuesByPlugin = pluginOptions?.map(::parsePluginOption)?.groupBy {
-            if (it == null) throw CliOptionProcessingException("Wrong plugin option format: $it, should be ${CommonCompilerArguments.PLUGIN_OPTION_FORMAT}")
-            it.pluginId
-        } ?: mapOf()
+        // TODO issue a warning on using deprecated command line processors when all official plugin migrate to the newer convention
+        val commandLineProcessors = ServiceLoaderLite.loadImplementations(CommandLineProcessor::class.java, classLoader)
 
-        val commandLineProcessors = ServiceLoader.load(CommandLineProcessor::class.java, classLoader).toMutableList()
-        commandLineProcessors.addAll(BundledCompilerPlugins.commandLineProcessors)
+        processCompilerPluginsOptions(configuration, pluginOptions, commandLineProcessors)
+    }
 
-        for (processor in commandLineProcessors) {
-            val declaredOptions = processor.pluginOptions.associateBy { it.name }
-            val optionsToValues = MultiMap<CliOption, CliOptionValue>()
+    private fun createClassLoader(classpath: Iterable<String>, parentDisposable: Disposable): URLClassLoader {
+        val classLoader = URLClassLoader(classpath.map { File(it).toURI().toURL() }.toTypedArray(), this::class.java.classLoader)
+        Disposer.register(parentDisposable, UrlClassLoaderDisposable(classLoader))
+        return classLoader
+    }
 
-            for (optionValue in optionValuesByPlugin[processor.pluginId].orEmpty()) {
-                val option = declaredOptions[optionValue!!.optionName]
-                    ?: throw CliOptionProcessingException("Unsupported plugin option: $optionValue")
-                optionsToValues.putValue(option, optionValue)
-            }
+    // Disposer uses the identity of disposable to deduplicate registered disposables.
+    // We should create a new instance every time to avoid unregistering a previous disposable.
+    private class UrlClassLoaderDisposable(classLoader: URLClassLoader) : Disposable {
+        // Allow the class loader to be garbage collected early if needed.
+        private val classLoaderRef: WeakReference<URLClassLoader> = WeakReference(classLoader)
 
-            for (option in processor.pluginOptions) {
-                val values = optionsToValues[option]
-                if (option.required && values.isEmpty()) {
-                    throw PluginCliOptionProcessingException(
-                        processor.pluginId,
-                        processor.pluginOptions,
-                        "Required plugin option not present: ${processor.pluginId}:${option.name}"
-                    )
-                }
-                if (!option.allowMultipleOccurrences && values.size > 1) {
-                    throw PluginCliOptionProcessingException(
-                        processor.pluginId,
-                        processor.pluginOptions,
-                        "Multiple values are not allowed for plugin option ${processor.pluginId}:${option.name}"
-                    )
-                }
-
-                for (value in values) {
-                    processor.processOption(option, value.value, configuration)
-                }
+        override fun dispose() {
+            val classLoader = classLoaderRef.get()
+            if (classLoader != null) {
+                classLoader.close()
+                classLoaderRef.clear()
             }
         }
     }
+
+    class PluginProcessingError(message: String, cause: Throwable?) : Error(message, cause)
 }

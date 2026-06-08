@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
 fun noCoercionLastExpressionUsedAsReturnArgument() {
     val a = {
@@ -10,17 +10,21 @@ fun noCoercionLastExpressionUsedAsReturnArgument() {
 }
 
 fun noCoercionBlockHasExplicitType() {
-    val <!UNUSED_VARIABLE!>b<!>: () -> Int = {
-        <!TYPE_MISMATCH!>if (true) <!UNUSED_EXPRESSION!>42<!><!>
+    val b: () -> Int = {
+        <!RETURN_TYPE_MISMATCH!>if (true) 42<!>
     }
 }
 
 fun noCoercionBlockHasExplicitReturn() {
-    val <!UNUSED_VARIABLE!>c<!> = l@{
+    val c = l@{
         if (true) return@l 42
 
-        <!INVALID_IF_AS_EXPRESSION!>if<!> (true) 239
+        if (true) 239
     }
 }
 
-fun noCoercionInExpressionBody(): Unit = <!TYPE_MISMATCH!>"hello"<!>
+fun noCoercionInExpressionBody(): Unit = <!RETURN_TYPE_MISMATCH!>"hello"<!>
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType, ifExpression,
+infix, integerLiteral, lambdaLiteral, localProperty, nullableType, propertyDeclaration, stringLiteral, typeParameter,
+typeWithExtension */

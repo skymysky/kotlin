@@ -1,9 +1,8 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE -UNUSED_PARAMETER
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE -UNUSED_PARAMETER
 // WITH_COROUTINES
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 import helpers.*
 
 interface SuspendRunnable {
@@ -38,3 +37,7 @@ fun box() {
         calculate()
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, assignment, classDeclaration, companionObject, functionDeclaration,
+functionalType, inline, interfaceDeclaration, lambdaLiteral, localProperty, nullableType, objectDeclaration, override,
+primaryConstructor, propertyDeclaration, safeCall, stringLiteral, suspend, thisExpression, typeParameter */

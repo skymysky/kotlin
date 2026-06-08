@@ -1,10 +1,7 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-
-import helpers.*
-import COROUTINES_PACKAGE.*
+// FILE: lib.kt
+import kotlin.coroutines.*
 
 interface Consumer { fun consume(s: String) }
 
@@ -13,6 +10,10 @@ inline fun crossInlineBuilder(crossinline block: (String) -> Unit) = object : Co
         block(s)
     }
 }
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
 
 fun builder(block: suspend Unit.() -> Unit) {
     block.startCoroutine(Unit, EmptyContinuation)

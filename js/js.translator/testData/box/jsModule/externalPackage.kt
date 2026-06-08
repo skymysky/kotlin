@@ -1,7 +1,5 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1290
+// JS_MODULE_KIND: AMD
 // FILE: a.kt
-// MODULE_KIND: AMD
 @file:JsModule("lib")
 package foo
 

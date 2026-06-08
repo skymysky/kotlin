@@ -1,6 +1,8 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE
-// !API_VERSION: 1.2
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE
 // FILE: test.kt
+
+lateinit var topLevel: String
 
 interface Base {
     var x: String
@@ -13,6 +15,7 @@ open class Foo : Base {
     var nonLateInit: Int = 1
 
     fun ok() {
+        ::topLevel.isInitialized
         val b: Boolean = this::x.isInitialized
 
         val otherInstance = Foo()
@@ -84,5 +87,10 @@ class FooImpl : Foo() {
 class OtherFooImpl : Foo() {
     fun onNonAccessible() {
         this::x.<!LATEINIT_INTRINSIC_CALL_ON_NON_ACCESSIBLE_PROPERTY!>isInitialized<!>
+        ::topLevel.<!LATEINIT_INTRINSIC_CALL_ON_NON_ACCESSIBLE_PROPERTY!>isInitialized<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, callableReference, classDeclaration, functionDeclaration, inline,
+inner, integerLiteral, interfaceDeclaration, lateinit, localClass, localProperty, objectDeclaration, override,
+propertyDeclaration, stringLiteral, thisExpression */

@@ -1,5 +1,7 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 
 fun f(c: LongRange): Int {
-    return c.<!NI;TYPE_MISMATCH, FUNCTION_EXPECTED!>start<!>()
+    return c.<!FUNCTION_EXPECTED!>start<!>()
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration */

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION_ERROR")
+
 package org.jetbrains.kotlin.extensions
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.LightVirtualFile
-import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
 /**
  * The interface for the extensions that are used to substitute VirtualFile on the creation of KtFile, allows to preprocess a file before
  * lexing and parsing
  */
+@Deprecated("This extension point will be deleted in kotlin 2.4", level = DeprecationLevel.ERROR)
 interface PreprocessedVirtualFileFactoryExtension {
     companion object : ProjectExtensionDescriptor<PreprocessedVirtualFileFactoryExtension>(
         "org.jetbrains.kotlin.preprocessedVirtualFileFactoryExtension",
@@ -43,10 +45,10 @@ class PreprocessedFileCreator(val project: Project) {
         PreprocessedVirtualFileFactoryExtension.getInstances(project).filterNot { it.isPassThrough() }.toTypedArray()
     }
 
-    fun create(file: VirtualFile): VirtualFile = validExts.firstNotNullResult { it.createPreprocessedFile(file) } ?: file
+    fun create(file: VirtualFile): VirtualFile = validExts.firstNotNullOfOrNull { it.createPreprocessedFile(file) } ?: file
 
     // unused now, but could be used in the IDE at some point
     fun createLight(file: LightVirtualFile): LightVirtualFile =
-        validExts.firstNotNullResult { it.createPreprocessedLightFile(file) } ?: file
+        validExts.firstNotNullOfOrNull { it.createPreprocessedLightFile(file) } ?: file
 }
 

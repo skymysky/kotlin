@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.codegen.inline
 
 import org.jetbrains.kotlin.codegen.ClassBuilder
-import org.jetbrains.kotlin.codegen.optimization.common.InsnSequence
+import org.jetbrains.kotlin.codegen.InsnSequence
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin
 import org.jetbrains.org.objectweb.asm.*
@@ -37,7 +37,7 @@ abstract class ObjectTransformer<out T : TransformationInfo>(@JvmField val trans
         val classBuilder = state.factory.newVisitor(
             JvmDeclarationOrigin.NO_ORIGIN,
             Type.getObjectType(transformationInfo.newClassName),
-            inliningContext.root.sourceCompilerForInline.callsiteFile!!
+            listOfNotNull(inliningContext.callSiteInfo.file)
         )
 
         return RemappingClassBuilder(
@@ -46,9 +46,8 @@ abstract class ObjectTransformer<out T : TransformationInfo>(@JvmField val trans
         )
     }
 
-    fun createClassReader(): ClassReader {
-        return buildClassReaderByInternalName(state, transformationInfo.oldClassName)
-    }
+    fun createClassReader(): ClassReader =
+        ClassReader(loadClassBytesByInternalName(state, transformationInfo.oldClassName))
 }
 
 class WhenMappingTransformer(
@@ -64,9 +63,11 @@ class WhenMappingTransformer(
         /*MAPPING File could contains mappings for several enum classes, we should filter one*/
         val methodNodes = arrayListOf<MethodNode>()
         val fieldNode = transformationInfo.fieldNode
-        classReader.accept(object : ClassVisitor(API, classBuilder.visitor) {
+        classReader.accept(object : ClassVisitor(Opcodes.API_VERSION, classBuilder.visitor) {
             override fun visit(version: Int, access: Int, name: String, signature: String?, superName: String, interfaces: Array<String>) {
-                classBuilder.defineClass(null, version, access, name, signature, superName, interfaces)
+                classBuilder.defineClass(
+                    null, maxOf(version, state.config.classFileVersion), access, name, signature, superName, interfaces
+                )
             }
 
             override fun visitField(access: Int, name: String, desc: String, signature: String?, value: Any?): FieldVisitor? {
@@ -84,6 +85,13 @@ class WhenMappingTransformer(
                     methodNodes.add(this)
                 }
             }
+
+            override fun visitInnerClass(name: String?, outerName: String?, innerName: String?, access: Int) {
+                // Drop the attribute as the recreated class is not an inner class of the original outer class.
+                // In principle, we could also generate a new attribute with outerName set to the caller-side class,
+                // but that would require modification of both the inner (recreated) and the outer (caller-side) classes.
+                // The latter would require a lot of work without any clear benefits.
+            }
         }, ClassReader.SKIP_FRAMES)
 
         assert(methodNodes.size == 1) {
@@ -98,7 +106,7 @@ class WhenMappingTransformer(
             transformedClinit.signature, transformedClinit.exceptions.toTypedArray()
         )
         transformedClinit.accept(result)
-        classBuilder.done()
+        classBuilder.done(state.config.generateSmapCopyToAnnotation)
 
         return transformationResult
     }

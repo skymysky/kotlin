@@ -1,12 +1,21 @@
-// IGNORE_BACKEND: NATIVE
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WASM_MUTE_REASON: NESTED_OBJECT_INIT
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
+// NO_CHECK_LAMBDA_INLINING
+
+// FILE: lib.kt
+
+val logger = StringBuilder()
+
+inline fun <T> logged(message: String, result: () -> T): T {
+    logger.append(message)
+    return result()
+}
+
+// FILE: main.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     suspend fun suspendHere(): String = suspendCoroutineUninterceptedOrReturn { x ->
@@ -18,8 +27,6 @@ class Controller {
 fun builder(c: suspend Controller.() -> Unit) {
     c.startCoroutine(Controller(), EmptyContinuation)
 }
-
-val logger = StringBuilder()
 
 class A(val first: String, val second: String) {
     init {
@@ -33,11 +40,6 @@ class A(val first: String, val second: String) {
             logger.append("A.<clinit>;")
         }
     }
-}
-
-inline fun <T> logged(message: String, result: () -> T): T {
-    logger.append(message)
-    return result()
 }
 
 fun box(): String {

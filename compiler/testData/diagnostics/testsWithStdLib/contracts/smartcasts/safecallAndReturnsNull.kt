@@ -1,5 +1,5 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 import kotlin.contracts.*
 
@@ -15,3 +15,6 @@ fun test(x: Int?) {
         x.<!UNRESOLVED_REFERENCE!>length<!>
     }
 }
+
+/* GENERATED_FIR_TAGS: contractConditionalEffect, contracts, equalityExpression, funWithExtensionReceiver,
+functionDeclaration, ifExpression, isExpression, lambdaLiteral, nullableType, safeCall, smartcast, thisExpression */

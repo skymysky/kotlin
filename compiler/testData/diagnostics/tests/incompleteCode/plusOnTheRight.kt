@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 //EA-35646
 package a
 
@@ -7,5 +7,7 @@ class MyClass1 {
 }
 
 fun main(arg: MyClass1) {
-    arg<!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, UNRESOLVED_REFERENCE_WRONG_RECEIVER!>+<!><!SYNTAX!><!>
+    arg<!UNRESOLVED_REFERENCE!>+<!><!SYNTAX!><!>
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, classDeclaration, functionDeclaration, operator */

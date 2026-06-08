@@ -1,6 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1203
-
 external interface Foo {
     var externalProperty: String?
         get() = definedExternally

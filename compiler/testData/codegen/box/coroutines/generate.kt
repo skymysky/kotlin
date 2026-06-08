@@ -1,11 +1,9 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
 import helpers.*
 // FULL_JDK
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun box(): String {
     val x = gen().joinToString()
@@ -41,15 +39,12 @@ class GeneratedSequence<out T>(private val block: suspend Generator<T>.() -> Uni
 }
 
 class GeneratedIterator<T>(block: suspend Generator<T>.() -> Unit) : AbstractIterator<T>(), Generator<T> {
-    private var nextStep: Continuation<Unit> = block.createCoroutine(this, object : ContinuationAdapter<Unit>() {
+    private var nextStep: Continuation<Unit> = block.createCoroutine(this, object : Continuation<Unit> {
         override val context = EmptyCoroutineContext
 
-        override fun resume(data: Unit) {
+        override fun resumeWith(data: Result<Unit>) {
+            data.getOrThrow()
             done()
-        }
-
-        override fun resumeWithException(exception: Throwable) {
-            throw exception
         }
     })
 

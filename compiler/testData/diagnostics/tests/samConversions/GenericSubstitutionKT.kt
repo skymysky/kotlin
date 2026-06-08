@@ -1,5 +1,5 @@
-// !LANGUAGE: +NewInference +SamConversionForKotlinFunctions
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FILE: F.java
 public interface F<S> {
     void apply(S s);
@@ -25,3 +25,6 @@ fun test(
     k.f_r(f_int) { it checkType { _<Int>() } }
     k.f_pr(f_pr) { it checkType { _<PR<String, Int>>() } }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, interfaceDeclaration, javaType, lambdaLiteral, nullableType, samConversion, typeParameter, typeWithExtension */

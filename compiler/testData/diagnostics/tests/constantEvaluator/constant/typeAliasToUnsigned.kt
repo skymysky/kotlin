@@ -1,0 +1,10 @@
+// RUN_PIPELINE_TILL: FRONTEND
+// WITH_STDLIB
+
+typealias UI = UInt
+
+const val a: UI = 1u
+const val b: UI = a
+const val c = <!CONST_VAL_WITH_NON_CONST_INITIALIZER!>a == b<!>
+
+/* GENERATED_FIR_TAGS: const, equalityExpression, propertyDeclaration, typeAliasDeclaration, unsignedLiteral */

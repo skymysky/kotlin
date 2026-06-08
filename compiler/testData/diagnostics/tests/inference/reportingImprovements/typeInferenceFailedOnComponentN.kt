@@ -1,10 +1,14 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 class X
 
 operator fun <T> X.component1(): T = TODO()
 
 fun test() {
-    val (y) = <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>X()<!>
+    val [y] = <!COMPONENT_FUNCTION_MISSING!>X()<!>
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, destructuringDeclaration, funWithExtensionReceiver, functionDeclaration,
+localProperty, nullableType, operator, propertyDeclaration, typeParameter */

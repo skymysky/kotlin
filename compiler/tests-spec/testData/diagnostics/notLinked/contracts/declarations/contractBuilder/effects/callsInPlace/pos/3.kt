@@ -1,20 +1,19 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER -UNUSED_VARIABLE
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -UNUSED_VARIABLE -NO_REFLECTION_IN_CLASS_PATH
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 /*
- KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (POSITIVE)
-
- SECTION: contracts
- CATEGORY: declarations, contractBuilder, effects, callsInPlace
- NUMBER: 3
- DESCRIPTION: Contract with 'this' in first parameter of CallsInPlace.
- UNEXPECTED BEHAVIOUR
- ISSUES: KT-26294
+ * KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (POSITIVE)
+ *
+ * SECTIONS: contracts, declarations, contractBuilder, effects, callsInPlace
+ * NUMBER: 3
+ * DESCRIPTION: Contract with 'this' in first parameter of CallsInPlace.
+ * UNEXPECTED BEHAVIOUR
+ * ISSUES: KT-26294
  */
 
 import kotlin.contracts.*
 
+// TESTCASE NUMBER: 1
 inline fun <T : Function<*>> T.case_1(block: () -> Unit) {
     contract {
         callsInPlace(this@case_1, InvocationKind.EXACTLY_ONCE)

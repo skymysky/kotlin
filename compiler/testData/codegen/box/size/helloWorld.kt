@@ -1,0 +1,11 @@
+// TARGET_BACKEND: WASM
+
+// RUN_THIRD_PARTY_OPTIMIZER
+// WASM_DCE_EXPECTED_OUTPUT_SIZE: wasm  28_027
+// WASM_DCE_EXPECTED_OUTPUT_SIZE: mjs    6_352
+// WASM_OPT_EXPECTED_OUTPUT_SIZE:          220
+
+fun box(): String {
+    println("Hello, World!")
+    return "OK"
+}

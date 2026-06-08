@@ -1,6 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun <T, R> apply(x: T, f: (T) -> R): R = f(x)
 
@@ -9,4 +8,7 @@ fun foo(s: String) {}
 
 val x1 = apply(1, ::foo)
 val x2 = apply("hello", ::foo)
-val <!NI;IMPLICIT_NOTHING_PROPERTY_TYPE!>x3<!> = <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>apply<!>(true, ::<!NI;DEBUG_INFO_MISSING_UNRESOLVED, OI;NONE_APPLICABLE!>foo<!>)
+val x3 = <!CANNOT_INFER_PARAMETER_TYPE!>apply<!>(true, ::<!NONE_APPLICABLE!>foo<!>)
+
+/* GENERATED_FIR_TAGS: callableReference, functionDeclaration, functionalType, integerLiteral, nullableType,
+propertyDeclaration, stringLiteral, typeParameter */

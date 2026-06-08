@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR, JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 class Itr : Iterator<String> by ArrayList<String>().iterator()
 class MItr : MutableIterator<String> by ArrayList<String>().iterator()

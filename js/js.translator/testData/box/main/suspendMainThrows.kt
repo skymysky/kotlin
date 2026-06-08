@@ -1,5 +1,3 @@
-// EXPECTED_REACHABLE_NODES: 1299
-// IGNORE_BACKEND: JS_IR
 // CALL_MAIN
 
 import kotlin.coroutines.*
@@ -23,7 +21,7 @@ fun box(): String {
     try {
         callback()
     } catch (e: Exception) {
-        assertTrue(e === exception)
+        if (e !== exception) return "Fail"
     }
 
     return "OK"

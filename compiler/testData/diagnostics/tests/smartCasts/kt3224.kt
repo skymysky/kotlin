@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // Works already in M11
 
 fun test(c : Class<*>) {
@@ -6,3 +7,6 @@ fun test(c : Class<*>) {
     c.getAnnotations();
     sc.getAnnotations();
 }
+
+/* GENERATED_FIR_TAGS: asExpression, flexibleType, functionDeclaration, localProperty, propertyDeclaration, smartcast,
+starProjection */

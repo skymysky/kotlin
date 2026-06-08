@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: 1.kt
 fun <S> Array<S>.plus(): Array<S> {
     val result = Arrays.copyOf(this, 3)
@@ -11,3 +12,6 @@ public class Arrays {
         return (T[]) null;
     }
 }
+
+/* GENERATED_FIR_TAGS: flexibleType, funWithExtensionReceiver, functionDeclaration, integerLiteral, javaFunction,
+localProperty, nullableType, propertyDeclaration, thisExpression, typeParameter */

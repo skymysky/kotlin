@@ -1,5 +1,7 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun bar() {
     fun <<!CYCLIC_GENERIC_UPPER_BOUND!>T: T?<!>> foo() {}
-    <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>foo<!>()
+    <!CANNOT_INFER_PARAMETER_TYPE!>foo<!>()
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, localFunction, nullableType, typeConstraint, typeParameter */

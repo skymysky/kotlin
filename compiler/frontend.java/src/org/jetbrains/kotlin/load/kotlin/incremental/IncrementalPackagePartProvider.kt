@@ -16,22 +16,26 @@
 
 package org.jetbrains.kotlin.load.kotlin.incremental
 
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.load.kotlin.JvmPackagePartProviderBase
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
 import org.jetbrains.kotlin.load.kotlin.incremental.components.IncrementalCache
 import org.jetbrains.kotlin.load.kotlin.loadModuleMapping
 import org.jetbrains.kotlin.metadata.jvm.deserialization.ModuleMapping
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.resolve.CommonCompilerDeserializationConfiguration
+import org.jetbrains.kotlin.serialization.deserialization.ClassData
 import org.jetbrains.kotlin.serialization.deserialization.DeserializationConfiguration
-import org.jetbrains.kotlin.storage.StorageManager
 
 class IncrementalPackagePartProvider(
-        private val parent: PackagePartProvider,
-        incrementalCaches: List<IncrementalCache>,
-        storageManager: StorageManager
+    languageVersionSettings: LanguageVersionSettings,
+    incrementalCaches: List<IncrementalCache>
 ) : PackagePartProvider {
-    lateinit var deserializationConfiguration: DeserializationConfiguration
 
-    private val moduleMappings = storageManager.createLazyValue {
+    private val deserializationConfiguration: DeserializationConfiguration =
+        CommonCompilerDeserializationConfiguration(languageVersionSettings)
+
+    private val moduleMappings by lazy {
         incrementalCaches.map { cache ->
             ModuleMapping.loadModuleMapping(cache.getModuleMappingData(), "<incremental>", deserializationConfiguration) { version ->
                 // Incremental compilation should fall back to full rebuild if the minor component of the metadata version has changed
@@ -41,11 +45,26 @@ class IncrementalPackagePartProvider(
     }
 
     override fun findPackageParts(packageFqName: String): List<String> {
-        return (moduleMappings().mapNotNull { it.findPackageParts(packageFqName) }.flatMap { it.parts } +
-                parent.findPackageParts(packageFqName)).distinct()
+        return moduleMappings.mapNotNull { it.findPackageParts(packageFqName) }.flatMap { it.parts }
     }
 
+    private val allPackageNames: Set<String>? by lazy {
+        buildSet {
+            moduleMappings.flatMapTo(this@buildSet) { it.packageFqName2Parts.keys }
+        }
+    }
+
+    override fun computePackageSetWithNonClassDeclarations(): Set<String>? = allPackageNames
+
     override fun getAnnotationsOnBinaryModule(moduleName: String): List<ClassId> {
-        return parent.getAnnotationsOnBinaryModule(moduleName)
+        return emptyList()
+    }
+
+    override fun getAllOptionalAnnotationClasses(): List<ClassData> {
+        return moduleMappings.flatMap(JvmPackagePartProviderBase.Companion::getAllOptionalAnnotationClasses)
+    }
+
+    override fun mayHaveOptionalAnnotationClasses(): Boolean {
+        return moduleMappings.any { it.moduleData.optionalAnnotations.isNotEmpty() }
     }
 }

@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 
 package test
@@ -16,7 +15,7 @@ inline fun testNested(crossinline f: (String) -> Unit) {
 }
 
 fun test(f: (String) -> Unit) {
-    testNested { it ->  { f(it) }()}
+    testNested { it ->  { f(it) }.let { it() } }
 }
 
 // FILE: 2.kt

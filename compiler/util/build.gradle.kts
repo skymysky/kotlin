@@ -1,17 +1,27 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("gradle-plugin-compiler-dependency-configuration")
+    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
-jvmTarget = "1.6"
-
 dependencies {
-    compile(project(":kotlin-stdlib"))
-    compile(project(":core:deserialization"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
-    compileOnly(intellijDep()) { includeIntellijCoreJarDependencies(project) }
-    compileOnly(intellijDep("jps-standalone")) { includeJars("jps-model") }
+    api(kotlinStdlib())
+    api(project(":compiler:compiler.version"))
+    api(project(":core:util.runtime"))
+
+    compileOnly(intellijCore())
+    compileOnly(commonDependency("org.jetbrains.intellij.deps:log4j"))
+    compileOnly(libs.intellij.asm)
+    compileOnly(jpsModel()) { isTransitive = false }
+    compileOnly(jpsModelImpl()) { isTransitive = false }
+
+    testImplementation(testFixtures(project(":compiler:tests-common")))
+    testImplementation(intellijCore())
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit4)
 }
 
 sourceSets {
@@ -19,6 +29,17 @@ sourceSets {
         projectDefault()
         resources.srcDir(File(rootDir, "resources"))
     }
-    "test" {}
+    "test" {
+        projectDefault()
+    }
 }
 
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions.freeCompilerArgs.add("-Xconsistent-data-class-copy-visibility")
+}
+
+testsJar()
+
+projectTests {
+    testTask(jUnitMode = JUnitMode.JUnit4)
+}

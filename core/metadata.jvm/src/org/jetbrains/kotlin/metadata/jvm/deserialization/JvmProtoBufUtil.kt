@@ -1,13 +1,16 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.metadata.jvm.deserialization
 
+import org.jetbrains.kotlin.metadata.ExtensionRegistryLite
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.SerializationPluginMetadataExtensions
 import org.jetbrains.kotlin.metadata.deserialization.*
 import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
+import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf.registerAllExtensions
 import org.jetbrains.kotlin.metadata.jvm.serialization.JvmStringTable
 import org.jetbrains.kotlin.protobuf.ExtensionRegistryLite
 import org.jetbrains.kotlin.protobuf.MessageLite
@@ -16,9 +19,14 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 object JvmProtoBufUtil {
-    val EXTENSION_REGISTRY: ExtensionRegistryLite = ExtensionRegistryLite.newInstance().apply(JvmProtoBuf::registerAllExtensions)
+    val EXTENSION_REGISTRY: ExtensionRegistryLite = ExtensionRegistryLite {
+        registerAllExtensions(this)
+        SerializationPluginMetadataExtensions.registerAllExtensions(this)
+    }
 
     const val PLATFORM_TYPE_ID = "kotlin.jvm.PlatformType"
+
+    const val DEFAULT_MODULE_NAME = "main"
 
     @JvmStatic
     fun readClassDataFrom(data: Array<String>, strings: Array<String>): Pair<JvmNameResolver, ProtoBuf.Class> =
@@ -54,10 +62,14 @@ object JvmProtoBufUtil {
      */
     @JvmStatic
     fun writeData(message: MessageLite, stringTable: JvmStringTable): Array<String> =
-        BitEncoding.encodeBytes(ByteArrayOutputStream().apply {
+        BitEncoding.encodeBytes(writeDataBytes(stringTable, message))
+
+    @JvmStatic
+    fun writeDataBytes(stringTable: JvmStringTable, message: MessageLite) =
+        ByteArrayOutputStream().apply {
             stringTable.serializeTo(this)
             message.writeTo(this)
-        }.toByteArray())
+        }.toByteArray()
 
     // returns JVM signature in the format: "equals(Ljava/lang/Object;)Z"
     fun getJvmMethodSignature(
@@ -86,6 +98,11 @@ object JvmProtoBufUtil {
         typeTable: TypeTable
     ): JvmMemberSignature.Method? {
         val signature = proto.getExtensionOrNull(JvmProtoBuf.constructorSignature)
+        val name = if (signature != null && signature.hasName()) {
+            nameResolver.getString(signature.name)
+        } else {
+            "<init>"
+        }
         val desc = if (signature != null && signature.hasDesc()) {
             nameResolver.getString(signature.desc)
         } else {
@@ -93,20 +110,22 @@ object JvmProtoBufUtil {
                 mapTypeDefault(it.type(typeTable), nameResolver) ?: return null
             }.joinToString(separator = "", prefix = "(", postfix = ")V")
         }
-        return JvmMemberSignature.Method("<init>", desc)
+        return JvmMemberSignature.Method(name, desc)
     }
 
     fun getJvmFieldSignature(
         proto: ProtoBuf.Property,
         nameResolver: NameResolver,
-        typeTable: TypeTable
+        typeTable: TypeTable,
+        requireHasFieldFlag: Boolean = true
     ): JvmMemberSignature.Field? {
         val signature = proto.getExtensionOrNull(JvmProtoBuf.propertySignature) ?: return null
-        val field = if (signature.hasField()) signature.field else return null
+        val field = if (signature.hasField()) signature.field else null
+        if (field == null && requireHasFieldFlag) return null
 
-        val name = if (field.hasName()) field.name else proto.name
+        val name = if (field != null && field.hasName()) field.name else proto.name
         val desc =
-            if (field.hasDesc()) nameResolver.getString(field.desc)
+            if (field != null && field.hasDesc()) nameResolver.getString(field.desc)
             else mapTypeDefault(proto.returnType(typeTable), nameResolver) ?: return null
 
         return JvmMemberSignature.Field(nameResolver.getString(name), desc)
@@ -120,4 +139,8 @@ object JvmProtoBufUtil {
     @JvmStatic
     fun isMovedFromInterfaceCompanion(proto: ProtoBuf.Property): Boolean =
         JvmFlags.IS_MOVED_FROM_INTERFACE_COMPANION.get(proto.getExtension(JvmProtoBuf.flags))
+
+    @JvmStatic
+    fun isNewPlaceForBodyGeneration(proto: ProtoBuf.Class): Boolean =
+        JvmFlags.IS_COMPILED_IN_JVM_DEFAULT_MODE.get(proto.getExtension(JvmProtoBuf.jvmClassFlags))
 }

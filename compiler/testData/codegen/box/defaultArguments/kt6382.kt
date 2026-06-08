@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 fun box(): String {
     return if (A().run() == "Aabc") "OK" else "fail"

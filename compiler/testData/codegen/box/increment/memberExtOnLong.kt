@@ -1,6 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 object ExtProvider {
     operator fun Long.get(i: Int) = this

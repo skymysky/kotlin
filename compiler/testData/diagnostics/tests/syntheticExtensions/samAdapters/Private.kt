@@ -1,10 +1,12 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: KotlinFile.kt
 fun foo(javaClass: JavaClass) {
-    javaClass.<!INVISIBLE_MEMBER!>doSomething<!> <!OI;TYPE_MISMATCH!>{ }<!>
+    javaClass.<!INVISIBLE_REFERENCE!>doSomething<!> { }
 }
 
 // FILE: JavaClass.java
 public class JavaClass {
     private void doSomething(Runnable runnable) { runnable.run(); }
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaFunction, javaType, lambdaLiteral, samConversion */

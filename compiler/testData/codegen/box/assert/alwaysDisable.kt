@@ -1,9 +1,15 @@
-// IGNORE_BACKEND: NATIVE
-// IGNORE_BACKEND: JVM_IR
+// IGNORE_BACKEND: WASM_JS, WASM_WASI
+// WASM_MUTE_REASON: STDLIB_ASSERT
 // IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JS
-// KOTLIN_CONFIGURATION_FLAGS: ASSERTIONS_MODE=always-disable
-// WITH_RUNTIME
+// IGNORE_BACKEND: JS_IR_ES6
+// See related issue: https://youtrack.jetbrains.com/issue/KT-59059/Native-Assert-does-not-evaluate-argument-value-when-disabled
+// IGNORE_IR_DESERIALIZATION_TEST: JS_IR
+// ^^^ Assertions not supported for JS.
+// ASSERTIONS_MODE: always-disable
+// WITH_STDLIB
+
+// ExperimentalNativeApi is defined only in Native
+@file:Suppress("OPT_IN_USAGE_ERROR")
 
 fun checkTrue(): Boolean {
     var hit = false

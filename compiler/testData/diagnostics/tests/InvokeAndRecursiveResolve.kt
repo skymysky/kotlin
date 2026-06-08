@@ -1,5 +1,4 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: FRONTEND
 
 fun test() = 3
 
@@ -14,6 +13,9 @@ class B {
 }
 
 class C {
-    val bar = <!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!><!UNINITIALIZED_VARIABLE!>test<!>()<!>
-    val test = <!NI;TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM!><!NI;DEBUG_INFO_MISSING_UNRESOLVED, OI;FUNCTION_EXPECTED!>bar<!>()<!>
+    val bar = test()
+    val test = <!UNRESOLVED_REFERENCE!>bar<!>()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, integerLiteral, nullableType, propertyDeclaration,
+typeParameter */

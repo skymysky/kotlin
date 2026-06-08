@@ -1,15 +1,18 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 package a
 
 class A {}
 
 fun test(a1: A, a2: A) {
-    val <!UNUSED_VARIABLE!>range<!> = "island".."isle"
+    val range = "island".."isle"
 
-    a1<!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, UNRESOLVED_REFERENCE_WRONG_RECEIVER!>..<!>a2
+    a1<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>..<!>a2
 }
 
 
-public operator fun <T: Comparable<T>> T.rangeTo(<!UNUSED_PARAMETER!>that<!>: T): ClosedRange<T> {
+public operator fun <T: Comparable<T>> T.rangeTo(that: T): ClosedRange<T> {
     throw UnsupportedOperationException()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, localProperty, operator,
+propertyDeclaration, rangeExpression, stringLiteral, typeConstraint, typeParameter */

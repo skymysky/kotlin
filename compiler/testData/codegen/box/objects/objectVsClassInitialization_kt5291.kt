@@ -1,5 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// KJS_WITH_FULL_RUNTIME
+// FILE: lib.kt
 public inline fun <T> T.with(f: T.() -> Unit): T {
     this.f()
     return this
@@ -19,6 +19,7 @@ public object Obj {
     }
 }
 
+// FILE: main.kt
 fun box(): String {
     if (Cls().buffer.toString() != "Cls") return "Fail class"
     if (Obj.buffer.toString() != "Obj") return "Fail object"

@@ -1,6 +1,5 @@
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
-import COROUTINES_PACKAGE.*
+// RUN_PIPELINE_TILL: BACKEND
+import kotlin.coroutines.*
 
 fun <T> foo(): Continuation<T> = null!!
 
@@ -9,3 +8,5 @@ fun bar() {
         println()
     }.startCoroutine(foo<Unit>())
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, functionDeclaration, lambdaLiteral, nullableType, typeParameter */

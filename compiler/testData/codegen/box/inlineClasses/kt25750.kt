@@ -1,6 +1,6 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KProperty
@@ -8,7 +8,8 @@ import kotlin.reflect.KProperty
 operator fun <R> KMutableProperty0<R>.setValue(host: Any?, property: KProperty<*>, value: R) = set(value)
 operator fun <R> KMutableProperty0<R>.getValue(host: Any?, property: KProperty<*>): R = get()
 
-inline class Foo(val i: Int)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val i: Int)
 
 var f = Foo(4)
 

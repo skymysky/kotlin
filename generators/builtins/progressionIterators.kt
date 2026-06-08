@@ -26,8 +26,8 @@ fun integerProgressionIterator(kind: ProgressionKind): String {
 
     val incrementType = progressionIncrementType(kind)
 
-    val (toInt, toType) = when (kind) {
-        CHAR -> ".toInt()" to ".to$t()"
+    val [toInt, toType] = when (kind) {
+        CHAR -> ".code" to ".toChar()"
         else -> "" to ""
     }
 
@@ -36,9 +36,9 @@ fun integerProgressionIterator(kind: ProgressionKind): String {
  * @property step the number by which the value is incremented on each step.
  */
 internal class ${t}ProgressionIterator(first: $t, last: $t, val step: $incrementType) : ${t}Iterator() {
-    private val finalElement = last$toInt
+    private val finalElement: $incrementType = last$toInt
     private var hasNext: Boolean = if (step > 0) first <= last else first >= last
-    private var next = if (hasNext) first$toInt else finalElement
+    private var next: $incrementType = if (hasNext) first$toInt else finalElement
 
     override fun hasNext(): Boolean = hasNext
 
@@ -57,7 +57,7 @@ internal class ${t}ProgressionIterator(first: $t, last: $t, val step: $increment
 }
 
 
-class GenerateProgressionIterators(out: PrintWriter) : BuiltInsSourceGenerator(out) {
+class GenerateProgressionIterators(out: PrintWriter) : BuiltInsSourceGenerator(out, annotateAsBuiltinWithBytecode = true) {
     override fun getPackage() = "kotlin.ranges"
     override fun generateBody() {
         for (kind in ProgressionKind.values()) {

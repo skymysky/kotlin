@@ -1,4 +1,3 @@
-// !LANGUAGE: +NewInference
 
 val <T : CharSequence> T.gk: () -> T
     get() = { -> this }

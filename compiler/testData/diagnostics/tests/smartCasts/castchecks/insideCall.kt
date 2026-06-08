@@ -1,4 +1,4 @@
-// !LANGUAGE: +SafeCastCheckBoundSmartCasts
+// RUN_PIPELINE_TILL: BACKEND
 // See KT-19007
 
 // Stub
@@ -9,5 +9,8 @@ fun String.toLowerCase() = this
 
 fun foo(a: Any) {
     // Should compile in 1.2
-    (a as? String)?.indexOf(<!DEBUG_INFO_SMARTCAST!>a<!>.toLowerCase())
+    (a as? String)?.indexOf(a.toLowerCase())
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, funWithExtensionReceiver, functionDeclaration, nullableType, safeCall,
+smartcast, thisExpression */

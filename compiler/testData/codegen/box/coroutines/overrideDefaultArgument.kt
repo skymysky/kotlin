@@ -1,11 +1,8 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
-// DONT_RUN_GENERATED_CODE: JS_IR
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun box(): String {
     async {
@@ -50,27 +47,25 @@ suspend fun sleep(): Unit = suspendCoroutine { c ->
 }
 
 fun async(f: suspend () -> Unit) {
-    f.startCoroutine(object : ContinuationAdapter<Unit>() {
-        override fun resume(x: Unit) {
+    f.startCoroutine(object : Continuation<Unit> {
+        override fun resumeWith(x: Result<Unit>) {
             proceed = {
                 result += "done;"
                 finished = true
             }
         }
-        override fun resumeWithException(x: Throwable) {}
         override val context = EmptyCoroutineContext
     })
 }
 
 fun asyncSuspend(f: suspend () -> Unit) {
-    val coroutine = f.createCoroutine(object : ContinuationAdapter<Unit>() {
-        override fun resume(x: Unit) {
+    val coroutine = f.createCoroutine(object : Continuation<Unit> {
+        override fun resumeWith(x: Result<Unit>) {
             proceed = {
                 result += "done;"
                 finished = true
             }
         }
-        override fun resumeWithException(x: Throwable) {}
         override val context = EmptyCoroutineContext
     })
     coroutine.resume(Unit)

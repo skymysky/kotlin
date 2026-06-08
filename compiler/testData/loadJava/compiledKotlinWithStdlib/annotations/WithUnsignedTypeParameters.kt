@@ -1,5 +1,3 @@
-// WITH_UNSIGNED
-
 package test
 
 @Target(AnnotationTarget.TYPE, AnnotationTarget.TYPE_PARAMETER)

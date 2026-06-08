@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 open class A {
     class FromA {
         fun foo() = 42
@@ -15,3 +16,6 @@ class B : A() {
 
     val c = FromA()
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, companionObject, functionDeclaration, integerLiteral,
+nestedClass, nullableType, objectDeclaration, propertyDeclaration */

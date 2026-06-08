@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
-
+// WITH_STDLIB
+// FILE: lib.kt
 inline fun <T> put(
         x: T,
         maxExclusive: Int,
@@ -26,6 +25,7 @@ inline fun <T> put(
     } while (true)
 }
 
+// FILE: main.kt
 const val SIZE = 16
 val arr = IntArray(SIZE) { -1 }
 

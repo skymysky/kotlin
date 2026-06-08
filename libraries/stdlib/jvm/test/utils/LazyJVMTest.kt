@@ -1,12 +1,10 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.utils
 
-
-import kotlin.*
 import kotlin.test.*
 import kotlin.concurrent.thread
 import test.io.serializeAndDeserialize
@@ -66,7 +64,7 @@ class LazyJVMTest {
 
         assertEquals(2, counter.get())
         @Suppress("NAME_SHADOWING")
-        for ((counter, initialized) in runs) {
+        for ([counter, initialized] in runs) {
             assertEquals(initialized, counter == 2, "Expected uninitialized on first, initialized on second call: initialized=$initialized, counter=$counter")
         }
     }
@@ -87,40 +85,36 @@ class LazyJVMTest {
                      List(threads) { lazy(lock, initializer) }
                  },
                  access = { lazies, runnerIndex -> lazies[runnerIndex].value },
-                 validate = { result -> result.all { (id, initialized) -> initialized == (id != 1) } })
+                 validate = { result -> result.all { [id, initialized] -> initialized == (id != 1) } })
     }
 
     @Test fun publishOnceLazy() {
         val counter = AtomicInteger(0)
-        val initialized = AtomicBoolean(false)
-        val threads = 3
-        val values = Random().let { r -> List(threads) { 50 + r.nextInt(50) } }
+        val coreCount = Runtime.getRuntime().availableProcessors()
+        val threads = (coreCount / 2).coerceIn(2..3)
+        val values = Random().let { r -> List(threads) { 100 + r.nextInt(50) } }
 
-        data class Run(val value: Int, val initialized: Boolean)
+        data class Run(val id: Int, val value: Int)
 
         val runs = ConcurrentLinkedQueue<Run>()
 
         val initializer = {
             val id = counter.getAndIncrement()
             val value = values[id]
-            runs += Run(value, initialized.get())
+            runs += Run(id, value)
             Thread.sleep(value.toLong())
-            initialized.set(true)
             value
         }
         val lazy = lazy(LazyThreadSafetyMode.PUBLICATION, initializer)
 
         val barrier = CyclicBarrier(threads)
         val accessThreads = List(threads) { thread { barrier.await(); lazy.value } }
-        val result = run { while (!lazy.isInitialized()) /* wait */; lazy.value }
+        val result = run { while (!lazy.isInitialized()) Thread.sleep(1); lazy.value }
         accessThreads.forEach { it.join() }
 
         assertEquals(threads, counter.get())
         assertEquals(result, lazy.value, "Value must not change after isInitialized is set: $lazy, runs: $runs")
-
-        runs.forEach {
-            assertFalse(it.initialized, "Expected uninitialized on all initializer executions, runs: $runs")
-        }
+        assertTrue(runs.any { it.value == result }, "Unexpected lazy result value: $result, runs: $runs")
     }
 
     @Test fun publishOnceLazyRace() {
@@ -174,6 +168,6 @@ class LazyJVMTest {
 
         runners.forEach { it.join() }
 
-        assertTrue(invalidResults.isEmpty(), invalidResults.joinToString("\n") { (index, result) -> "At run #$index: $result" })
+        assertTrue(invalidResults.isEmpty(), invalidResults.joinToString("\n") { [index, result] -> "At run #$index: $result" })
     }
 }

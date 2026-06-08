@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -18,7 +18,7 @@ fun throwIfNotCalled() {
     myRun outer@ {
         unknownRun {
             myRun {
-                <!CAPTURED_VAL_INITIALIZATION!>x<!> = 42
+                x = 42
                 return@outer
             }
         }
@@ -35,7 +35,7 @@ fun catchThrowIfNotCalled() {
         myRun outer@ {
             unknownRun {
                 myRun {
-                    <!CAPTURED_VAL_INITIALIZATION!>x<!> = 42
+                    x = 42
                     return@outer
                 }
             }
@@ -46,3 +46,7 @@ fun catchThrowIfNotCalled() {
     // x *isn't* initialized here!
     println(<!UNINITIALIZED_VARIABLE!>x<!>)
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, functionDeclaration, functionalType, inline,
+integerLiteral, javaFunction, lambdaLiteral, localProperty, nullableType, propertyDeclaration, tryExpression,
+typeParameter */

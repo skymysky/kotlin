@@ -1,16 +1,16 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_VARIABLE
 
 class TestClass {
     inline operator fun <T> invoke(task: () -> T) = task()
 }
 
 fun <T> test(value: T, test: TestClass): T {
-    <!UNREACHABLE_CODE!>val x =<!> test { return value }
-    <!UNREACHABLE_CODE!>x checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Nothing>() }<!>
+    val x = test { return value }
+    x checkType { _<Nothing>() }
 
-    <!UNREACHABLE_CODE!>return value<!>
+    return value
 }
 
 // ---
@@ -36,3 +36,7 @@ fun test(cb: FutureCallback<String>) {
         d checkType { _<Future<Int>>() }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType, infix, inline,
+integerLiteral, interfaceDeclaration, lambdaLiteral, localProperty, nullableType, operator, propertyDeclaration,
+typeParameter, typeWithExtension */

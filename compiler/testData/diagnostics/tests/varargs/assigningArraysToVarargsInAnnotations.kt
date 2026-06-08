@@ -1,5 +1,4 @@
-// !WITH_NEW_INFERENCE
-// !LANGUAGE: +ArrayLiteralsInAnnotations, +AssigningArraysToVarargsInNamedFormInAnnotations
+// RUN_PIPELINE_TILL: FRONTEND
 
 // FILE: JavaAnn.java
 
@@ -15,10 +14,10 @@ annotation class Ann(vararg val s: String)
 @Ann(s = arrayOf())
 fun test1() {}
 
-@Ann(s = <!TYPE_MISMATCH!>intArrayOf()<!>)
+@Ann(s = <!ARGUMENT_TYPE_MISMATCH!>intArrayOf()<!>)
 fun test2() {}
 
-@Ann(s = <!NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>arrayOf(1)<!>)
+@Ann(s = <!ARGUMENT_TYPE_MISMATCH!>arrayOf(1)<!>)
 fun test3() {}
 
 @Ann("value1", "value2")
@@ -44,3 +43,6 @@ fun foo1() {}
 
 @IntAnn(i = intArrayOf(0))
 fun foo2() {}
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, collectionLiteral, functionDeclaration, integerLiteral, javaType,
+outProjection, primaryConstructor, propertyDeclaration, stringLiteral, vararg */

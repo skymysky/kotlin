@@ -1,180 +1,629 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
-import org.jetbrains.kotlin.backend.common.onlyIf
-import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.ir.backend.js.utils.JsGenerationContext
-import org.jetbrains.kotlin.ir.backend.js.utils.Namer
+import org.jetbrains.kotlin.backend.common.compilationException
+import org.jetbrains.kotlin.backend.common.lower.AbstractSuspendFunctionsLowering
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
+import org.jetbrains.kotlin.ir.backend.js.BackendJsSymbols.RuntimeMetadataKind
+import org.jetbrains.kotlin.ir.backend.js.ir.isAllowedFakeOverriddenDeclaration
+import org.jetbrains.kotlin.ir.backend.js.ir.isExported
+import org.jetbrains.kotlin.ir.backend.js.ir.isOverriddenEnumProperty
+import org.jetbrains.kotlin.ir.backend.js.ir.isOverriddenExported
+import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering
+import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.suspendArityStore
+import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
+import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.irAttribute
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
-import org.jetbrains.kotlin.ir.types.classifierOrFail
-import org.jetbrains.kotlin.ir.types.isAny
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.js.backend.ast.JsVars.JsVar
+import org.jetbrains.kotlin.js.common.isValidES5Identifier
+import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.addToStdlib.butIf
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.associateByNotNull
+import org.jetbrains.kotlin.utils.memoryOptimizedMap
+import org.jetbrains.kotlin.utils.memoryOptimizedMapNotNull
+import org.jetbrains.kotlin.utils.toSmartList
 
 class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationContext) {
+    private val backendContext = context.staticContext.backendContext
 
-    private val className = context.getNameForSymbol(irClass.symbol)
-    private val classNameRef = className.makeRef()
-    private val baseClass = irClass.superTypes.firstOrNull { !it.classifierOrFail.isInterface }
-    private val baseClassName = baseClass?.let { context.getNameForType(it) }
-    private val classPrototypeRef = prototypeOf(classNameRef)
-    private val classBlock = JsGlobalBlock()
-    private val classModel = JsClassModel(className, baseClassName)
+    private val perFile = context.staticContext.isPerFile
+    private val es6mode = backendContext.es6mode
+
+    private val className = context.getNameForClass(irClass)
+    private val baseClass: IrType? = irClass.superTypes.firstOrNull { !it.classifierOrFail.isInterface }
+
+    private val classAssociatedObjects = irClass.annotations.associateByNotNull(
+        keySelector = { it.classSymbol.owner },
+        valueTransform = { annotation ->
+            val objectGetInstanceFunction = annotation.associatedObject()?.objectGetInstanceFunction
+            objectGetInstanceFunction?.let { context.staticContext.getNameForStaticFunction(it).makeRef() }
+        }
+    )
+
+    private val classNameUsedInsideDeclarationStatements = when {
+        perFile -> JsName("$", true)
+        else -> className
+    }
+
+    private val classNameRef = classNameUsedInsideDeclarationStatements.makeRef()
+
+    private val classPrototypeRef by lazy(LazyThreadSafetyMode.NONE) { prototypeOf(classNameRef, context.staticContext) }
+    private val baseClassRef by lazy(LazyThreadSafetyMode.NONE) { // Lazy in case was not collected by namer during JsClassGenerator construction
+        if (baseClass != null && !baseClass.isAny()) baseClass.getClassRef(context.staticContext) else null
+    }
+    private val classModel = JsIrClassModel(irClass, classAssociatedObjects.keys)
+    private val classBlock = JsCompositeBlock()
+
+    private val interfaceDefaultsBlock = when {
+        perFile -> JsCompositeBlock()
+        else -> classModel.preDeclarationBlock
+    }
+
+    private val jsUndefined by lazy(LazyThreadSafetyMode.NONE) { jsUndefined(context.staticContext) }
 
     fun generate(): JsStatement {
+        return generateClassBlock().butIf(perFile) { it.wrapInFunction() }
+    }
 
-        maybeGeneratePrimaryConstructor()
-        val transformer = IrDeclarationToJsTransformer()
+    private fun JsCompositeBlock.wrapInFunction(): JsStatement {
+        val classHolderName = JsAssignable.Named(JsName("${className.ident}Class", true))
+        val functionWrapper = JsFunction(emptyScope, JsBlock(), "lazy wrapper for classes in per-file").apply {
+            name = className
+            with(body.statements) {
+                add(
+                    JsIf(
+                        JsAstUtils.equality(classHolderName.name.makeRef(), jsUndefined),
+                        JsBlock(
+                            classModel.preDeclarationBlock.statements + statements + classModel.postDeclarationBlock.statements +
+                                    JsAstUtils.assignment(classHolderName.name.makeRef(), classNameRef).makeStmt()
+                        )
+                    )
+                )
+                add(JsReturn(classHolderName.name.makeRef()))
+            }
+        }
+
+        return JsCompositeBlock(
+            interfaceDefaultsBlock.statements + listOf(
+                JsVars(JsVars.Variant.Var, JsVar(classHolderName)),
+                functionWrapper.makeStmt()
+            )
+        ).also {
+            classModel.preDeclarationBlock.statements.clear()
+            classModel.postDeclarationBlock.statements.clear()
+        }
+    }
+
+    private fun generateClassBlock(): JsCompositeBlock {
+        assert(!irClass.isExpect)
+
+        if (!es6mode) maybeGeneratePrimaryConstructor()
+
+        // Properties might be lowered out of classes
+        // We'll use IrSimpleFunction::correspondingProperty to collect them into set
+        val properties = mutableSetOf<IrProperty>()
+
+        val jsClass = JsClass(name = classNameUsedInsideDeclarationStatements, baseClass = baseClassRef)
+
+        if (baseClass != null && !baseClass.isAny()) {
+            jsClass.baseClass = baseClassRef
+        }
+
+        if (es6mode) {
+            classModel.preDeclarationBlock.statements += jsClass.makeStmt()
+        }
 
         for (declaration in irClass.declarations) {
             when (declaration) {
                 is IrConstructor -> {
-                    classBlock.statements += declaration.accept(transformer, context)
-                    classModel.preDeclarationBlock.statements += generateInheritanceCode()
+                    val constructor = declaration.accept(IrFunctionToJsTransformer(), context)
+                    if (es6mode) {
+                        jsClass.constructor = constructor.apply { name = null }
+                    } else {
+                        classBlock.statements += constructor.apply { name = classNameUsedInsideDeclarationStatements }.makeStmt()
+                    }
                 }
                 is IrSimpleFunction -> {
-                    generateMemberFunction(declaration)?.let { classBlock.statements += it }
+                    properties.addIfNotNull(declaration.correspondingPropertySymbol?.owner)
+
+                    if (es6mode) {
+                        if (declaration.isEs6ConstructorReplacement && irClass.isInterface) continue
+                        val [memberName, symbolKey, function] = generateMemberFunction(declaration)
+                        function?.let { jsClass.members += it.escapedIfNeed() }
+                        declaration.generateAssignmentIfMangled(memberName, symbolKey)
+                    } else {
+                        val [memberName, symbolKey, function] = generateMemberFunction(declaration)
+                        val memberRef = jsElementAccess(memberName, symbolKey, classPrototypeRef)
+                        function?.let {
+                            it.name = null
+                            it.computedName = null
+                            classBlock.statements += jsAssignment(memberRef, it).makeStmt()
+                        }
+                        declaration.generateAssignmentIfMangled(memberName, symbolKey)
+                    }
                 }
                 is IrClass -> {
-                    classBlock.statements += JsClassGenerator(declaration, context).generate()
+//                    classBlock.statements += JsClassGenerator(declaration, context).generate()
                 }
-                is IrVariable -> {
-                    classBlock.statements += declaration.accept(transformer, context)
+                is IrField -> {
                 }
                 else -> {
+                    compilationException(
+                        "Unexpected declaration in class",
+                        declaration
+                    )
                 }
             }
         }
 
-        classBlock.statements += generateClassMetadata()
-        irClass.onlyIf({ kind == ClassKind.OBJECT }) { classBlock.statements += maybeGenerateObjectInstance() }
-        context.staticContext.classModels[className] = classModel
+        fun IrSimpleFunction.hasImplicitParameters(): Boolean =
+            parameters.any { it.kind == IrParameterKind.ExtensionReceiver || it.kind == IrParameterKind.Context }
+
+        if (!irClass.isInterface) {
+            for (property in properties) {
+                if (property.getter?.hasImplicitParameters() == true || property.setter?.hasImplicitParameters() == true)
+                    continue
+
+                if (!property.visibility.isPublicAPI || property.isSimpleProperty || property.isJsExportIgnore())
+                    continue
+
+                if (
+                    property.isFakeOverride &&
+                    !property.isAllowedFakeOverriddenDeclaration(backendContext)
+                )
+                    continue
+
+                fun IrSimpleFunction.propertyAccessorForwarder(
+                    description: String,
+                    callActualAccessor: (JsNameRef) -> JsStatement
+                ): JsFunction? =
+                    when (visibility) {
+                        DescriptorVisibilities.PRIVATE -> null
+                        else -> JsFunction(
+                            emptyScope,
+                            JsBlock(callActualAccessor(JsNameRef(context.getNameForMemberFunction(this), JsThisRef()))),
+                            description
+                        )
+                    }
+
+                val overriddenSymbols = property.getter?.overriddenSymbols.orEmpty()
+
+                // Don't generate `defineProperty` if the property overrides a property from an exported class,
+                // because we've already generated `defineProperty` for the base class property.
+                // In other words, we only want to generate `defineProperty` once for each property.
+                // The exception is the case when we override val with var,
+                // so we need to regenerate `defineProperty` with setter.
+                // P.S. If the overridden property is owned by an interface - we should generate defineProperty
+                // for overridden property in the first class which overrides those properties
+                val hasOverriddenExportedInterfaceProperties = overriddenSymbols.any { it.owner.isDefinedInsideExportedInterface() }
+                val hasOverriddenExternalInterfaceProperties = overriddenSymbols.any { it.owner.isDefinedInsideExternalInterface() }
+
+                val getterOverridesExternal = overriddenSymbols.any { it.owner.realOverrideTarget.isEffectivelyExternal() }
+                val thereIsNewlyIntroducedExternalSetter =
+                    property.overridesExternal() && property.isVar && property.overriddenSymbols.all { !it.owner.isVar }
+
+                val overriddenExportedGetter = overriddenSymbols.isNotEmpty() &&
+                        property.getter?.isOverriddenExported(backendContext) == true
+
+                val noOverriddenExportedSetter = property.setter?.isOverriddenExported(backendContext) == false
+
+                val thereIsPropertyJsName = property.getJsName() != null
+                val classIsExported = irClass.isExported(backendContext)
+                val ownProperty = overriddenSymbols.isEmpty()
+                val ownExportedSetter = overriddenExportedGetter && noOverriddenExportedSetter
+                val needsOverride = ownExportedSetter || property.isOverriddenEnumProperty(backendContext)
+
+                if (classIsExported &&
+                    (ownProperty || needsOverride) ||
+                    hasOverriddenExportedInterfaceProperties ||
+                    hasOverriddenExternalInterfaceProperties ||
+                    getterOverridesExternal ||
+                    thereIsNewlyIntroducedExternalSetter ||
+                    thereIsPropertyJsName
+                ) {
+                    val propertyName = context.getNameForProperty(property)
+
+                    // Use "direct dispatch" for final properties, i. e. instead of this:
+                    //     Object.defineProperty(Foo.prototype, 'prop', {
+                    //         configurable: true,
+                    //         get: function() { return this._get_prop__0_k$(); },
+                    //         set: function(v) { this._set_prop__a4enbm_k$(v); }
+                    //     });
+                    // emit this:
+                    //     Object.defineProperty(Foo.prototype, 'prop', {
+                    //         configurable: true,
+                    //         get: Foo.prototype._get_prop__0_k$,
+                    //         set: Foo.prototype._set_prop__a4enbm_k$
+                    //     });
+
+                    val getterForwarder = property.getter
+                        .getOrGenerateIfFinalOrEs6Mode {
+                            propertyAccessorForwarder("getter forwarder") {
+                                JsReturn(JsInvocation(it))
+                            }
+                        }
+
+                    // We export setters in 4 cases:
+                    // 1. The class is exported and the setter its own
+                    // 2. There is @JsName annotation on property
+                    // 3. The setter is a newly introduced to an overridden external property
+                    // 4. The setter is an overridden setter defined in an external/exported interface
+                    val setterForwarder = property.setter
+                        ?.takeIf { setter ->
+                            (classIsExported && (ownProperty || ownExportedSetter)) || thereIsPropertyJsName || thereIsNewlyIntroducedExternalSetter ||
+                                    setter.overriddenSymbols.any { it.owner.isDefinedInsideExportedInterface() || it.owner.isDefinedInsideExternalInterface() }
+                        }
+                        .getOrGenerateIfFinalOrEs6Mode {
+                            val setterArgName = JsName("value", false)
+                            propertyAccessorForwarder("setter forwarder") {
+                                JsInvocation(it, JsNameRef(setterArgName)).makeStmt()
+                            }?.apply {
+                                parameters.add(JsParameter(setterArgName))
+                            }
+                        }
+
+                    if (es6mode) {
+                        jsClass.members += listOfNotNull(
+                            (getterForwarder as? JsFunction)?.apply {
+                                name = propertyName
+                                modifiers.add(JsFunction.Modifier.GET)
+                            },
+                            (setterForwarder as? JsFunction)?.apply {
+                                name = propertyName
+                                modifiers.add(JsFunction.Modifier.SET)
+                            }
+                        )
+                    } else {
+                        classModel.postDeclarationBlock.statements += JsExpressionStatement(
+                            defineProperty(classPrototypeRef, propertyName.ident, getterForwarder, setterForwarder, context.staticContext)
+                        )
+                    }
+                }
+            }
+        }
+
+        val metadataPlace = if (es6mode) classModel.postDeclarationBlock else classModel.preDeclarationBlock
+
+        metadataPlace.statements += generateInitMetadataCall()
+        context.staticContext.classModels[irClass.symbol] = classModel
+
         return classBlock
     }
 
-    private fun generateMemberFunction(declaration: IrSimpleFunction): JsStatement? {
+    private inline fun IrSimpleFunction?.getOrGenerateIfFinalOrEs6Mode(generateFunc: IrSimpleFunction.() -> JsFunction?): JsExpression? {
+        if (this == null) return null
+        return if (!es6mode && modality == Modality.FINAL) accessorRef() else generateFunc()
+    }
 
-        val translatedFunction = declaration.run { if (isReal) accept(IrFunctionToJsTransformer(), context) else null }
-        if (declaration.isStatic) {
-            return translatedFunction!!.makeStmt()
+    private fun IrSimpleFunction.isDefinedInsideExportedInterface(): Boolean {
+        val irClass = parentClassOrNull ?: return false
+        if (isJsExportIgnore() || correspondingPropertySymbol?.owner?.isJsExportIgnore() == true) return false
+        if (!isFakeOverride) return irClass.isExportedInterface(backendContext)
+        return overriddenSymbols.any { it.owner.isDefinedInsideExportedInterface() }
+    }
+
+    private fun IrSimpleFunction.isDefinedInsideExternalInterface(): Boolean {
+        val irClass = parentClassOrNull ?: return false
+        if (isEffectivelyExternal()) return irClass.isInterface
+        if (!isFakeOverride && irClass.isClass) return false
+        return overriddenSymbols.any { it.owner.isDefinedInsideExternalInterface() }
+    }
+
+    private fun IrSimpleFunction.accessorRef(): JsNameRef? =
+        when (visibility) {
+            DescriptorVisibilities.PRIVATE -> null
+            else -> JsNameRef(
+                context.getNameForMemberFunction(this),
+                classPrototypeRef
+            )
         }
 
-        val memberName = context.getNameForSymbol(declaration.symbol)
-        val memberRef = JsNameRef(memberName, classPrototypeRef)
+    private fun IrSimpleFunction.generateAssignmentIfMangled(memberName: JsName, symbolKey: JsExpression?) {
+        if (
+            irClass.isExported(backendContext) &&
+            visibility.isPublicAPI && hasMangledName() &&
+            correspondingPropertySymbol == null &&
+            symbolKey == null
+        ) {
+            classBlock.statements += jsAssignment(prototypeAccessRef(), jsElementAccess(memberName, classPrototypeRef)).makeStmt()
+        }
+    }
 
-        translatedFunction?.let { return jsAssignment(memberRef, it.apply { name = null }).makeStmt() }
+    private fun IrSimpleFunction.hasMangledName(): Boolean {
+        return getJsName() == null && !name.asString().isValidES5Identifier()
+    }
+
+    private fun IrSimpleFunction.prototypeAccessRef(): JsExpression {
+        return jsElementAccess(name.asString(), classPrototypeRef)
+    }
+
+    private fun IrClass.shouldCopyFrom(): Boolean {
+        if (!isInterface || isEffectivelyExternal()) {
+            return false
+        }
+
+        // Do not copy an interface method if the interface is already a parent of the base class,
+        // as the method will already be copied from the interface into the base class
+        val superIrClass = baseClass?.classOrNull?.owner ?: return true
+        return !superIrClass.isSubclassOf(this)
+    }
+
+    private fun generateMemberFunction(declaration: IrSimpleFunction): Triple<JsName, JsExpression?, JsFunction?> {
+        val symbolKey = declaration.getJsSymbolForOverriddenDeclaration()?.toWellKnownSymbolAccess()
+        val memberName = context.getNameForMemberFunction(declaration.realOverrideTargetOrNull ?: declaration)
+
+        if (declaration.isReal && declaration.body != null) {
+            val translatedFunction: JsFunction = declaration.accept(IrFunctionToJsTransformer(), context)
+            assert(!declaration.isStaticMethodOfClass)
+
+            if (irClass.isInterface) {
+                interfaceDefaultsBlock.statements += translatedFunction.makeStmt()
+                return Triple(memberName, symbolKey, null)
+            }
+
+            return Triple(memberName, symbolKey, translatedFunction)
+        }
 
         // do not generate code like
         // interface I { foo() = "OK" }
         // interface II : I
         // II.prototype.foo = I.prototype.foo
         if (!irClass.isInterface) {
-            declaration.resolveFakeOverride()?.let {
-                val implClassDeclaration = it.parent as IrClass
-                if (!implClassDeclaration.defaultType.isAny() && !it.isEffectivelyExternal()) {
-                    val implMethodName = context.getNameForSymbol(it.symbol)
-                    val implClassName = context.getNameForSymbol(implClassDeclaration.symbol)
-
-                    val implClassPrototype = prototypeOf(implClassName.makeRef())
-                    val implMemberRef = JsNameRef(implMethodName, implClassPrototype)
-
-                    classModel.postDeclarationBlock.statements += jsAssignment(memberRef, implMemberRef).makeStmt()
+            val isFakeOverride = declaration.isFakeOverride
+            val missedOverrides = mutableListOf<IrSimpleFunction>()
+            declaration.collectRealOverrides()
+                .onEach {
+                    if (isFakeOverride && it.modality == Modality.ABSTRACT) {
+                        missedOverrides.add(it)
+                    }
                 }
-            }
+                .find { it.modality != Modality.ABSTRACT }
+                ?.let { realOverride ->
+                    val implClassDeclaration = realOverride.parent as IrClass
+
+                    if (implClassDeclaration.shouldCopyFrom()) {
+                        val reference = context.getNameForStaticDeclaration(realOverride).makeRef()
+                        val elementAccess = jsElementAccess(memberName, symbolKey, classPrototypeRef)
+                        classModel.postDeclarationBlock.statements += jsAssignment(elementAccess, reference).makeStmt()
+                        if (isFakeOverride) {
+                            classModel.postDeclarationBlock.statements += missedOverrides
+                                .map { missedOverride ->
+                                    val name = context.getNameForMemberFunction(missedOverride)
+                                    val symbol = missedOverride.getJsSymbol()?.toWellKnownSymbolAccess()
+                                    val ref = jsElementAccess(name, symbol, classPrototypeRef)
+                                    jsAssignment(ref, reference).makeStmt()
+                                }
+                        }
+                    }
+                }
         }
 
-        return null
-    }
-
-    private fun maybeGenerateObjectInstance(): List<JsStatement> {
-        val instanceVarName = className.objectInstanceName()
-        val getInstanceFunName = "${className.ident}_getInstance"
-        val jsVarNode = context.currentScope.declareName(instanceVarName)
-        val varStmt = JsVars(JsVars.JsVar(jsVarNode))
-        val function = generateGetInstanceFunction(jsVarNode, getInstanceFunName)
-        return listOf(varStmt, function.makeStmt())
-    }
-
-    private fun generateGetInstanceFunction(instanceVar: JsName, instanceFunName: String): JsFunction {
-        val functionBody = JsBlock()
-        val func = JsFunction(JsFunctionScope(context.currentScope, "getInstance for ${irClass.name} object"), functionBody, "getInstance")
-        func.name = context.currentScope.declareName(instanceFunName)
-
-        functionBody.statements += JsIf(
-            JsBinaryOperation(JsBinaryOperator.REF_EQ, instanceVar.makeRef(), JsPrefixOperation(JsUnaryOperator.VOID, JsIntLiteral(0))),
-            jsAssignment(instanceVar.makeRef(), JsNew(classNameRef)).makeStmt()
-        )
-        functionBody.statements += JsReturn(instanceVar.makeRef())
-
-        return func
+        return Triple(memberName, symbolKey, null)
     }
 
     private fun maybeGeneratePrimaryConstructor() {
         if (!irClass.declarations.any { it is IrConstructor }) {
-            val func = JsFunction(JsFunctionScope(context.currentScope, "Ctor for ${irClass.name}"), JsBlock(), "Ctor for ${irClass.name}")
-            func.name = className
+            val func = JsFunction(emptyScope, JsBlock(), "Ctor for ${irClass.name}")
+            func.name = classNameUsedInsideDeclarationStatements
             classBlock.statements += func.makeStmt()
-            classModel.preDeclarationBlock.statements += generateInheritanceCode()
         }
     }
 
-    private fun generateInheritanceCode(): List<JsStatement> {
-        if (baseClass == null || baseClass.isAny()) {
-            return emptyList()
-        }
+    private fun generateInitMetadataCall(): JsStatement {
+        val ctor = classNameRef
+        val parent = baseClassRef?.takeIf { !es6mode }
+        val name = generateSimpleName()
+        val interfaces = generateInterfacesList()
+        val defaultConstructor = runIf(irClass.isClass, ::findDefaultConstructor)
+        val associatedObjectKey = generateAssociatedObjectKey()
+        val associatedObjects = generateAssociatedObjects()
+        val suspendArity = generateSuspendArity()
 
-        val createCall = jsAssignment(
-            classPrototypeRef, JsInvocation(Namer.JS_OBJECT_CREATE_FUNCTION, prototypeOf(baseClassName!!.makeRef()))
-        ).makeStmt()
-
-        val ctorAssign = jsAssignment(JsNameRef(Namer.CONSTRUCTOR_NAME, classPrototypeRef), classNameRef).makeStmt()
-
-        return listOf(createCall, ctorAssign)
-    }
-
-    private fun generateClassMetadata(): JsStatement {
-        val metadataLiteral = JsObjectLiteral(true)
-        val simpleName = irClass.name
-
-        if (!simpleName.isSpecial) {
-            val simpleNameProp = JsPropertyInitializer(JsNameRef(Namer.METADATA_SIMPLE_NAME), JsStringLiteral(simpleName.identifier))
-            metadataLiteral.propertyInitializers += simpleNameProp
-        }
-
-        val classKind = JsStringLiteral(
-            when {
-                irClass.isInterface -> "interface"
-                irClass.isObject -> "object"
-                else -> "class"
+        var metadataKind: RuntimeMetadataKind? = null
+        if (defaultConstructor == null && associatedObjectKey == null && associatedObjects == null) {
+            metadataKind = when {
+                irClass.isCompanion && name?.value == SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT.asString() -> RuntimeMetadataKind.COMPANION_OBJECT
+                !irClass.isClass -> null
+                irClass.origin == WebCallableReferenceLowering.LAMBDA_IMPL -> RuntimeMetadataKind.LAMBDA
+                irClass.origin == WebCallableReferenceLowering.FUNCTION_REFERENCE_IMPL -> RuntimeMetadataKind.FUNCTION_REFERENCE
+                irClass.origin == AbstractSuspendFunctionsLowering.DECLARATION_ORIGIN_COROUTINE_IMPL -> RuntimeMetadataKind.COROUTINE
+                else -> null
             }
-        )
-        metadataLiteral.propertyInitializers += JsPropertyInitializer(JsNameRef(Namer.METADATA_CLASS_KIND), classKind)
+        }
 
-        metadataLiteral.propertyInitializers += generateSuperClasses()
-        return jsAssignment(JsNameRef(Namer.METADATA, classNameRef), metadataLiteral).makeStmt()
+        if (metadataKind == null) {
+            metadataKind = when {
+                irClass.isInterface -> RuntimeMetadataKind.INTERFACE
+                irClass.isObject -> RuntimeMetadataKind.OBJECT
+                else -> RuntimeMetadataKind.CLASS
+            }
+        }
+
+        val initMetadataSymbol = backendContext.symbols.getInitMetadataSymbol(metadataKind)!!
+
+        return if (metadataKind.isSpecial) {
+            initMetadataSymbol.invokeWithoutNullArgs(ctor, parent, interfaces, suspendArity)
+        } else {
+            initMetadataSymbol.invokeWithoutNullArgs(
+                ctor,
+                name,
+                defaultConstructor,
+                parent,
+                interfaces,
+                suspendArity,
+                associatedObjectKey,
+                associatedObjects
+            )
+        }
     }
 
-    private fun generateSuperClasses(): JsPropertyInitializer {
-        val functionTypeOrSubtype = irClass.defaultType.isFunctionTypeOrSubtype()
-        return JsPropertyInitializer(
-            JsNameRef(Namer.METADATA_INTERFACES),
-            JsArrayLiteral(
-                irClass.superTypes.mapNotNull {
-                    val symbol = it.classifierOrFail
-                    // TODO: make sure that there is a test which breaks when isExternal is used here instead of isEffectivelyExternal
-                    if (symbol.isInterface && !functionTypeOrSubtype && !symbol.isEffectivelyExternal) {
-                        JsNameRef(context.getNameForSymbol(symbol))
-                    } else null
-                }
+    private fun IrType.asConstructorRef(): JsExpression? {
+        val ownerSymbol = classOrNull?.takeIf {
+            !isAny() && !isFunctionType() && !it.owner.isEffectivelyExternal()
+        } ?: return null
+
+        return ownerSymbol.owner.getClassRef(context.staticContext)
+    }
+
+    private fun IrType.isFunctionType() = isFunctionOrKFunction() || isSuspendFunctionOrKFunction()
+
+    private fun generateSimpleName(): JsStringLiteral? {
+        return irClass.name.takeIf { !it.isSpecial }?.let { JsStringLiteral(it.identifier) }
+    }
+
+    private fun IrSimpleFunctionSymbol.invokeWithoutNullArgs(vararg arguments: JsExpression?): JsStatement {
+        return JsInvocation(
+            JsNameRef(context.getNameForStaticFunction(owner)),
+            arguments.dropLastWhile { it == null }.memoryOptimizedMap { it ?: jsUndefined }
+        ).makeStmt()
+    }
+
+    private fun generateInterfacesList(): JsArrayLiteral? {
+        val listRef = irClass.superTypes
+            .filter { it.classOrNull?.owner?.isExternal != true && it != baseClass }
+            .mapNotNull { it.asConstructorRef() }
+            .takeIf { it.isNotEmpty() } ?: return null
+        return JsArrayLiteral(listRef.toSmartList())
+    }
+
+    private fun findDefaultConstructor(): JsNameRef? {
+        return when (val defaultConstructor = irClass.findDefaultConstructorForReflection()) {
+            is IrConstructor -> context.getNameForConstructor(defaultConstructor).makeRef()
+            is IrSimpleFunction -> when {
+                es6mode -> JsNameRef(context.getNameForMemberFunction(defaultConstructor), classNameRef)
+                else -> context.getNameForStaticFunction(defaultConstructor).makeRef()
+            }
+            null -> null
+        }
+    }
+
+    private fun generateSuspendArity(): JsArrayLiteral? {
+        val invokeFunctions = irClass.suspendArityStore ?: return null
+        val arity = invokeFunctions
+            .map { it.nonDispatchParameters.size }
+            .distinct()
+            .map { JsIntLiteral(it) }
+
+        return JsArrayLiteral(arity.toSmartList()).takeIf { arity.isNotEmpty() }
+    }
+
+    private fun generateAssociatedObjectKey(): JsExpression? {
+        if (!irClass.isAssociatedObjectAnnotatedAnnotation) return null
+        return if (backendContext.incrementalCacheEnabled) {
+            JsInvocation(
+                context.getNameForStaticFunction(backendContext.symbols.nextAssociatedObjectId.owner).makeRef(),
             )
-        )
+        } else {
+            val key = backendContext.nextAssociatedObjectKey++
+            irClass.associatedObjectKey = key
+            JsIntLiteral(key)
+        }
+    }
+
+    private fun generateAssociatedObjects(): JsExpression? {
+        if (classAssociatedObjects.isEmpty()) return null
+
+        return when {
+            !backendContext.incrementalCacheEnabled -> {
+                JsObjectLiteral(
+                    classAssociatedObjects
+                        .map { [key, objectGetInstanceFunction] ->
+                            JsPropertyInitializer.KeyValue(JsIntLiteral(key.associatedObjectKey!!), objectGetInstanceFunction)
+                        }
+                        .toSmartList()
+                )
+            }
+            es6mode -> {
+                JsObjectLiteral(
+                    classAssociatedObjects
+                        .map { [key, objectGetInstanceFunction] ->
+                            JsPropertyInitializer.KeyValue(
+                                JsInvocation(
+                                    context.staticContext.getNameForStaticFunction(backendContext.symbols.getAssociatedObjectId.owner).makeRef(),
+                                    key.getClassRef(context.staticContext),
+                                ),
+                                objectGetInstanceFunction
+                            )
+                        }
+                        .toSmartList()
+                )
+            }
+            else -> {
+                // In ES5 object literals don't support computed keys, so we have to invoke a helper function to construct the associated
+                // object map.
+                JsInvocation(
+                    context.staticContext.getNameForStaticFunction(backendContext.symbols.makeAssociatedObjectMapES5.owner).makeRef(),
+                    JsArrayLiteral(
+                        classAssociatedObjects.flatMap { [key, objectGetInstanceFunction] ->
+                            listOf(key.getClassRef(context.staticContext), objectGetInstanceFunction)
+                        }.toSmartList()
+                    )
+                )
+            }
+        }
     }
 }
 
+fun JsFunction.escapedIfNeed(): JsFunction {
+    val identifier = name?.ident
+    if (computedName == null && identifier?.isValidES5Identifier() == false) {
+        name = null
+        computedName = JsStringLiteral(identifier)
+    }
+    return this
+
+}
+
+fun IrSimpleFunction.overriddenStableProperty(context: JsIrBackendContext): Boolean {
+    val property = correspondingPropertySymbol!!.owner
+
+    if (property.isOverriddenExported(context)) {
+        return isOverriddenExported(context)
+    }
+
+    return property.getJsName() != null || overridesExternal()
+}
+
 private val IrClassifierSymbol.isInterface get() = (owner as? IrClass)?.isInterface == true
-private val IrClassifierSymbol.isEffectivelyExternal get() = (owner as? IrDeclaration)?.isEffectivelyExternal() == true
+
+private fun IrClass.existsInRuntime(): Boolean =
+    !isEffectivelyExternal() || !isInterface
+
+class JsIrClassModel(val klass: IrClass, val associatedObjects: Iterable<IrClass>) {
+    val dependsOnClasses = klass.superTypes
+        .memoryOptimizedMap { (it.classifierOrNull as IrClassSymbol).owner }
+        .plus(associatedObjects)
+        .memoryOptimizedMapNotNull { symbol -> symbol.takeIf(IrClass::existsInRuntime) }
+
+    val preDeclarationBlock = JsCompositeBlock()
+    val postDeclarationBlock = JsCompositeBlock()
+}
+
+class JsIrIcClassModel(val dependsOnClasses: List<JsName>) {
+    val preDeclarationBlock = JsCompositeBlock()
+    val postDeclarationBlock = JsCompositeBlock()
+}
+
+/**
+ * Each `@AssociatedObjectKey`-annotated annotation class is assigned a unique integer.
+ *
+ * This property is only used in non-incremental compilation.
+ * When compiling incrementally, these integers are assigned at runtime.
+ */
+private var IrClass.associatedObjectKey: Int? by irAttribute(copyByDefault = false)

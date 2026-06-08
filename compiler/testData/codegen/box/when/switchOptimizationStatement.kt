@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // CHECK_CASES_COUNT: function=exhaustive count=3
 // CHECK_IF_COUNT: function=exhaustive count=0
 // CHECK_CASES_COUNT: function=nonExhaustive count=3

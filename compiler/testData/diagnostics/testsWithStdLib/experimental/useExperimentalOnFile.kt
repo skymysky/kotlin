@@ -1,14 +1,17 @@
-// !USE_EXPERIMENTAL: kotlin.Experimental
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.RequiresOptIn
 // FILE: api.kt
 
 package api
 
-@Experimental(Experimental.Level.WARNING)
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
 @Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.BINARY)
 annotation class ExperimentalAPI1
 
-@Experimental(Experimental.Level.WARNING)
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
 @Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.BINARY)
 annotation class ExperimentalAPI2
 
 @ExperimentalAPI1
@@ -19,19 +22,22 @@ fun runtime() {}
 
 // FILE: usage.kt
 
-@file:UseExperimental(ExperimentalAPI1::class)
+@file:OptIn(ExperimentalAPI1::class)
 package usage
 
 import api.*
 
 fun use() {
     compilation()
-    <!EXPERIMENTAL_API_USAGE!>runtime<!>()
+    <!OPT_IN_USAGE!>runtime<!>()
 }
 
 class Use {
     fun use() {
         compilation()
-        <!EXPERIMENTAL_API_USAGE!>runtime<!>()
+        <!OPT_IN_USAGE!>runtime<!>()
     }
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, annotationUseSiteTargetFile, classDeclaration, classReference,
+functionDeclaration */

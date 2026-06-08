@@ -1,7 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
 // FILE: 1.kt
-// WITH_RUNTIME
 package test
 
 inline fun <reified Z : Enum<Z>> myValueOf(): String {
@@ -9,7 +7,7 @@ inline fun <reified Z : Enum<Z>> myValueOf(): String {
 }
 
 inline fun <reified Y : Enum<Y>> myValueOf2(): String {
-    return { enumValueOf<Y>("OK").name }()
+    return { enumValueOf<Y>("OK").name }.let { it() }
 }
 
 

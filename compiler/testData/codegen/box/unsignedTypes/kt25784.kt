@@ -1,5 +1,4 @@
-// WITH_UNSIGNED
-// IGNORE_BACKEND: JVM_IR, JS_IR
+// WITH_STDLIB
 
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty0

@@ -1,5 +1,11 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1367
+// KJS_WITH_FULL_RUNTIME
+// SKIP_DCE_DRIVEN
+// RUN_UNIT_TESTS
+
+// DISABLE_IR_VISIBILITY_CHECKS: ANY
+// ^ @Suppress("INVISIBLE_MEMBER") in _common.kt
+
+import common.*
 import kotlin.test.Test
 
 class Outer {
@@ -17,7 +23,7 @@ class Outer {
         }
 
         inner class Inneer {
-            @Test fun inneerTest() {
+            @Test fun innermostTest() {
                 call(prop + "Inneer")
             }
         }
@@ -65,7 +71,7 @@ fun box() = checkLog {
                 call("propInner")
             }
             suite("Inneer") {
-                test("inneerTest") {
+                test("innermostTest") {
                     call("propInneer")
                 }
             }

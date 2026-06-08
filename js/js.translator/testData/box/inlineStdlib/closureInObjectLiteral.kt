@@ -1,5 +1,5 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1542
+// KJS_WITH_FULL_RUNTIME
+// SKIP_DCE_DRIVEN
 package foo
 
 import kotlin.comparisons.*

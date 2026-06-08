@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 fun box(): String {
     for (i in (4 .. 1).reversed()) {

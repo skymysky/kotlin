@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // JAVAC_EXPECTED_FILE
 // FILE: com/winterbe/domain/IEntity.java
 package com.winterbe.domain;
@@ -19,3 +20,6 @@ package com.winterbe.observer
 import com.winterbe.domain.IEntity
 
 class ObserverSupport<T : IEntity>(private val observers: List<Observer>)
+
+/* GENERATED_FIR_TAGS: classDeclaration, javaType, primaryConstructor, propertyDeclaration, typeConstraint,
+typeParameter */

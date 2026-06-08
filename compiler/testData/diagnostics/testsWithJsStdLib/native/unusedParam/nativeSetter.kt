@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -DEPRECATION
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -DEPRECATION
 @nativeSetter
 fun Int.foo(a: String, v: Int): Int = definedExternally
 

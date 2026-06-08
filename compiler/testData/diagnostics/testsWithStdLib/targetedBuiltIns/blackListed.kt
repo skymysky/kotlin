@@ -1,8 +1,9 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // FULL_JDK
 
 abstract class A : MutableList<String> {
     override fun sort(/*0*/ p0: java.util.Comparator<in String>) {
-        super.<!DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET_ERROR!>sort<!>(p0)
+        super.sort(p0)
     }
 }
 
@@ -19,3 +20,6 @@ fun bar(x: MutableList<String>, y: java.util.ArrayList<String>, z: A) {
 
     z.<!DEPRECATION_ERROR!>sort<!> { a, b -> a.length - b.length }
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, classDeclaration, functionDeclaration, inProjection, lambdaLiteral, override,
+superExpression */

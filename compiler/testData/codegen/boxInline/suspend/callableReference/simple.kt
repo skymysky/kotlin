@@ -1,27 +1,20 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// IGNORE_BACKEND: NATIVE
-// IGNORE_BACKEND: JS, JS_IR
-// IGNORE_BACKEND: JVM_IR
+// WITH_COROUTINES
+// WITH_STDLIB
 // NO_CHECK_LAMBDA_INLINING
 // FILE: test.kt
 
 inline suspend fun foo(x: suspend () -> String) = x()
 
 // FILE: box.kt
-// WITH_RUNTIME
-// WITH_COROUTINES
 
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 
 fun builder(c: suspend () -> Unit) {
-    c.startCoroutine(object: helpers.ContinuationAdapter<Unit>() {
-        override fun resume(value: Unit) {
-        }
-
-        override fun resumeWithException(exception: Throwable) {
-            throw exception
+    c.startCoroutine(object: Continuation<Unit> {
+        override val context: CoroutineContext get() = EmptyCoroutineContext
+        override fun resumeWith(value: Result<Unit>) {
+            value.getOrThrow()
         }
     })
 }

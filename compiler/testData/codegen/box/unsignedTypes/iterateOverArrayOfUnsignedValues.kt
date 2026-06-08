@@ -1,6 +1,4 @@
-// WITH_UNSIGNED
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
 
 fun box(): String {
     var sum = 0u

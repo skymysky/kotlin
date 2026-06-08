@@ -1,10 +1,8 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 var result = ""
 
@@ -26,10 +24,10 @@ suspend fun foo(a: Int) {
 }
 
 fun builder(callback: suspend () -> Unit) {
-    callback.startCoroutine(object : ContinuationAdapter<Unit>() {
+    callback.startCoroutine(object : Continuation<Unit> {
         override val context: CoroutineContext = EmptyCoroutineContext
-        override fun resume(value: Unit) = Unit
-        override fun resumeWithException(exception: Throwable) {
+        override fun resumeWith(value: Result<Unit>) {
+            val exception = value.exceptionOrNull() ?: return
             id("FAIL WITH EXCEPTION: ${exception.message}")
         }
     })

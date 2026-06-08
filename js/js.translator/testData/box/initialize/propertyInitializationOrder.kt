@@ -1,6 +1,6 @@
 // IGNORE_BACKEND: JS_IR
-// SKIP_MINIFICATION
-// This test uses eval
+// IGNORE_BACKEND: JS_IR_ES6
+// KJS_WITH_FULL_RUNTIME
 open class A {
     val a: Int
     open val b: Int

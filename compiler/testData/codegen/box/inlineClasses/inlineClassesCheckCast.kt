@@ -1,10 +1,16 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class AsAny<T>(val x: Any?)
-inline class AsInt(val x: Int)
-
+// FILE: lib.kt
 inline fun <reified T> Any?.checkcast(): T = this as T
+
+// FILE: main.kt
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class AsAny<T>(val x: Any?)
+
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class AsInt(val x: Int)
 
 object Reference {
     fun <T, R> transform(a: AsAny<T>): AsAny<R> = a as AsAny<R>

@@ -1,175 +1,451 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
+import org.jetbrains.kotlin.backend.common.compilationException
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
-import org.jetbrains.kotlin.ir.backend.js.utils.JsGenerationContext
-import org.jetbrains.kotlin.ir.backend.js.utils.Namer
+import org.jetbrains.kotlin.ir.backend.js.lower.ES6ConstructorLowering
+import org.jetbrains.kotlin.ir.backend.js.lower.ES6PrimaryConstructorOptimizationLowering
+import org.jetbrains.kotlin.ir.backend.js.lower.exportedValueClassBoxFunction
+import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
+import org.jetbrains.kotlin.ir.backend.js.utils.*
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.types.classifierOrFail
+import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.getInlineClassBackingField
+import org.jetbrains.kotlin.ir.util.isFunctionOrKFunction
+import org.jetbrains.kotlin.ir.util.isThrowable
 import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.js.backend.ast.metadata.isInlineClassBoxing
+import org.jetbrains.kotlin.js.backend.ast.metadata.isInlineClassUnboxing
+import org.jetbrains.kotlin.js.config.compileLongAsBigint
+import org.jetbrains.kotlin.utils.filterIsInstanceAnd
 
-typealias IrCallTransformer = (IrCall, context: JsGenerationContext) -> JsExpression
+private typealias IrCallTransformer<T> = (T, context: JsGenerationContext) -> JsExpression
+private typealias IntrinsicMap = MutableMap<IrSymbol, IrCallTransformer<*>>
 
 class JsIntrinsicTransformers(backendContext: JsIrBackendContext) {
-    private val transformers: Map<IrSymbol, IrCallTransformer>
+    private val transformers: Map<IrSymbol, IrCallTransformer<*>>
+    val icUtils = backendContext.inlineClassesUtils
 
     init {
-        val intrinsics = backendContext.intrinsics
+        val symbols = backendContext.symbols
 
-        transformers = mutableMapOf()
+        transformers = hashMapOf()
 
         transformers.apply {
-            binOp(intrinsics.jsEqeqeq, JsBinaryOperator.REF_EQ)
-            binOp(intrinsics.jsNotEqeq, JsBinaryOperator.REF_NEQ)
-            binOp(intrinsics.jsEqeq, JsBinaryOperator.EQ)
-            binOp(intrinsics.jsNotEq, JsBinaryOperator.NEQ)
+            binOp(symbols.jsEqeqeq, JsBinaryOperator.REF_EQ)
+            binOp(symbols.jsNotEqeq, JsBinaryOperator.REF_NEQ)
+            binOp(symbols.jsEqeq, JsBinaryOperator.EQ)
+            binOp(symbols.jsNotEq, JsBinaryOperator.NEQ)
 
-            binOp(intrinsics.jsGt, JsBinaryOperator.GT)
-            binOp(intrinsics.jsGtEq, JsBinaryOperator.GTE)
-            binOp(intrinsics.jsLt, JsBinaryOperator.LT)
-            binOp(intrinsics.jsLtEq, JsBinaryOperator.LTE)
+            binOp(symbols.jsGt, JsBinaryOperator.GT)
+            binOp(symbols.jsGtEq, JsBinaryOperator.GTE)
+            binOp(symbols.jsLt, JsBinaryOperator.LT)
+            binOp(symbols.jsLtEq, JsBinaryOperator.LTE)
 
-            prefixOp(intrinsics.jsNot, JsUnaryOperator.NOT)
-            binOp(intrinsics.jsAnd, JsBinaryOperator.AND)
-            binOp(intrinsics.jsOr, JsBinaryOperator.OR)
+            prefixOp(symbols.jsNot, JsUnaryOperator.NOT)
+            binOp(symbols.jsAnd, JsBinaryOperator.AND)
+            binOp(symbols.jsOr, JsBinaryOperator.OR)
 
-            prefixOp(intrinsics.jsUnaryPlus, JsUnaryOperator.POS)
-            prefixOp(intrinsics.jsUnaryMinus, JsUnaryOperator.NEG)
+            prefixOp(symbols.jsUnaryPlus, JsUnaryOperator.POS)
+            prefixOp(symbols.jsUnaryMinus, JsUnaryOperator.NEG)
 
-            prefixOp(intrinsics.jsPrefixInc, JsUnaryOperator.INC)
-            postfixOp(intrinsics.jsPostfixInc, JsUnaryOperator.INC)
-            prefixOp(intrinsics.jsPrefixDec, JsUnaryOperator.DEC)
-            postfixOp(intrinsics.jsPostfixDec, JsUnaryOperator.DEC)
+            prefixOp(symbols.jsPrefixInc, JsUnaryOperator.INC)
+            postfixOp(symbols.jsPostfixInc, JsUnaryOperator.INC)
+            prefixOp(symbols.jsPrefixDec, JsUnaryOperator.DEC)
+            postfixOp(symbols.jsPostfixDec, JsUnaryOperator.DEC)
 
-            binOp(intrinsics.jsPlus, JsBinaryOperator.ADD)
-            binOp(intrinsics.jsMinus, JsBinaryOperator.SUB)
-            binOp(intrinsics.jsMult, JsBinaryOperator.MUL)
-            binOp(intrinsics.jsDiv, JsBinaryOperator.DIV)
-            binOp(intrinsics.jsMod, JsBinaryOperator.MOD)
+            prefixOp(symbols.jsDelete, JsUnaryOperator.DELETE)
 
-            binOp(intrinsics.jsPlusAssign, JsBinaryOperator.ASG_ADD)
-            binOp(intrinsics.jsMinusAssign, JsBinaryOperator.ASG_SUB)
-            binOp(intrinsics.jsMultAssign, JsBinaryOperator.ASG_MUL)
-            binOp(intrinsics.jsDivAssign, JsBinaryOperator.ASG_DIV)
-            binOp(intrinsics.jsModAssign, JsBinaryOperator.ASG_MOD)
+            binOp(symbols.jsPlus, JsBinaryOperator.ADD)
+            binOp(symbols.jsMinus, JsBinaryOperator.SUB)
+            binOp(symbols.jsMult, JsBinaryOperator.MUL)
+            binOp(symbols.jsDiv, JsBinaryOperator.DIV)
+            binOp(symbols.jsMod, JsBinaryOperator.MOD)
 
-            binOp(intrinsics.jsBitAnd, JsBinaryOperator.BIT_AND)
-            binOp(intrinsics.jsBitOr, JsBinaryOperator.BIT_OR)
-            binOp(intrinsics.jsBitXor, JsBinaryOperator.BIT_XOR)
-            prefixOp(intrinsics.jsBitNot, JsUnaryOperator.BIT_NOT)
+            binOp(symbols.jsPlusAssign, JsBinaryOperator.ASG_ADD)
+            binOp(symbols.jsMinusAssign, JsBinaryOperator.ASG_SUB)
+            binOp(symbols.jsMultAssign, JsBinaryOperator.ASG_MUL)
+            binOp(symbols.jsDivAssign, JsBinaryOperator.ASG_DIV)
+            binOp(symbols.jsModAssign, JsBinaryOperator.ASG_MOD)
 
-            binOp(intrinsics.jsBitShiftR, JsBinaryOperator.SHR)
-            binOp(intrinsics.jsBitShiftRU, JsBinaryOperator.SHRU)
-            binOp(intrinsics.jsBitShiftL, JsBinaryOperator.SHL)
+            binOp(symbols.jsBitAnd, JsBinaryOperator.BIT_AND)
+            binOp(symbols.jsBitOr, JsBinaryOperator.BIT_OR)
+            binOp(symbols.jsBitXor, JsBinaryOperator.BIT_XOR)
+            prefixOp(symbols.jsBitNot, JsUnaryOperator.BIT_NOT)
 
-            binOp(intrinsics.jsInstanceOf, JsBinaryOperator.INSTANCEOF)
+            binOp(symbols.jsBitShiftR, JsBinaryOperator.SHR)
+            binOp(symbols.jsBitShiftRU, JsBinaryOperator.SHRU)
+            binOp(symbols.jsBitShiftL, JsBinaryOperator.SHL)
 
-            prefixOp(intrinsics.jsTypeOf, JsUnaryOperator.TYPEOF)
+            binOp(symbols.jsInstanceOf, JsBinaryOperator.INSTANCEOF)
 
-            add(intrinsics.jsObjectCreate) { call, context ->
-                val classToCreate = call.getTypeArgument(0)!!
-                val className = context.getNameForSymbol(classToCreate.classifierOrFail)
-                val prototype = prototypeOf(className.makeRef())
-                JsInvocation(Namer.JS_OBJECT_CREATE_FUNCTION, prototype)
+            binOp(symbols.jsIn, JsBinaryOperator.INOP)
+
+            prefixOp(symbols.jsTypeOf, JsUnaryOperator.TYPEOF)
+
+            add(symbols.jsIsEs6) { _, _ -> JsBooleanLiteral(backendContext.es6mode) }
+
+            add(symbols.jsYieldFunctionSymbol) { call, context ->
+                JsYield(translateCallArguments(call, context).single())
             }
 
-            add(intrinsics.jsSetJSField) { call, context ->
-                val args = translateCallArguments(call, context)
-                val receiver = args[0]
-                val fieldName = args[1] as JsStringLiteral
-                val fieldValue = args[2]
-
-                val fieldNameLiteral = fieldName.value!!
-
-                jsAssignment(JsNameRef(fieldNameLiteral, receiver), fieldValue)
+            add(symbols.jsYieldStarFunctionSymbol) { call, context ->
+                JsYieldStar(translateCallArguments(call, context).single())
             }
 
-            add(intrinsics.jsClass) { call, context ->
-                val typeName = context.getNameForSymbol(call.getTypeArgument(0)!!.classifierOrFail)
-                typeName.makeRef()
-            }
-
-            addIfNotNull(intrinsics.jsCode) { call, context ->
-                val jsCode = translateJsCode(call, context.currentScope)
-
-                when (jsCode) {
-                    is JsExpression -> jsCode
-                // TODO don't generate function for this case
-                    else -> JsInvocation(JsFunction(context.currentScope, jsCode as? JsBlock ?: JsBlock(jsCode as JsStatement), ""))
+            add(symbols.jsGenerateInterfaceSymbol) { _, context ->
+                if (backendContext.es6mode) {
+                    JsInvocation(JsNameRef("Symbol"))
+                } else {
+                    JsInvocation(context.getNameForStaticFunction(symbols.generateInterfaceSymbolById.owner).makeRef())
                 }
             }
 
-            add(intrinsics.jsName) { call: IrCall, context ->
+            add(symbols.jsObjectCreateSymbol) { call, context ->
+                val classToCreate = call.typeArguments[0]!!.classifierOrFail.owner as IrClass
+                val className = classToCreate.getClassRef(context.staticContext)
+                objectCreate(prototypeOf(className, context.staticContext), context.staticContext)
+            }
+
+            add(symbols.jsNewTarget) { _, _ ->
+                JsNameRef(JsName("target", false), JsNameRef(JsName("new", false)))
+            }
+
+            add(symbols.jsOpenInitializerBox) { call, context ->
+                val arguments = translateCallArguments(call, context)
+
+                JsInvocation(
+                    JsNameRef("Object.assign"),
+                    arguments
+                )
+            }
+
+            add(symbols.jsEmptyObject) { _, _ ->
+                JsObjectLiteral()
+            }
+
+            addIfNotNull(symbols.jsCode) { call, _ ->
+                compilationException(
+                    "Should not be called",
+                    call
+                )
+            }
+
+            add(symbols.jsArrayLength) { call, context ->
+                val args = translateCallArguments(call, context)
+                JsNameRef("length", args[0])
+            }
+
+            add(symbols.jsArrayGet) { call, context ->
+                val args = translateCallArguments(call, context)
+                val array = args[0]
+                val index = args[1]
+                JsArrayAccess(array, index)
+            }
+
+            add(symbols.jsArraySet) { call, context ->
+                val args = translateCallArguments(call, context)
+                val array = args[0]
+                val index = args[1]
+                val value = args[2]
+                JsBinaryOperation(JsBinaryOperator.ASG, JsArrayAccess(array, index), value)
+            }
+
+            add(symbols.arrayLiteral) { call, context ->
+                translateCallArguments(call, context).single()
+            }
+
+            for (intrinsic in arrayOf(
+                symbols.jsArrayLike2Array,
+                symbols.jsSliceArrayLikeFromIndex,
+                symbols.jsSliceArrayLikeFromIndexToIndex
+            )) {
+                add(intrinsic) { call, context ->
+                    val args = translateCallArguments(call, context)
+                    JsInvocation(JsNameRef(Namer.CALL_FUNCTION, JsNameRef(Namer.SLICE_FUNCTION, JsArrayLiteral())), args)
+                }
+            }
+
+            add(symbols.jsArraySlice) { call, context ->
+                JsInvocation(JsNameRef(Namer.SLICE_FUNCTION, translateCallArguments(call, context).single()))
+            }
+
+            add(symbols.isLongCompiledToBigInt) { _, _ ->
+                JsBooleanLiteral(backendContext.configuration.compileLongAsBigint)
+            }
+
+            add(symbols.longCopyOfRange) { call, context ->
+                val args = translateCallArguments(call, context)
+
+                if (backendContext.configuration.compileLongAsBigint) {
+                    JsInvocation(JsNameRef(Namer.SLICE_FUNCTION, args.first()), args.drop(1))
+                } else {
+                    JsInvocation(context.getNameForStaticFunction(symbols.longCopyOfRangeForBoxedLong!!.owner).makeRef(), args)
+                }
+            }
+
+            for ([type, prefix] in symbols.primitiveToTypedArrayMap) {
+                add(symbols.primitiveToSizeConstructor[type]!!) { call, context ->
+                    JsNew(JsNameRef("${prefix}Array"), translateCallArguments(call, context))
+                }
+                add(symbols.primitiveToLiteralConstructor[type]!!) { call, context ->
+                    JsNew(JsNameRef("${prefix}Array"), translateCallArguments(call, context))
+                }
+            }
+
+            add(symbols.jsBoxIntrinsic) { call, context ->
+                val arg = translateCallArguments(call, context).single()
+                val inlineClass = call.typeArguments[0]?.let { icUtils.getRuntimeClassFor(it) }
+                    ?: compilationException("Unexpected type argument in box intrinsic", call)
+
+                inlineClass.exportedValueClassBoxFunction?.let {
+                    return@add JsInvocation(context.getNameForStaticFunction(it).makeRef(), arg)
+                        .apply { isInlineClassBoxing = true }
+                }
+
+                val constructor = inlineClass.declarations.filterIsInstance<IrConstructor>().single { it.isPrimary }
+
+                JsNew(constructor.getConstructorRef(context.staticContext), listOf(arg))
+                    .apply { isInlineClassBoxing = true }
+            }
+
+            add(symbols.jsUnboxIntrinsic) { call, context ->
+                val arg = translateCallArguments(call, context).single()
+                val inlineClass = icUtils.getInlinedClass(call.typeArguments[1]!!, includingExported = true)!!
+                val field = getInlineClassBackingField(inlineClass)
+                val fieldName = context.getNameForField(field)
+                JsNameRef(fieldName, arg).apply { isInlineClassUnboxing = true }
+            }
+
+            add(symbols.jsCall) { call, context: JsGenerationContext ->
                 val args = translateCallArguments(call, context)
                 val receiver = args[0]
-                JsNameRef(Namer.KCALLABLE_NAME, receiver)
+                val target = args[1]
+                val varargs = args[2] as? JsArrayLiteral ?: error("Expect to have JsArrayLiteral, because of vararg with dynamic element type")
+
+                val callRef = JsNameRef(Namer.CALL_FUNCTION, target)
+                JsInvocation(callRef, receiver, *varargs.expressions.toTypedArray())
             }
 
-            add(intrinsics.jsPropertyGet) { call: IrCall, context ->
+            add(symbols.jsBind) { call, context: JsGenerationContext ->
+                val receiver = call.arguments[0]!!
+                val jsReceiver = receiver.accept(IrElementToJsExpressionTransformer(), context)
+                val jsBindTarget = when (val target = call.arguments[1]!!) {
+                    is IrFunctionReference -> {
+                        val superClass = call.superQualifierSymbol!!
+                        val functionName = context.getNameForMemberFunction(target.symbol.owner as IrSimpleFunction)
+                        val superName = superClass.owner.getClassRef(context.staticContext)
+                        JsNameRef(functionName, prototypeOf(superName, context.staticContext))
+                    }
+                    is IrFunctionExpression -> target.accept(IrElementToJsExpressionTransformer(), context)
+                    else -> compilationException(
+                        "The 'target' argument of 'jsBind' must be either IrFunctionReference or IrFunctionExpression",
+                        call
+                    )
+                }
+                val bindRef = JsNameRef(Namer.BIND_FUNCTION, jsBindTarget)
+                JsInvocation(bindRef, jsReceiver)
+            }
+
+            add(symbols.jsContexfulRef) { call, context: JsGenerationContext ->
+                val receiver = call.arguments[0]!!
+                val jsReceiver = receiver.accept(IrElementToJsExpressionTransformer(), context)
+                val target = call.arguments[1] as IrRawFunctionReference
+                val jsTarget = context.getNameForMemberFunction(target.symbol.owner as IrSimpleFunction)
+
+                JsNameRef(jsTarget, jsReceiver)
+            }
+
+            add(symbols.unreachable) { _, _ ->
+                JsInvocation(JsNameRef(Namer.UNREACHABLE_NAME))
+            }
+
+            /**
+             * We don't use [KlibSymbols.SharedVariableBoxClassInfo.constructor] here
+             * because in ES6 it may be replaced by a factory function (see [ES6ConstructorLowering]),
+             * after which replaced again by a new constructor as an optimization (see [ES6PrimaryConstructorOptimizationLowering]).
+             */
+            val sharedVariableBoxConstructors = symbols.genericSharedVariableBox.klass.owner
+                .declarations
+                .filterIsInstanceAnd<IrFunction> {
+                    it is IrConstructor || it.isEs6ConstructorReplacement
+                }
+                .map { it.symbol }
+
+            addAll(sharedVariableBoxConstructors) { call, context ->
+                val arg = translateCallArguments(call, context).single()
+                JsObjectLiteral(listOf(JsPropertyInitializer.KeyValue(JsStringLiteral(Namer.SHARED_BOX_V), arg)))
+            }
+
+            add(symbols.genericSharedVariableBox.load) { call, context: JsGenerationContext ->
+                val box = translateDispatchArgument(call, context)
+                JsNameRef(Namer.SHARED_BOX_V, box)
+            }
+
+            add(symbols.genericSharedVariableBox.store) { call, context: JsGenerationContext ->
+                val box = translateDispatchArgument(call, context)
+                val value = translateCallArguments(call, context).single()
+                jsAssignment(JsNameRef(Namer.SHARED_BOX_V, box), value)
+            }
+
+            val suspendInvokeTransform: (IrCall, JsGenerationContext) -> JsExpression = { call, context: JsGenerationContext ->
+                // Because it is intrinsic, we know everything about this function
+                // There is callable reference as extension receiver
+                val invokeFun = invokeFunForLambda(call)
+
+                val jsInvokeFunName = context.getNameForMemberFunction(invokeFun)
+
                 val args = translateCallArguments(call, context)
-                val reference = args[0]
-                val receiver = args[1]
-                JsInvocation(JsNameRef(Namer.KPROPERTY_GET, reference), listOf(receiver))
+                JsInvocation(JsNameRef(jsInvokeFunName, args[0]), args.drop(1))
             }
 
-            add(intrinsics.jsPropertySet) { call: IrCall, context ->
-                val args = translateCallArguments(call, context)
-                val reference = args[0]
-                val receiver = args[1]
-                val value = args[2]
-                JsInvocation(JsNameRef(Namer.KPROPERTY_SET, reference), listOf(receiver, value))
+            add(symbols.jsInvokeSuspendSuperType, suspendInvokeTransform)
+            add(symbols.jsInvokeSuspendSuperTypeWithReceiver, suspendInvokeTransform)
+            add(symbols.jsInvokeSuspendSuperTypeWithReceiverAndParam, suspendInvokeTransform)
+
+            add(symbols.jsArguments) { _, _ -> Namer.ARGUMENTS }
+
+            add(symbols.jsNewAnonymousClass) { call, context ->
+                val baseClass = translateCallArguments(call, context).single() as JsNameRef
+                JsClass(baseClass = baseClass)
             }
 
-            add(intrinsics.jsGetContinuation) { _, context: JsGenerationContext ->
-                context.continuation
+            add(symbols.jsMethodReference) { call, context ->
+                val dispatchReceiver = call.arguments[0] ?: compilationException(
+                    "Call of the jsMethodReference doesn't contain first argument representing dispatchReceiver",
+                    call
+                )
+
+                val rawFunctionReference = call.arguments[1] as? IrRawFunctionReference ?: compilationException(
+                    "Second argument is empty or not an instance of IrRawFunctionReference",
+                    call
+                )
+
+                JsNameRef(
+                    context.getNameForMemberFunction(rawFunctionReference.symbol.owner as IrSimpleFunction),
+                    dispatchReceiver.accept(IrElementToJsExpressionTransformer(), context),
+                )
             }
 
-            add(intrinsics.jsCoroutineContext) { _, context: JsGenerationContext ->
-                val contextGetter = backendContext.coroutineGetContext
-                val getterName = context.getNameForSymbol(contextGetter)
-                val continuation = context.continuation
-                JsInvocation(JsNameRef(getterName, continuation))
+            add(symbols.void.owner.getter!!.symbol) { _, context ->
+                val backingField = context.getNameForField(symbols.void.owner.backingField!!)
+                JsNameRef(backingField)
+            }
+
+            add(symbols.signatureIdSymbol) { call, _ ->
+                val signatureString = call.arguments[0] as? IrConst ?: compilationException(
+                    "Call of the signatureId doesn't contain first argument representing a signature string literal",
+                    call
+                )
+
+                if (backendContext.incrementalCacheEnabled) {
+                    JsStringLiteral(signatureString.value as String)
+                } else {
+                    JsIntLiteral(backendContext.signaturesPool.getSignatureId(signatureString.value as String))
+                }
+            }
+
+            add(symbols.jsClass) { call, context ->
+                val typeArgument =
+                    call.typeArguments[0]?.type ?: compilationException("Type argument of jsClass must be statically known class", call)
+
+                when {
+                    typeArgument.isAny() -> JsNameRef("Object")
+                    typeArgument.isBoolean() -> JsNameRef("Boolean")
+                    typeArgument.isLong() && backendContext.configuration.compileLongAsBigint -> JsNameRef("BigInt")
+                    typeArgument.isArray() ||
+                            typeArgument.isBooleanArray() -> JsNameRef("Array")
+                    typeArgument.isString() -> JsNameRef("String")
+                    typeArgument.isThrowable() -> JsNameRef("Error")
+                    typeArgument.isCharArray() -> JsNameRef("Uint16Array")
+                    typeArgument.isByteArray() -> JsNameRef("Int8Array")
+                    typeArgument.isShortArray() -> JsNameRef("Int16Array")
+                    typeArgument.isIntArray() -> JsNameRef("Int32Array")
+                    typeArgument.isFloatArray() -> JsNameRef("Float32Array")
+                    typeArgument.isDoubleArray() -> JsNameRef("Float64Array")
+                    typeArgument.isLongArray() -> if (backendContext.configuration.compileLongAsBigint) JsNameRef("BigInt64Array") else JsNameRef("Array")
+                    typeArgument.isNumber() ||
+                            typeArgument.isByte() ||
+                            typeArgument.isShort() ||
+                            typeArgument.isInt() ||
+                            typeArgument.isFloat() ||
+                            typeArgument.isDouble() -> JsNameRef("Number")
+                    typeArgument.isFunctionOrKFunction() -> JsNameRef("Function")
+                    else -> typeArgument.getClassRef(context.staticContext)
+                }
             }
         }
     }
 
-    operator fun get(symbol: IrSymbol): IrCallTransformer? = transformers[symbol]
+    @Suppress("UNCHECKED_CAST")
+    operator fun get(symbol: IrSimpleFunctionSymbol): IrCallTransformer<IrCall>? =
+        transformers[symbol] as IrCallTransformer<IrCall>?
+
+    @Suppress("UNCHECKED_CAST")
+    operator fun get(symbol: IrConstructorSymbol): IrCallTransformer<IrConstructorCall>? =
+        transformers[symbol] as IrCallTransformer<IrConstructorCall>?
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.add(functionSymbol: IrSymbol, t: IrCallTransformer) {
+private fun translateDispatchArgument(
+    expression: IrFunctionAccessExpression,
+    context: JsGenerationContext,
+): JsExpression = expression.dispatchReceiver?.accept(IrElementToJsExpressionTransformer(), context)
+    ?: compilationException("Expected dispatch receiver", expression)
+
+private fun translateCallArguments(
+    expression: IrFunctionAccessExpression,
+    context: JsGenerationContext,
+): List<JsExpression> {
+    return translateNonDispatchCallArguments(expression, context, IrElementToJsExpressionTransformer(), false).map { it.jsArgument }
+}
+
+private fun IntrinsicMap.add(functionSymbol: IrSimpleFunctionSymbol, t: IrCallTransformer<IrCall>) {
     put(functionSymbol, t)
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.add(function: IrFunction, t: IrCallTransformer) {
-    put(function.symbol, t)
+private fun IntrinsicMap.add(functionSymbol: IrConstructorSymbol, t: IrCallTransformer<IrConstructorCall>) {
+    put(functionSymbol, t)
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.addIfNotNull(symbol: IrSymbol?, t: IrCallTransformer) {
+private fun IntrinsicMap.addIfNotNull(symbol: IrSimpleFunctionSymbol?, t: IrCallTransformer<IrCall>) {
     if (symbol == null) return
     put(symbol, t)
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.binOp(function: IrFunction, op: JsBinaryOperator) {
+private fun IntrinsicMap.addAll(symbols: Iterable<IrFunctionSymbol>, t: IrCallTransformer<IrFunctionAccessExpression>) {
+    for (symbol in symbols) {
+        put(symbol, t)
+    }
+}
+
+private fun IntrinsicMap.binOp(function: IrSimpleFunctionSymbol, op: JsBinaryOperator) {
     withTranslatedArgs(function) { JsBinaryOperation(op, it[0], it[1]) }
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.prefixOp(function: IrFunction, op: JsUnaryOperator) {
+private fun IntrinsicMap.prefixOp(function: IrSimpleFunctionSymbol, op: JsUnaryOperator) {
     withTranslatedArgs(function) { JsPrefixOperation(op, it[0]) }
 }
 
-private fun MutableMap<IrSymbol, IrCallTransformer>.postfixOp(function: IrFunction, op: JsUnaryOperator) {
+private fun IntrinsicMap.postfixOp(function: IrSimpleFunctionSymbol, op: JsUnaryOperator) {
     withTranslatedArgs(function) { JsPostfixOperation(op, it[0]) }
 }
 
-private inline fun MutableMap<IrSymbol, IrCallTransformer>.withTranslatedArgs(
-    function: IrFunction,
+private inline fun IntrinsicMap.withTranslatedArgs(
+    function: IrSimpleFunctionSymbol,
     crossinline t: (List<JsExpression>) -> JsExpression
 ) {
-    put(function.symbol) { call, context -> t(translateCallArguments(call, context)) }
+    put(function) { call: IrCall, context -> t(translateCallArguments(call, context)) }
 }

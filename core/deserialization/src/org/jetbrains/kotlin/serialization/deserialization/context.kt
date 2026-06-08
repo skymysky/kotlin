@@ -27,8 +27,12 @@ import org.jetbrains.kotlin.metadata.deserialization.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.protobuf.ExtensionRegistryLite
 import org.jetbrains.kotlin.resolve.constants.ConstantValue
+import org.jetbrains.kotlin.resolve.sam.SamConversionResolver
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 import org.jetbrains.kotlin.storage.StorageManager
+import org.jetbrains.kotlin.types.DefaultTypeAttributeTranslator
+import org.jetbrains.kotlin.types.TypeAttributeTranslator
+import org.jetbrains.kotlin.types.checker.NewKotlinTypeChecker
 
 class DeserializationComponents(
     val storageManager: StorageManager,
@@ -46,7 +50,11 @@ class DeserializationComponents(
     val contractDeserializer: ContractDeserializer,
     val additionalClassPartsProvider: AdditionalClassPartsProvider = AdditionalClassPartsProvider.None,
     val platformDependentDeclarationFilter: PlatformDependentDeclarationFilter = PlatformDependentDeclarationFilter.All,
-    val extensionRegistryLite: ExtensionRegistryLite
+    val extensionRegistryLite: ExtensionRegistryLite,
+    val kotlinTypeChecker: NewKotlinTypeChecker = NewKotlinTypeChecker.Default,
+    val samConversionResolver: SamConversionResolver,
+    val typeAttributeTranslators: List<TypeAttributeTranslator> = listOf(DefaultTypeAttributeTranslator),
+    val enumEntriesDeserializationSupport: EnumEntriesDeserializationSupport = EnumEntriesDeserializationSupport.Default,
 ) {
     val classDeserializer: ClassDeserializer = ClassDeserializer(this)
 
@@ -80,7 +88,8 @@ class DeserializationContext(
 ) {
     val typeDeserializer: TypeDeserializer = TypeDeserializer(
         this, parentTypeDeserializer, typeParameters,
-        "Deserializer for ${containingDeclaration.name}"
+        "Deserializer for \"${containingDeclaration.name}\"",
+        containerSource?.presentableString ?: "[container not found]"
     )
 
     val memberDeserializer: MemberDeserializer = MemberDeserializer(this)

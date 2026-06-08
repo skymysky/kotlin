@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 
 package test
@@ -6,7 +5,7 @@ package test
 inline fun <T> inlineFun(arg: T, crossinline f: (T) -> Unit) {
     {
         f(arg)
-    }()
+    }.let { it() }
 }
 
 // FILE: 2.kt
@@ -20,7 +19,7 @@ fun box(): String {
     inlineFun("2") { a ->
         {
             result = param + a
-        }()
+        }.let { it() }
     }
 
 

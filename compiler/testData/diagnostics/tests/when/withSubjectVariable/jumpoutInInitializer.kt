@@ -1,5 +1,5 @@
-// !LANGUAGE: +VariableDeclarationInWhenSubject
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 
 fun testJumpOutInElvis(x: Int?) {
@@ -9,7 +9,7 @@ fun testJumpOutInElvis(x: Int?) {
             else -> "not 0"
         }
 
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.inc()
     }
 
     x<!UNSAFE_CALL!>.<!>inc()
@@ -17,11 +17,11 @@ fun testJumpOutInElvis(x: Int?) {
 
 fun testJumpOutInElvisLikeIf(x: Int?) {
     loop@ while (true) {
-        val y = when (val z = if (x == null) break@loop else <!DEBUG_INFO_SMARTCAST!>x<!>) {
+        val y = when (val z = if (x == null) break@loop else x) {
             0 -> "0"
             else -> "not 0"
         }
-        <!DEBUG_INFO_SMARTCAST!>x<!>.inc()
+        x.inc()
     }
 
     x<!UNSAFE_CALL!>.<!>inc()
@@ -39,5 +39,9 @@ fun testJumpOutInIf(x: Int?) {
         x<!UNSAFE_CALL!>.<!>inc()
     }
 
-    x<!UNSAFE_CALL!>.<!>inc() // Actually, safe, but it's OK if it's error
+    x.inc() // Actually, safe, but it's OK if it's error
 }
+
+/* GENERATED_FIR_TAGS: break, checkNotNullCall, elvisExpression, equalityExpression, functionDeclaration, ifExpression,
+integerLiteral, localProperty, nullableType, propertyDeclaration, smartcast, stringLiteral, whenExpression,
+whenWithSubject, whileLoop */

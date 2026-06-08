@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JS_IR
 
 fun foo(i : Int?, a : Any?) {
     i?.plus(1)
@@ -10,7 +9,7 @@ fun foo(i : Int?, a : Any?) {
    }
 }
 
-fun box () : String {
+fun box() : String {
     foo(2, "239")
     return "OK"
 }

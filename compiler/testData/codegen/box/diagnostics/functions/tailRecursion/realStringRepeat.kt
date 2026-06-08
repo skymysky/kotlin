@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// DONT_RUN_GENERATED_CODE: JS
+// KJS_WITH_FULL_RUNTIME
 
 tailrec fun String.repeat(num : Int, acc : StringBuilder = StringBuilder()) : String =
         if (num == 0) acc.toString()

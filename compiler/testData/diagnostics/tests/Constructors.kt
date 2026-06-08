@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 open class NoC
 class NoC1 : <!SUPERTYPE_NOT_INITIALIZED!>NoC<!>
 
@@ -10,15 +11,15 @@ class WithC2() : <!SUPERTYPE_NOT_INITIALIZED!>WithC1<!>
 class WithPC0() {
 }
 
-class WithPC1(<!UNUSED_PARAMETER!>a<!> : Int) {
+class WithPC1(a : Int) {
 }
 
 
-class Foo() : <!SUPERTYPE_NOT_INITIALIZED, FINAL_SUPERTYPE!>WithPC0<!>, <!SYNTAX!>this<!>() {
+class Foo() : <!FINAL_SUPERTYPE!>WithPC0<!>, <!SYNTAX!>this<!>() {
 
 }
 
-class WithCPI_Dup(<!UNUSED_PARAMETER!>x<!> : Int) {
+class WithCPI_Dup(x : Int) {
   <!MUST_BE_INITIALIZED_OR_BE_ABSTRACT!>var x : Int<!>
 }
 
@@ -31,5 +32,7 @@ class NoCPI {
   val a = 1
   var ab = <!PROPERTY_INITIALIZER_NO_BACKING_FIELD!>1<!>
     get() = 1
-    set(<!UNUSED_PARAMETER!>v<!>) {}
+    set(v) {}
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, getter, integerLiteral, primaryConstructor, propertyDeclaration, setter */

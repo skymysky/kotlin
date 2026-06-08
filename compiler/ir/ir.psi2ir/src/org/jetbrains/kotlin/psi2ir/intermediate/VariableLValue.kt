@@ -21,14 +21,11 @@ import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrSetVariableImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrSetValueImpl
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
-import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.utils.addToStdlib.assertedCast
 
-class VariableLValue(
+internal class VariableLValue(
     private val context: IrGeneratorContext,
     val startOffset: Int,
     val endOffset: Int,
@@ -39,17 +36,23 @@ class VariableLValue(
     LValue,
     AssignmentReceiver {
 
-    constructor(context: IrGeneratorContext, irVariable: IrVariable, origin: IrStatementOrigin? = null) :
-            this(context, irVariable.startOffset, irVariable.endOffset, irVariable.symbol, irVariable.type, origin)
+    constructor(
+        context: IrGeneratorContext,
+        irVariable: IrVariable,
+        origin: IrStatementOrigin? = null,
+        startOffset: Int = irVariable.startOffset,
+        endOffset: Int = irVariable.endOffset
+    ) :
+            this(context, startOffset, endOffset, irVariable.symbol, irVariable.type, origin)
 
     override fun load(): IrExpression =
         IrGetValueImpl(startOffset, endOffset, type, symbol, origin)
 
     override fun store(irExpression: IrExpression): IrExpression =
-        IrSetVariableImpl(
+        IrSetValueImpl(
             startOffset, endOffset,
             context.irBuiltIns.unitType,
-            symbol.assertedCast<IrVariableSymbol> { "Not a variable: ${symbol.descriptor}" },
+            symbol,
             irExpression, origin
         )
 

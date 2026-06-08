@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.resolve.calls.inference.TypeBounds.BoundKind.*
 import org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPosition
 import org.jetbrains.kotlin.resolve.constants.IntegerValueTypeConstructor
 import org.jetbrains.kotlin.types.*
+import org.jetbrains.kotlin.types.error.ErrorUtils
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
 import org.jetbrains.kotlin.utils.addIfNotNull
 import java.util.*
@@ -99,7 +100,7 @@ class TypeBoundsImpl(override val typeVariable: TypeVariable) : TypeBounds {
         }
         values.addAll(exactBounds)
 
-        val (numberLowerBounds, generalLowerBounds) =
+        val [numberLowerBounds, generalLowerBounds] =
                 filterBounds(bounds, LOWER_BOUND, values).partition { it.constructor is IntegerValueTypeConstructor }
 
         val superTypeOfLowerBounds = CommonSupertypes.commonSupertypeForNonDenotableTypes(generalLowerBounds)

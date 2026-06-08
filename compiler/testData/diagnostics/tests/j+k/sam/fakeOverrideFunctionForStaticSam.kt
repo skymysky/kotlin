@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: BehaviorSubject.java
 public class BehaviorSubject<T> extends Observable<T> {
 }
@@ -14,7 +15,10 @@ public class Observable<T> {
 }
 
 // FILE: 1.kt
-fun main(args: Array<String>) {
+fun main() {
     BehaviorSubject.create<String>(null)
     BehaviorSubject.create<Int> { }
 }
+
+/* GENERATED_FIR_TAGS: flexibleType, functionDeclaration, javaFunction, javaType, lambdaLiteral, nullableType,
+samConversion */

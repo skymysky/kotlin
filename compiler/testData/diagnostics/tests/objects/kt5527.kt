@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 
 object Boo {}
 class A {
@@ -7,14 +7,17 @@ class A {
 }
 
 fun foo() {
-    val i1: Int = <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>Boo<!>
-    val i2: Int = <!TYPE_MISMATCH!>A.<!NI;TYPE_MISMATCH!>Boo<!><!>
-    useInt(<!TYPE_MISMATCH!>Boo<!>)
-    useInt(<!TYPE_MISMATCH!>A.Boo<!>)
+    val i1: Int <!INITIALIZER_TYPE_MISMATCH!>=<!> Boo
+    val i2: Int <!INITIALIZER_TYPE_MISMATCH!>=<!> A.Boo
+    useInt(<!ARGUMENT_TYPE_MISMATCH!>Boo<!>)
+    useInt(<!ARGUMENT_TYPE_MISMATCH!>A.Boo<!>)
 }
 fun bar() {
-    val i1: Int = <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>Unit<!>
-    useInt(<!TYPE_MISMATCH!>Unit<!>)
+    val i1: Int <!INITIALIZER_TYPE_MISMATCH!>=<!> Unit
+    useInt(<!ARGUMENT_TYPE_MISMATCH!>Unit<!>)
 }
 
 fun useInt(i: Int) = i
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, localProperty, nestedClass, objectDeclaration,
+propertyDeclaration */

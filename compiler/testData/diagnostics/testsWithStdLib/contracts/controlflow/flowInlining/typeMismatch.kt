@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -14,6 +14,9 @@ fun <T> myRun(block: () -> T): T {
 fun foo(x: Int): Int = x + 1
 
 fun typeMismatchInLambda(y: String): Int {
-    val x = myRun { foo(<!TYPE_MISMATCH!>y<!>) }
+    val x = myRun { foo(<!ARGUMENT_TYPE_MISMATCH!>y<!>) }
     return x
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, contractCallsEffect, contracts, functionDeclaration, functionalType,
+integerLiteral, lambdaLiteral, localProperty, nullableType, propertyDeclaration, typeParameter */

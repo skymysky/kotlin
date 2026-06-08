@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JS_IR
+// FILE: lib.kt
 inline fun ltx(a: Comparable<Any>, b: Any) = a < b
 inline fun lex(a: Comparable<Any>, b: Any) = a <= b
 inline fun gex(a: Comparable<Any>, b: Any) = a >= b
@@ -9,6 +9,7 @@ inline fun le(a: Any, b: Any) = lex(a as Comparable<Any>, b)
 inline fun ge(a: Any, b: Any) = gex(a as Comparable<Any>, b)
 inline fun gt(a: Any, b: Any) = gtx(a as Comparable<Any>, b)
 
+// FILE: main.kt
 val ONE = 1
 val ONEL = 1L
 

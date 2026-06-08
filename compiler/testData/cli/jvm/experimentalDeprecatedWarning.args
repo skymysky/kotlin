@@ -1,6 +1,0 @@
-$TESTDATA_DIR$/experimentalDeprecatedWarning.kt
--d
-$TEMP_DIR$
--Xuse-experimental=kotlin.Experimental
--Xuse-experimental=org.test.Warning1
--Xexperimental=org.test.Warning2

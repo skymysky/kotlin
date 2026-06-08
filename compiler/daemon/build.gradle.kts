@@ -1,23 +1,31 @@
+description = "Kotlin Daemon"
 
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
 }
-
-jvmTarget = "1.6"
 
 dependencies {
-    compile(project(":compiler:cli"))
-    compile(project(":compiler:daemon-common"))
-    compile(project(":compiler:incremental-compilation-impl"))
-    compile(project(":kotlin-build-common"))
-    compile(commonDep("org.fusesource.jansi", "jansi"))
-    compile(commonDep("org.jline", "jline"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
-    compileOnly(intellijDep()) { includeIntellijCoreJarDependencies(project) }
+    compileOnly(project(":compiler:cli"))
+    compileOnly(project(":compiler:incremental-compilation-impl"))
+    compileOnly(intellijCore())
+    compileOnly(libs.intellij.fastutil)
+
+    runtimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+
+    embedded(project(":daemon-common")) { isTransitive = false }
 }
+
+optInToExperimentalCompilerApi()
 
 sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
+
+publish()
+
+runtimeJar()
+sourcesJar()
+javadocJar()
+
+optInToK1Deprecation()

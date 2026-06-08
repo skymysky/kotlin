@@ -1,10 +1,9 @@
-// IGNORE_BACKEND: JVM_IR
 enum class X {
     B {
 
         override val value = "OK"
 
-        val bmr = B::value.get()
+        val bmr = this::value.get()
 
         override fun foo(): String {
             return bmr

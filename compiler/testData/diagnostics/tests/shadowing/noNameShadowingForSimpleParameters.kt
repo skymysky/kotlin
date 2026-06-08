@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_ANONYMOUS_PARAMETER
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER, -UNUSED_ANONYMOUS_PARAMETER
 
 open class Base {
     open fun foo(name: String) {}
@@ -22,3 +23,6 @@ fun test3(param: String) {
 }
 
 fun fff(x: (y: String) -> Unit) {}
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, functionalType, lambdaLiteral, localClass, localFunction,
+override */

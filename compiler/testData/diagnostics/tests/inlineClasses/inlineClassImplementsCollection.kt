@@ -1,4 +1,6 @@
-// !LANGUAGE: +InlineClasses
+// RUN_PIPELINE_TILL: BACKEND
+// LANGUAGE: +InlineClasses
+// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED
 
 inline class UInt(val x: Int)
 
@@ -10,3 +12,6 @@ inline class UIntArray(private val storage: IntArray) : Collection<UInt> {
     override fun containsAll(elements: Collection<UInt>): Boolean = TODO()
     override fun isEmpty(): Boolean = TODO()
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, getter, operator, override, primaryConstructor,
+propertyDeclaration */

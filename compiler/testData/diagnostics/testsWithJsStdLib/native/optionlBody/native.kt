@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNREACHABLE_CODE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNREACHABLE_CODE
 // unreachable code suppressed due to KT-9586
 
 external val baz: Int

@@ -1,7 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// TODO: muted automatically, investigate should it be ran for JS or not
-// IGNORE_BACKEND: JS, NATIVE
-
 package w_range
 
 fun box() : String {
@@ -10,6 +6,5 @@ fun box() : String {
         1 -> i--
         else -> { i = 2 }
     }
-    System.out?.println(i)
-    return "OK"
+    return if (i == 2) "OK" else i.toString()
 }

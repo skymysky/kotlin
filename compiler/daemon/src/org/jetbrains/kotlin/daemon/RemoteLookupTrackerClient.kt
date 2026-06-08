@@ -16,28 +16,27 @@
 
 package org.jetbrains.kotlin.daemon
 
-import com.intellij.util.containers.StringInterner
-import gnu.trove.THashMap
-import gnu.trove.THashSet
-import org.jetbrains.kotlin.daemon.common.CompilerCallbackServicesFacade
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.jetbrains.kotlin.daemon.common.DummyProfiler
 import org.jetbrains.kotlin.daemon.common.Profiler
+import org.jetbrains.kotlin.daemon.common.withMeasure
 import org.jetbrains.kotlin.incremental.components.LookupInfo
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.incremental.components.Position
 import org.jetbrains.kotlin.incremental.components.ScopeKind
-
+import org.jetbrains.kotlin.utils.createStringInterner
 
 class RemoteLookupTrackerClient(
-    val facade: CompilerCallbackServicesFacade,
+    @Suppress("DEPRECATION") val facade: org.jetbrains.kotlin.daemon.common.CompilerCallbackServicesFacade,
     eventManager: EventManager,
     val profiler: Profiler = DummyProfiler()
 ) : LookupTracker {
     private val isDoNothing = profiler.withMeasure(this) { facade.lookupTracker_isDoNothing() }
 
     // Map: FileName -> (ScopeFqName -> Set<Name[String] | LookupInfo>)
-    private val lookups = THashMap<String, MutableMap<String, MutableSet<Any>>>()
-    private val interner = StringInterner()
+    private val lookups = Object2ObjectOpenHashMap<String, MutableMap<String, MutableSet<Any>>>()
+    private val interner = createStringInterner()
 
     override val requiresPosition: Boolean = profiler.withMeasure(this) { facade.lookupTracker_requiresPosition() }
 
@@ -52,8 +51,11 @@ class RemoteLookupTrackerClient(
                 LookupInfo(filePath, position, scopeFqName, scopeKind, name)
             else
                 internedName
+        lookups.getOrPut(filePath, ::Object2ObjectOpenHashMap).getOrPut(internedSymbolFqName, ::ObjectOpenHashSet).add(objectToPut)
+    }
 
-        lookups.getOrPut(filePath, ::THashMap).getOrPut(internedSymbolFqName, ::THashSet).add(objectToPut)
+    override fun clear() {
+        lookups.clear()
     }
 
     init {
@@ -61,12 +63,12 @@ class RemoteLookupTrackerClient(
     }
 
     private fun flush() {
-        if (isDoNothing || lookups.isEmpty) return
+        if (isDoNothing || lookups.isEmpty()) return
 
         profiler.withMeasure(this) {
             facade.lookupTracker_record(
-                lookups.flatMap { (filePath, lookupsByFile) ->
-                    lookupsByFile.flatMap { (scopeFqName, lookupsByScopeFqName) ->
+                lookups.flatMap { [filePath, lookupsByFile] ->
+                    lookupsByFile.flatMap { [scopeFqName, lookupsByScopeFqName] ->
                         lookupsByScopeFqName.map { lookupInfoOrString ->
                             if (requiresPosition)
                                 lookupInfoOrString as LookupInfo

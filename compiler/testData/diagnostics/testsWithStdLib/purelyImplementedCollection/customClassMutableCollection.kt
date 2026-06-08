@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // JAVAC_EXPECTED_FILE
 
 import java.util.*;
@@ -24,9 +25,12 @@ fun bar(): String? = null
 fun foo() {
     var x = A<String>()
     x.add(<!NULL_FOR_NONNULL_TYPE!>null<!>)
-    x.add(<!TYPE_MISMATCH!>bar()<!>)
+    x.add(<!ARGUMENT_TYPE_MISMATCH!>bar()<!>)
     x.add("")
 
     val b1: Collection<String?> = x
-    val b2: MutableCollection<String?> = <!TYPE_MISMATCH!>x<!>
+    val b2: MutableCollection<String?> <!INITIALIZER_TYPE_MISMATCH!>=<!> x
 }
+
+/* GENERATED_FIR_TAGS: flexibleType, functionDeclaration, javaFunction, javaType, localProperty, nullableType,
+propertyDeclaration, stringLiteral */

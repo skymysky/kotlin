@@ -1,3 +1,4 @@
+// LANGUAGE: +JvmIndyAllowLambdasWithAnnotations
 @Target(AnnotationTarget.CLASS)
 annotation class ClsAnn
 

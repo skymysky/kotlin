@@ -1,11 +1,13 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.resolve.descriptorUtil
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.builtins.StandardNames.ENUM_VALUE_OF
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.ClassKind.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotated
@@ -17,17 +19,18 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.DescriptorUtils.getContainingClass
 import org.jetbrains.kotlin.resolve.constants.ConstantValue
 import org.jetbrains.kotlin.resolve.constants.EnumValue
-import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.TypeProjection
-import org.jetbrains.kotlin.types.TypeSubstitutor
-import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.resolve.isInlineClass
+import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
+import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner
+import org.jetbrains.kotlin.types.checker.REFINER_CAPABILITY
+import org.jetbrains.kotlin.types.checker.TypeRefinementSupport
+import org.jetbrains.kotlin.types.typeUtil.contains
 import org.jetbrains.kotlin.types.typeUtil.isAnyOrNullableAny
 import org.jetbrains.kotlin.types.typeUtil.makeNullable
 import org.jetbrains.kotlin.utils.DFS
@@ -57,6 +60,9 @@ val DeclarationDescriptor.isExtension: Boolean
 val DeclarationDescriptor.module: ModuleDescriptor
     get() = DescriptorUtils.getContainingModule(this)
 
+val DeclarationDescriptor.platform: TargetPlatform?
+    get() = module.platform
+
 fun ModuleDescriptor.resolveTopLevelClass(topLevelClassFqName: FqName, location: LookupLocation): ClassDescriptor? {
     assert(!topLevelClassFqName.isRoot)
     return getPackage(topLevelClassFqName.parent()).memberScope.getContributedClassifier(
@@ -71,6 +77,11 @@ val ClassifierDescriptorWithTypeParameters.denotedClassDescriptor: ClassDescript
         is TypeAliasDescriptor -> classDescriptor
         else -> throw UnsupportedOperationException("Unexpected descriptor kind: $this")
     }
+
+// Used in https://plugins.jetbrains.com/plugin/10346-extsee
+@Deprecated("The one below with receiver type ClassifierDescriptor? should be used", level = DeprecationLevel.HIDDEN)
+val ClassifierDescriptorWithTypeParameters.classId: ClassId?
+    get() = (this as ClassifierDescriptor?).classId
 
 val ClassifierDescriptor?.classId: ClassId?
     get() = this?.containingDeclaration?.let { owner ->
@@ -121,9 +132,21 @@ val DeclarationDescriptorWithVisibility.isEffectivelyPrivateApi: Boolean
 val DeclarationDescriptor.isInsidePrivateClass: Boolean
     get() {
         val parent = containingDeclaration as? ClassDescriptor
-        return parent != null && Visibilities.isPrivate(parent.visibility)
+        return parent != null && DescriptorVisibilities.isPrivate(parent.visibility)
     }
 
+val DeclarationDescriptor.isMemberOfCompanionOfPrivateClass: Boolean
+    get() {
+        val parent = containingDeclaration as? ClassDescriptor ?: return false
+        if (!parent.isCompanionObject) return false
+        return parent.isInsidePrivateClass
+    }
+
+val DeclarationDescriptor.isInsideInterface: Boolean
+    get() {
+        val parent = containingDeclaration as? ClassDescriptor
+        return parent != null && parent.kind.isInterface
+    }
 
 fun ClassDescriptor.getSuperClassNotAny(): ClassDescriptor? {
     for (supertype in defaultType.constructor.supertypes) {
@@ -187,17 +210,20 @@ fun ValueParameterDescriptor.declaresOrInheritsDefaultValue(): Boolean {
     )
 }
 
-fun Annotated.isRepeatableAnnotation(): Boolean =
-    annotations.findAnnotation(KotlinBuiltIns.FQ_NAMES.repeatable) != null
-
-fun Annotated.isDocumentedAnnotation(): Boolean =
-    annotations.findAnnotation(KotlinBuiltIns.FQ_NAMES.mustBeDocumented) != null
+// Note that on JVM, an annotation class is also considered repeatable if it's annotated with java.lang.annotation.Repeatable.
+// See JvmPlatformAnnotationFeaturesSupport.
+fun Annotated.isAnnotatedWithKotlinRepeatable(): Boolean =
+    annotations.findAnnotation(StandardNames.FqNames.repeatable) != null
 
 fun Annotated.getAnnotationRetention(): KotlinRetention? {
-    val retentionArgumentValue =
-        annotations.findAnnotation(KotlinBuiltIns.FQ_NAMES.retention)?.allValueArguments?.get(RETENTION_PARAMETER_NAME)
-                as? EnumValue ?: return null
-    return KotlinRetention.valueOf(retentionArgumentValue.enumEntryName.asString())
+    return annotations.findAnnotation(StandardNames.FqNames.retention)?.getAnnotationRetention()
+}
+
+fun AnnotationDescriptor.getAnnotationRetention(): KotlinRetention? {
+    val retentionArgumentValue = allValueArguments[RETENTION_PARAMETER_NAME] as? EnumValue ?: return null
+
+    val retentionArgumentValueName = retentionArgumentValue.enumEntryName.asString()
+    return KotlinRetention.values().firstOrNull { it.name == retentionArgumentValueName }
 }
 
 val Annotated.nonSourceAnnotations: List<AnnotationDescriptor>
@@ -330,7 +356,7 @@ private fun ClassDescriptor.getAllSuperClassesTypesIncludeItself(): List<KotlinT
 fun FunctionDescriptor.isEnumValueOfMethod(): Boolean {
     val methodTypeParameters = valueParameters
     val nullableString = builtIns.stringType.makeNullable()
-    return DescriptorUtils.ENUM_VALUE_OF == name
+    return ENUM_VALUE_OF == name
             && methodTypeParameters.size == 1
             && KotlinTypeChecker.DEFAULT.isSubtypeOf(methodTypeParameters[0].type, nullableString)
 }
@@ -341,6 +367,10 @@ val DeclarationDescriptor.isExtensionProperty: Boolean
 fun ClassDescriptor.getAllSuperclassesWithoutAny() =
     generateSequence(getSuperClassNotAny(), ClassDescriptor::getSuperClassNotAny).toCollection(SmartList<ClassDescriptor>())
 
+/**
+ * Returns a sequence of all super classifiers (both classes and interfaces) for [this] classifier,
+ * including [this] classifier itself.
+ */
 fun ClassifierDescriptor.getAllSuperClassifiers(): Sequence<ClassifierDescriptor> {
     val set = hashSetOf<ClassifierDescriptor>()
 
@@ -357,39 +387,9 @@ fun ClassifierDescriptor.getAllSuperClassifiers(): Sequence<ClassifierDescriptor
     return doGetAllSuperClassesAndInterfaces()
 }
 
-// Note this is a generic and slow implementation which would work almost for any subclass of ClassDescriptor.
-// Please avoid using it in new code.
-// TODO: do something more clever instead at call sites of this function
-fun computeSealedSubclasses(sealedClass: ClassDescriptor): Collection<ClassDescriptor> {
-    if (sealedClass.modality != Modality.SEALED) return emptyList()
-
-    val result = linkedSetOf<ClassDescriptor>()
-
-    fun collectSubclasses(scope: MemberScope, collectNested: Boolean) {
-        for (descriptor in scope.getContributedDescriptors(DescriptorKindFilter.CLASSIFIERS)) {
-            if (descriptor !is ClassDescriptor) continue
-
-            if (DescriptorUtils.isDirectSubclass(descriptor, sealedClass)) {
-                result.add(descriptor)
-            }
-
-            if (collectNested) {
-                collectSubclasses(descriptor.unsubstitutedInnerClassesScope, collectNested)
-            }
-        }
-    }
-
-    val container = sealedClass.containingDeclaration
-    if (container is PackageFragmentDescriptor) {
-        collectSubclasses(container.getMemberScope(), collectNested = false)
-    }
-    collectSubclasses(sealedClass.unsubstitutedInnerClassesScope, collectNested = true)
-    return result
-}
-
 fun DeclarationDescriptor.isPublishedApi(): Boolean {
     val descriptor = if (this is CallableMemberDescriptor) DescriptorUtils.getDirectMember(this) else this
-    return descriptor.annotations.hasAnnotation(KotlinBuiltIns.FQ_NAMES.publishedApi)
+    return descriptor.annotations.hasAnnotation(StandardNames.FqNames.publishedApi)
 }
 
 fun DeclarationDescriptor.isAncestorOf(descriptor: DeclarationDescriptor, strict: Boolean): Boolean =
@@ -422,8 +422,6 @@ fun MemberDescriptor.isEffectivelyExternal(): Boolean {
     return containingClass != null && containingClass.isEffectivelyExternal()
 }
 
-fun DeclarationDescriptor.isEffectivelyExternal() = this is MemberDescriptor && this.isEffectivelyExternal()
-
 fun isParameterOfAnnotation(parameterDescriptor: ParameterDescriptor): Boolean =
     parameterDescriptor.containingDeclaration.isAnnotationConstructor()
 
@@ -431,4 +429,37 @@ fun DeclarationDescriptor.isAnnotationConstructor(): Boolean =
     this is ConstructorDescriptor && DescriptorUtils.isAnnotationClass(this.constructedClass)
 
 fun DeclarationDescriptor.isPrimaryConstructorOfInlineClass(): Boolean =
-    this is ConstructorDescriptor && this.isPrimary && this.constructedClass.isInline
+    this is ConstructorDescriptor && this.isPrimary && this.constructedClass.isInlineClass()
+
+@TypeRefinement
+fun ModuleDescriptor.getKotlinTypeRefiner(): KotlinTypeRefiner =
+    when (val refinerCapability = getCapability(REFINER_CAPABILITY)?.value) {
+        is TypeRefinementSupport.Enabled -> refinerCapability.typeRefiner
+        else -> KotlinTypeRefiner.Default
+    }
+
+@OptIn(TypeRefinement::class)
+fun ModuleDescriptor.isTypeRefinementEnabled(): Boolean =
+    getCapability(REFINER_CAPABILITY)?.value?.isEnabled == true
+
+val VariableDescriptor.isUnderscoreNamed
+    get() = !name.isSpecial && name.identifier == "_"
+
+private fun <D : CallableDescriptor> D.containsStubTypes() =
+    valueParameters.any { parameter -> parameter.type.contains { it is StubTypeForBuilderInference } }
+            || returnType?.contains { it is StubTypeForBuilderInference } == true
+            || dispatchReceiverParameter?.type?.contains { it is StubTypeForBuilderInference } == true
+            || extensionReceiverParameter?.type?.contains { it is StubTypeForBuilderInference } == true
+
+fun <D : CallableDescriptor> D.shouldBeSubstituteWithStubTypes() =
+    valueParameters.none { it.type.isError }
+            && returnType?.isError != true
+            && dispatchReceiverParameter?.type?.isError != true
+            && extensionReceiverParameter?.type?.isError != true
+            && containsStubTypes()
+
+val ClassDescriptor?.inlineClassRepresentation: InlineClassRepresentation<SimpleType>?
+    get() = this?.valueClassRepresentation as? InlineClassRepresentation<SimpleType>
+
+val ClassDescriptor?.jvmInlineMultiFieldValueClassRepresentation: JvmInlineMultiFieldValueClassRepresentation<SimpleType>?
+    get() = this?.valueClassRepresentation as? JvmInlineMultiFieldValueClassRepresentation<SimpleType>

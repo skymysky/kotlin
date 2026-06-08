@@ -1,8 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class UIntArray(private val intArray: IntArray) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class UIntArray(private val intArray: IntArray) {
     val size get() = intArray.size
 }
 

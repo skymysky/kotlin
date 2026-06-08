@@ -1,12 +1,12 @@
-// IGNORE_BACKEND: JVM_IR
-// IGNORE_BACKEND: JS
-// COMMON_COROUTINES_TEST
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
 // CHECK_BYTECODE_LISTING
+// LANGUAGE: +JvmNullOutSpilledCoroutineLocals
+
+// FILE: lib.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 interface SourceCrossinline<out E> {
     suspend fun consume(sink: Sink<E>)
@@ -56,6 +56,11 @@ inline fun <E> SourceCrossinline<E>.filter(crossinline predicate: (E) -> Boolean
         if (predicate(it)) send(it)
     }
 }
+
+// FILE: main.kt
+import helpers.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 fun builder(c: suspend () -> Unit) {
     c.startCoroutine(EmptyContinuation)

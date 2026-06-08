@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FILE: Outer.java
 
 public class Outer<T> {
@@ -13,6 +13,10 @@ fun test(x: List<Int>, y: List<String>) {
     Outer<Int>().Inner("", y, 1) checkType { _<Outer<Int>.Inner<String>>() }
     Outer<Int>().Inner<CharSequence, String, Int>("", y, 1) checkType { _<Outer<Int>.Inner<CharSequence>>() }
 
-    Outer<Int>().Inner("", x, 1) checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Outer<Int>.Inner<Any>>() }
-    Outer<Int>().Inner<CharSequence, String, Int>("", <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, TYPE_MISMATCH!>x<!>, 1)
+    Outer<Int>().Inner("", x, 1) checkType { <!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><Outer<Int>.Inner<Any>>() }
+    Outer<Int>().Inner<CharSequence, String, Int>("", <!ARGUMENT_TYPE_MISMATCH!>x<!>, 1)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, integerLiteral, javaFunction, javaType, lambdaLiteral, nullableType, stringLiteral, typeParameter,
+typeWithExtension */

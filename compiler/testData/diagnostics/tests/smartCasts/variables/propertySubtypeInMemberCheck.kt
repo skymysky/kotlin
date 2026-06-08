@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 fun bar(s: Any): Int {
     return s.hashCode()
 }
@@ -11,3 +12,6 @@ class MyClass(var p: Any) {
         return -1
     }
 }
+
+/* GENERATED_FIR_TAGS: assignment, classDeclaration, functionDeclaration, ifExpression, integerLiteral, isExpression,
+primaryConstructor, propertyDeclaration, smartcast, stringLiteral */

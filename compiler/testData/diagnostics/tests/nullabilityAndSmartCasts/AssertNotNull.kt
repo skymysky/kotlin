@@ -1,7 +1,7 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 
-fun main(args : Array<String>) {
+fun main() {
     val a : Int? = null
     val b : Int? = null
     checkSubtype<Int>(a!!)
@@ -22,18 +22,22 @@ fun main(args : Array<String>) {
 
     // smart cast isn't needed, but is reported due to KT-4294
     if (d is String) {
-        <!DEBUG_INFO_SMARTCAST!>d<!><!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
+        d<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
     }
 
     if (d is String?) {
         if (d != null) {
-            <!DEBUG_INFO_SMARTCAST!>d<!><!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
+            d<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
         }
         if (d is String) {
-            <!DEBUG_INFO_SMARTCAST!>d<!><!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
+            d<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
         }
     }
 
-    val <!UNUSED_VARIABLE!>f<!> : String = <!NI;TYPE_MISMATCH!><!OI;TYPE_MISMATCH!>a<!><!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!><!>
-    checkSubtype<String>(<!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!><!OI;TYPE_MISMATCH!>a<!><!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!><!>)
+    val f : String <!INITIALIZER_TYPE_MISMATCH!>=<!> a<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>
+    checkSubtype<String>(<!ARGUMENT_TYPE_MISMATCH!>a<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!><!>)
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, checkNotNullCall, classDeclaration, equalityExpression,
+funWithExtensionReceiver, functionDeclaration, functionalType, ifExpression, infix, integerLiteral, isExpression,
+localProperty, nullableType, propertyDeclaration, smartcast, typeParameter, typeWithExtension */

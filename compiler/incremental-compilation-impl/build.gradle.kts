@@ -1,40 +1,89 @@
-
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("d8-configuration")
+    id("java-test-fixtures")
+    id("project-tests-convention")
+    id("test-inputs-check")
 }
-
-jvmTarget = "1.6"
 
 dependencies {
-    compile(project(":core:descriptors"))
-    compile(project(":core:descriptors.jvm"))
-    compile(project(":core:deserialization"))
-    compile(project(":compiler:util"))
-    compile(project(":compiler:frontend"))
-    compile(project(":compiler:frontend.java"))
-    compile(project(":compiler:cli"))
-    compile(project(":kotlin-build-common"))
-    compile(project(":compiler:daemon-common"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
-    compileOnly(intellijDep()) { includeJars("annotations") }
+    api(project(":core:descriptors"))
+    api(project(":core:descriptors.jvm"))
+    api(project(":core:deserialization"))
+    api(project(":compiler:util"))
+    api(project(":compiler:frontend"))
+    api(project(":compiler:frontend.java"))
+    api(project(":compiler:cli"))
+    api(project(":compiler:cli-jvm"))
+    api(project(":compiler:cli-js"))
+    api(project(":compiler:cli-metadata"))
+    api(project(":compiler:fir:entrypoint"))
+    api(project(":compiler:fir:fir2ir:jvm-backend"))
+    api(project(":compiler:ir.serialization.jvm"))
+    api(project(":compiler:backend.jvm.entrypoint"))
+    api(project(":kotlin-build-common"))
+    api(project(":daemon-common"))
+    api(project(":compiler:build-tools:kotlin-build-statistics"))
+    api(project(":compiler:build-tools:kotlin-build-tools-api"))
+    implementation(project(":compiler:build-tools:kotlin-build-tools-cri-impl"))
+    compileOnly(intellijCore())
 
-    testCompile(commonDep("junit:junit"))
-    testCompile(project(":kotlin-test:kotlin-test-junit"))
-    testCompile(project(":kotlin-stdlib"))
-    testCompile(projectTests(":kotlin-build-common"))
-    testCompile(projectTests(":compiler:tests-common"))
-    testCompile(intellijCoreDep()) { includeJars("intellij-core") }
-    testCompile(intellijDep()) { includeJars("annotations", "log4j", "jdom") }
+    testFixturesApi(libs.junit4)
+    testFixturesApi(kotlinTest("junit"))
+    testFixturesApi(kotlinStdlib())
+    testFixturesApi(testFixtures(project(":kotlin-build-common")))
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(intellijCore())
+    testFixturesApi(commonDependency("org.jetbrains.intellij.deps:log4j"))
+    testFixturesApi(intellijJDom())
+
+    testFixturesImplementation(commonDependency("com.google.code.gson:gson"))
+    testImplementation(commonDependency("com.google.code.gson:gson"))
+    testRuntimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
+
+optInToK1Deprecation()
 
 sourceSets {
-    "main" { projectDefault() }
-    "test" { projectDefault() }
+    main { projectDefault() }
+    test {
+        projectDefault()
+        generatedTestDir()
+    }
+    testFixtures { projectDefault() }
 }
 
-projectTest {
-    workingDir = rootDir
+projectTests {
+    testTask(jUnitMode = JUnitMode.JUnit5, javaLauncher = JdkMajorVersion.JDK_1_8) {
+        useJsIrBoxTests(buildDir = layout.buildDirectory)
+    }
+
+    testTask("testJvmICWithJdk11", jUnitMode = JUnitMode.JUnit5, javaLauncher = JdkMajorVersion.JDK_11_0, skipInLocalBuild = false) {
+        useJsIrBoxTests(buildDir = layout.buildDirectory)
+        filter {
+            includeTestsMatching("org.jetbrains.kotlin.incremental.IncrementalK1JvmCompilerRunnerTestGenerated*")
+            includeTestsMatching("org.jetbrains.kotlin.incremental.IncrementalK2JvmCompilerRunnerTestGenerated*")
+        }
+    }
+
+    tasks.withType<Test>().configureEach {
+        testInputsCheck {
+            with(extraPermissions) {
+                add("permission java.util.PropertyPermission \"kotlin.incremental.compilation\", \"write\";")
+                add("permission java.util.PropertyPermission \"kotlin.incremental.compilation.js\", \"write\";")
+            }
+        }
+    }
+
+    testGenerator("org.jetbrains.kotlin.incremental.TestGeneratorForICTestsKt")
+    testData(project.isolated, "testData")
+    testData(project(":jps:jps-plugin").isolated, "testData")
+    withJsRuntime()
+    withJvmStdlibAndReflect()
+    withMockJdkAnnotationsJar()
 }
 
 testsJar()

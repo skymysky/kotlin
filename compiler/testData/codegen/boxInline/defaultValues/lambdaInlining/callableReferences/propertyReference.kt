@@ -1,7 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
-// FILE: 1.kt
-// LANGUAGE_VERSION: 1.2
 // SKIP_INLINE_CHECK_IN: inlineFun$default
+// FILE: 1.kt
 package test
 
 val ok = "OK"

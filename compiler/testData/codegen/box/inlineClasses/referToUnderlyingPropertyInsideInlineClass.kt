@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class UInt(val value: Int) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class UInt(val value: Int) {
     operator fun plus(other: UInt) = UInt(value + other.value)
     fun otherValue(other: UInt) = other.value
 }

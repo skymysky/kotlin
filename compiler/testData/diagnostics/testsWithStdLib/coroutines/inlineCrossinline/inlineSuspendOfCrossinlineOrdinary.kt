@@ -1,9 +1,8 @@
-// !DIAGNOSTICS: -UNUSED_VARIABLE
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // WITH_COROUTINES
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 import helpers.*
 
 // Function is suspend
@@ -21,7 +20,7 @@ suspend inline fun test(crossinline c: () -> Unit) {
         }
     }
     val l = { c() }
-    c.<!UNRESOLVED_REFERENCE_WRONG_RECEIVER!>startCoroutine<!>(EmptyContinuation)
+    <!USAGE_IS_NOT_INLINABLE!>c<!>.startCoroutine(EmptyContinuation)
 }
 
 fun builder(c: suspend () -> Unit) {
@@ -37,3 +36,7 @@ fun box() {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, assignment, classDeclaration, companionObject, crossinline,
+functionDeclaration, functionalType, inline, lambdaLiteral, localProperty, nullableType, objectDeclaration, override,
+primaryConstructor, propertyDeclaration, safeCall, stringLiteral, suspend, thisExpression, typeParameter */

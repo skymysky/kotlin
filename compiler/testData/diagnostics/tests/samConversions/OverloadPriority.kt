@@ -1,5 +1,5 @@
-// !LANGUAGE: +NewInference
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FILE: Fn.java
 public interface Fn<T, R> {
     R apply(T t);
@@ -26,6 +26,9 @@ fun test(j: J) {
 
     j.bas({ it checkType { _<Any>() }; "" }, "") checkType { _<Int>() }
 
-    // NI: TODO
-    j.<!OVERLOAD_RESOLUTION_AMBIGUITY!>bar<!> { <!UNRESOLVED_REFERENCE!>it<!> <!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>checkType<!> { <!UNRESOLVED_REFERENCE!>_<!><Any>() }; "" } <!DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE!>checkType<!> { <!UNRESOLVED_REFERENCE!>_<!><Int>() }
+    j.bar { it checkType { _<String>() }; "" } checkType { _<Int>() }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, javaFunction, javaType, lambdaLiteral, nullableType, samConversion, stringLiteral, typeParameter,
+typeWithExtension */

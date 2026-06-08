@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeProjection
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.types.getEffectiveVariance
+import org.jetbrains.kotlin.types.typeUtil.getEffectiveVariance
 
 fun encodeSignature(descriptor: CallableDescriptor): String {
     val sig = StringBuilder()
@@ -33,7 +33,16 @@ fun encodeSignature(descriptor: CallableDescriptor): String {
     val usedTypeParameters = currentParameters.toMutableSet()
     val typeParameterNamer = { typeParameter: TypeParameterDescriptor ->
         usedTypeParameters += typeParameter.original
-        typeParameterNames[typeParameter.original]!!
+        typeParameterNames[typeParameter.original]
+            ?: error("${typeParameter.original} is not found when encode the signature of $descriptor.")
+    }
+
+    val contextReceiverParameters = descriptor.contextReceiverParameters
+    if (contextReceiverParameters.isNotEmpty()) {
+        for (contextReceiverParameter in contextReceiverParameters) {
+            sig.encodeForSignature(contextReceiverParameter.type, typeParameterNamer).append(',')
+        }
+        sig.append('\\')
     }
 
     val receiverParameter = descriptor.extensionReceiverParameter
@@ -61,7 +70,7 @@ fun encodeSignature(descriptor: CallableDescriptor): String {
         if (upperBounds.isEmpty()) continue
 
         sig.append("<:")
-        for ((boundIndex, upperBound) in upperBounds.withIndex()) {
+        for ([boundIndex, upperBound] in upperBounds.withIndex()) {
             if (boundIndex > 0) {
                 sig.append("&")
             }
@@ -90,7 +99,7 @@ private fun StringBuilder.encodeForSignature(
     val parameters = declaration.typeConstructor.parameters
     if (type.arguments.isNotEmpty() && parameters.isNotEmpty()) {
         append("<")
-        for ((argument, parameter) in type.arguments.zip(parameters)) {
+        for ([argument, parameter] in type.arguments.zip(parameters)) {
             if (parameter.index > 0) {
                 append(",")
             }
@@ -126,8 +135,8 @@ private fun StringBuilder.encodeForSignature(
 
 private fun nameTypeParameters(descriptor: DeclarationDescriptor): Map<TypeParameterDescriptor, String> {
     val result = mutableMapOf<TypeParameterDescriptor, String>()
-    for ((listIndex, list) in collectTypeParameters(descriptor).withIndex()) {
-        for ((indexInList, typeParameter) in list.withIndex()) {
+    for ([listIndex, list] in collectTypeParameters(descriptor).withIndex()) {
+        for ([indexInList, typeParameter] in list.withIndex()) {
             result[typeParameter] = "$listIndex:$indexInList"
         }
     }

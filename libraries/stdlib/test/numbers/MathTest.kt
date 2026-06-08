@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.numbers
@@ -21,6 +21,20 @@ fun assertAlmostEquals(expected: Float, actual: Float, tolerance: Double? = null
         assertEquals(expected, actual)
     }
 }
+
+// For Kotlin JS tests
+private val Float.ulpCommon: Float
+    get() = when {
+        isNaN() -> Float.NaN
+        isInfinite() -> Float.POSITIVE_INFINITY
+        this == Float.MAX_VALUE || this == -Float.MAX_VALUE -> 2.0f.pow(104)
+        else -> {
+            val d = absoluteValue
+            // Ensure we never have -0.0f
+            val valueOrPositiveZero = (this + 0.0f).toBits();
+            Float.fromBits(valueOrPositiveZero + (if (valueOrPositiveZero >= 0) 1 else -1)) - d
+        }
+    }
 
 class DoubleMathTest {
 
@@ -121,6 +135,30 @@ class DoubleMathTest {
         }
     }
 
+    @Test fun cubeRoots() {
+        val testingPairs = mapOf(
+            Double.NaN to Double.NaN,
+            Double.POSITIVE_INFINITY to Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY to Double.NEGATIVE_INFINITY,
+            Double.fromBits(0x0010000000000000) to 2.812644285236262E-103, // smallest normal value
+            Double.fromBits(0x1L) to 1.7031839360032603E-108, // smallest value (denormal)
+            Double.MAX_VALUE to 5.643803094122362E102,
+            0.0 to 0.0,
+            0.9 to 0.9654893846056297,
+            9.9 to 2.1472291690189413,
+            27.0 to 3.0,
+            399.1289 to 7.362710510208026,
+            8123.452 to 20.102351976782558,
+            21717.639 to 27.9,
+            392890.22 to 73.24147345684439
+        )
+
+        for ([x, result] in testingPairs) {
+            assertEquals(result, cbrt(x), if (result.isFinite()) 2.0 * result.ulp else 0.0)
+            assertEquals(cbrt(-x), -cbrt(x))
+        }
+    }
+
     @Test fun powers() {
         assertEquals(5.0, hypot(3.0, 4.0))
         assertEquals(Double.POSITIVE_INFINITY, hypot(Double.NEGATIVE_INFINITY, Double.NaN))
@@ -211,7 +249,7 @@ class DoubleMathTest {
                 doubleArrayOf( 2.8,  2.0,  2.0,  3.0,  3.0),
                 doubleArrayOf(-2.8, -3.0, -2.0, -3.0, -2.0)
         )
-        for ((v, f, t, r, c) in data) {
+        for ([v, f, t, r, c] in data) {
             assertEquals(f, floor(v), "floor($v)")
             assertEquals(t, truncate(v), "truncate($v)")
             assertEquals(r, round(v), "round($v)")
@@ -361,12 +399,21 @@ class FloatMathTest {
         const val E = kotlin.math.E.toFloat()
     }
 
+    // TODO: ensure it passes in kotlin-stdlib-js-ir after implementing KT-24975
+    @Ignore
+    @Test
+    fun floatRangeConversion() {
+        // expected run-time conversion to produce the same result as compile-time one
+        assertEquals(kotlin.math.E.toFloat(), E)
+        assertEquals(kotlin.math.PI.toFloat(), PI)
+    }
+
     @Test fun trigonometric() {
         assertEquals(0.0F, sin(0.0F))
         assertAlmostEquals(0.0F, sin(PI))
 
         assertEquals(0.0F, asin(0.0F))
-        assertAlmostEquals(PI / 2, asin(1.0F))
+        assertAlmostEquals(PI / 2, asin(1.0F), 0.0000002)
 
         assertEquals(1.0F, cos(0.0F))
         assertAlmostEquals(-1.0F, cos(PI))
@@ -459,6 +506,30 @@ class FloatMathTest {
         }
     }
 
+    @Test fun cubeRoots() {
+        val testingPairs = mapOf(
+            Float.NaN to Float.NaN,
+            Float.POSITIVE_INFINITY to Float.POSITIVE_INFINITY,
+            Float.NEGATIVE_INFINITY to Float.NEGATIVE_INFINITY,
+            Float.fromBits(0x00800000) to 2.2737368E-13f, // smallest normal value
+            Float.fromBits(0x1) to 1.1190347E-15f, // smallest value (denormal)
+            Float.MAX_VALUE to 6.9814636E12f,
+            0.0f to 0.0f,
+            0.9f to 0.9654894f,
+            9.9f to 2.1472292f,
+            27.0f to 3.0f,
+            399.1289f to 7.3627105f,
+            8123.452f to 20.102352f,
+            21717.639f to 27.9f,
+            392890.22f to 73.24147f
+        )
+
+        for ([x, result] in testingPairs) {
+            assertEquals(result, cbrt(x), if (result.isFinite()) 2.0f * result.ulpCommon else 0.0f)
+            assertEquals(cbrt(-x), -cbrt(x))
+        }
+    }
+
     @Test fun powers() {
         assertEquals(5.0F, hypot(3.0F, 4.0F))
         assertEquals(Float.POSITIVE_INFINITY, hypot(Float.NEGATIVE_INFINITY, Float.NaN))
@@ -480,7 +551,7 @@ class FloatMathTest {
         assertTrue(sqrt(Float.NaN).isNaN())
 
         assertTrue(exp(Float.NaN).isNaN())
-        assertAlmostEquals(E, exp(1.0F))
+        assertAlmostEquals(kotlin.math.E.toFloat(), exp(1.0F))
         assertEquals(1.0F, exp(0.0F))
         assertEquals(0.0F, exp(Float.NEGATIVE_INFINITY))
         assertEquals(Float.POSITIVE_INFINITY, exp(Float.POSITIVE_INFINITY))
@@ -545,7 +616,7 @@ class FloatMathTest {
                 floatArrayOf( 2.8F,  2.0F,  2.0F,  3.0F,  3.0F),
                 floatArrayOf(-2.8F, -3.0F, -2.0F, -3.0F, -2.0F)
         )
-        for ((v, f, t, r, c) in data) {
+        for ([v, f, t, r, c] in data) {
             assertEquals(f, floor(v), "floor($v)")
             assertEquals(t, truncate(v), "truncate($v)")
             assertEquals(r, round(v), "round($v)")
@@ -657,6 +728,15 @@ class IntegerMathTest {
         positives.forEach { assertEquals(it, it.absoluteValue) }
     }
 
+    @Test fun absoluteValue() {
+        assertEquals(Int.MIN_VALUE, Int.MIN_VALUE.absoluteValue)
+        assertEquals(Int.MIN_VALUE, abs(Int.MIN_VALUE))
+
+        for (value in intArrayOf(0, 1, 42, Int.MAX_VALUE)) {
+            assertEquals(value, (-value).absoluteValue)
+            assertEquals(value, abs(-value))
+        }
+    }
 
     @Test fun longSigns() {
         val negatives = listOf(Long.MIN_VALUE, -65536L, -1L)
@@ -669,5 +749,15 @@ class IntegerMathTest {
         assertEquals(Long.MIN_VALUE, Long.MIN_VALUE.absoluteValue)
 
         positives.forEach { assertEquals(it, it.absoluteValue) }
+    }
+
+    @Test fun longAbsoluteValue() {
+        assertEquals(Long.MIN_VALUE, Long.MIN_VALUE.absoluteValue)
+        assertEquals(Long.MIN_VALUE, abs(Long.MIN_VALUE))
+
+        for (value in longArrayOf(0L, 1L, 42L, Long.MAX_VALUE)) {
+            assertEquals(value, (-value).absoluteValue)
+            assertEquals(value, abs(-value))
+        }
     }
 }

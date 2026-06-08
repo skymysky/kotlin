@@ -1,10 +1,7 @@
-// IGNORE_BACKEND: JVM_IR
-// FILE: test.kt
-// COMMON_COROUTINES_TEST
-// WITH_RUNTIME
 // WITH_COROUTINES
-// SKIP_SOURCEMAP_REMAPPING
-import COROUTINES_PACKAGE.*
+// WITH_STDLIB
+// FILE: test.kt
+import kotlin.coroutines.*
 import helpers.*
 
 // Block is allowed to be called from nested classes/lambdas (as common crossinlines)
@@ -37,8 +34,6 @@ fun builder(controller: Controller, c: suspend Controller.() -> Unit) {
 }
 
 // FILE: box.kt
-// COMMON_COROUTINES_TEST
-
 suspend fun calculate() = "OK"
 
 fun box(): String {

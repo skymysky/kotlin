@@ -1,5 +1,3 @@
-// EXPECTED_REACHABLE_NODES: 1296
-// IGNORE_BACKEND: JS_IR
 // CALL_MAIN
 
 import kotlin.coroutines.*
@@ -19,7 +17,7 @@ suspend fun main() {
 }
 
 fun box(): String {
-    assertEquals("fail", ok)
+    if ("fail" != ok) error("Fail")
     callback()
     return ok
 }

@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // See also KT-10896: Wrong inference of if / else result type
 
 interface Option<T>
@@ -9,7 +9,7 @@ class None<T> : Option<T>
 fun <T> bind(r: Option<T>): Option<T> {
     return if (r is Some) {
         // Ideally we should infer Option<T> here (see KT-10896)
-        (<!OI;TYPE_INFERENCE_FAILED_ON_SPECIAL_CONSTRUCT!>if<!> (true) <!OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>None()<!> else <!DEBUG_INFO_SMARTCAST!>r<!>) checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER, OI;TYPE_MISMATCH!>_<!><Option<T>>() }
+        (if (true) None() else r) checkType { _<Option<T>>() }
         // Works correctly
         if (true) None() else r
     }
@@ -25,9 +25,9 @@ fun <T> bind2(r: Option<T>): Option<T> {
 }
 
 fun <T, R> bind3(r: Option<T>): Option<T> {
-    return <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!>if (r is Some) {
+    return <!RETURN_TYPE_MISMATCH!>if (r is Some) {
         // Diagnoses an error correctly
-        if (true) <!OI;TYPE_MISMATCH!>None<R>()<!> else r
+        if (true) None<R>() else r
     }
     else r<!>
 }
@@ -53,3 +53,7 @@ fun bindNoGeneric(r: SimpleOption): SimpleOption {
     }
     else r
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType, ifExpression,
+infix, interfaceDeclaration, isExpression, lambdaLiteral, nullableType, smartcast, typeParameter, typeWithExtension,
+whenExpression, whenWithSubject */

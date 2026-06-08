@@ -18,9 +18,8 @@
 
 package kotlin.script.experimental.host
 
-import kotlinx.coroutines.experimental.CoroutineScope
-import kotlinx.coroutines.experimental.runBlocking
 import kotlin.script.experimental.api.*
+import kotlin.script.experimental.impl.internalScriptingRunSuspend
 
 /**
  * The base class for scripting host implementations
@@ -32,19 +31,21 @@ abstract class BasicScriptingHost(
     /**
      * The overridable wrapper for executing evaluation in a desired coroutines context
      */
-    open fun <T> runInCoroutineContext(block: suspend CoroutineScope.() -> T): T = runBlocking { block() }
+    open fun <T> runInCoroutineContext(block: suspend () -> T): T =
+        @Suppress("DEPRECATION_ERROR")
+        internalScriptingRunSuspend { block() }
 
     /**
      * The default implementation of the evaluation function
      */
     open fun eval(
         script: SourceCode,
-        scriptCompilationConfiguration: ScriptCompilationConfiguration,
-        configuration: ScriptEvaluationConfiguration?
+        compilationConfiguration: ScriptCompilationConfiguration,
+        evaluationConfiguration: ScriptEvaluationConfiguration?
     ): ResultWithDiagnostics<EvaluationResult> =
         runInCoroutineContext {
-            compiler(script, scriptCompilationConfiguration).onSuccess {
-                evaluator(it, configuration)
+            compiler(script, compilationConfiguration).onSuccess {
+                evaluator(it, evaluationConfiguration ?: ScriptEvaluationConfiguration.Default)
             }
         }
 }

@@ -1,5 +1,4 @@
-// WITH_UNSIGNED
-// IGNORE_BACKEND: JVM_IR, JS_IR
+// WITH_STDLIB
 
 const val MAX_BYTE: UByte = 0xFFu
 const val HUNDRED: UByte = 100u

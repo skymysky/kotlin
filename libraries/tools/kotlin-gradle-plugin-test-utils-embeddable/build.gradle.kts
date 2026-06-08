@@ -1,34 +1,41 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-
-
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.jvm.tasks.Jar
 
 description = "Shaded test jars from compiler for Gradle integration tests"
 
-plugins { `java` }
+plugins {
+    `java-library`
+}
 
-val packedJars by configurations.creating
+val projectsToInclude = listOf(
+    ":compiler:incremental-compilation-impl",
+)
 
-val projectsToInclude = listOf(":compiler:tests-common",
-                               ":compiler:incremental-compilation-impl",
-                               ":kotlin-build-common")
+val fixturesToInclude = listOf(
+    ":compiler:test-infrastructure-utils",
+    ":compiler:tests-common",
+    ":compiler:tests-compiler-utils",
+    ":kotlin-build-common",
+)
+
+fun Dependency.unsetTransitive() {
+    if (this is ModuleDependency) {
+        isTransitive = false
+    }
+}
 
 dependencies {
     for (projectName in projectsToInclude) {
-        compile(projectTests(projectName)) { isTransitive = false }
-        packedJars(projectTests(projectName)) { isTransitive = false }
+        api(projectTests(projectName)) { unsetTransitive() }
+        embedded(projectTests(projectName)) { unsetTransitive() }
     }
 
-    packedJars(intellijDep()) { includeJars("idea_rt") }
-
+    for (projectName in fixturesToInclude) {
+        api(testFixtures(project(projectName))) { unsetTransitive() }
+        embedded(testFixtures(project(projectName))) { unsetTransitive() }
+    }
 }
 
-runtimeJar(rewriteDepsToShadedCompiler(
-    task<ShadowJar>("shadowJar")  {
-        from(packedJars)
-    }
-))
+runtimeJar(rewriteDefaultJarDepsToShadedCompiler())

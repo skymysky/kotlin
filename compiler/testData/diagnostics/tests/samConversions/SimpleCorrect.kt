@@ -1,4 +1,4 @@
-// !LANGUAGE: +NewInference +SamConversionForKotlinFunctions
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: J.java
 public interface J {
     public void foo1(Runnable r);
@@ -32,3 +32,5 @@ fun test(j: J, r: Runnable) {
     j.foo3({}, {}, r)
     j.foo3({}, {}, {})
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaFunction, javaType, lambdaLiteral, samConversion */

@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER,-UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE
 
 fun <T : CharSequence?> bar1(x: T) {}
 
@@ -13,6 +13,8 @@ fun <T : String?> foo(x: T) {
     bar1(x)
     bar2(x)
 
-    <!OI;TYPE_INFERENCE_UPPER_BOUND_VIOLATED!>bar3<!>(<!NI;TYPE_MISMATCH!>x<!>)
-    bar4(<!TYPE_MISMATCH!>x<!>)
+    <!CANNOT_INFER_PARAMETER_TYPE!>bar3<!>(<!ARGUMENT_TYPE_MISMATCH!>x<!>)
+    bar4(<!ARGUMENT_TYPE_MISMATCH!>x<!>)
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, nullableType, typeConstraint, typeParameter */

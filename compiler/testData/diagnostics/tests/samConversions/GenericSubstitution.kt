@@ -1,5 +1,5 @@
-// !LANGUAGE: +NewInference
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
 // FILE: J.java
 public interface J<T> {
     void f_t(F<T> f1, F<T> f2);
@@ -27,3 +27,6 @@ fun test(
     j.f_r(f_int) { it checkType { _<Int>() } }
     j.f_pr(f_pr) { it checkType { _<PR<String, Int>>() } }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, flexibleType, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, javaType, lambdaLiteral, nullableType, samConversion, typeParameter, typeWithExtension */

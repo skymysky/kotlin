@@ -1,4 +1,6 @@
-// !LANGUAGE: +InlineClasses
+// PLATFORM_DEPENDANT_METADATA
+// LANGUAGE: +InlineClasses
+// NO_CHECK_SOURCE_VS_BINARY
 package test
 
 annotation class Ann

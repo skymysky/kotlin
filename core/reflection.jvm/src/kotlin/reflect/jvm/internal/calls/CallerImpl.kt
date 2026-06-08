@@ -1,10 +1,11 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package kotlin.reflect.jvm.internal.calls
 
+import org.jetbrains.kotlin.utils.genericParameterTypesWithEnclosingThis
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
@@ -15,11 +16,9 @@ import java.lang.reflect.Method as ReflectMethod
 internal sealed class CallerImpl<out M : Member>(
     final override val member: M,
     final override val returnType: Type,
-    val instanceClass: Class<*>?,
-    valueParameterTypes: Array<Type>
+    valueParameterTypes: Array<Type>,
 ) : Caller<M> {
-    override val parameterTypes: List<Type> =
-        instanceClass?.let { listOf(it, *valueParameterTypes) } ?: valueParameterTypes.toList()
+    override val parameterTypes: List<Type> = valueParameterTypes.toList()
 
     protected fun checkObjectInstance(obj: Any?) {
         if (obj == null || !member.declaringClass.isInstance(obj)) {
@@ -30,11 +29,7 @@ internal sealed class CallerImpl<out M : Member>(
     class Constructor(constructor: ReflectConstructor<*>) : CallerImpl<ReflectConstructor<*>>(
         constructor,
         constructor.declaringClass,
-        constructor.declaringClass.let { klass ->
-            val outerClass = klass.declaringClass
-            if (outerClass != null && !Modifier.isStatic(klass.modifiers)) outerClass else null
-        },
-        constructor.genericParameterTypes
+        constructor.genericParameterTypesWithEnclosingThis
     ) {
         override fun call(args: Array<*>): Any? {
             checkArguments(args)
@@ -46,12 +41,37 @@ internal sealed class CallerImpl<out M : Member>(
     // See https://youtrack.jetbrains.com/issue/KT-14990
     class BoundConstructor(constructor: ReflectConstructor<*>, private val boundReceiver: Any?) : BoundCaller,
         CallerImpl<ReflectConstructor<*>>(
-            constructor, constructor.declaringClass, null,
-            constructor.genericParameterTypes
+            constructor, constructor.declaringClass,
+            constructor.genericParameterTypesWithEnclosingThis
         ) {
         override fun call(args: Array<*>): Any? {
-            checkArguments(args)
+            checkArguments(args.size + 1)
             return member.newInstance(boundReceiver, *args)
+        }
+    }
+
+    class AccessorForHiddenConstructor(
+        constructor: ReflectConstructor<*>
+    ) : CallerImpl<ReflectConstructor<*>>(
+        constructor, constructor.declaringClass,
+        constructor.genericParameterTypes.dropLast()
+    ) {
+        override fun call(args: Array<*>): Any? {
+            checkArguments(args)
+            return member.newInstance(*args, null)
+        }
+    }
+
+    class AccessorForHiddenBoundConstructor(
+        constructor: ReflectConstructor<*>,
+        private val boundReceiver: Any?
+    ) : CallerImpl<ReflectConstructor<*>>(
+        constructor, constructor.declaringClass,
+        constructor.genericParameterTypes.dropFirstAndLast()
+    ), BoundCaller {
+        override fun call(args: Array<*>): Any? {
+            checkArguments(args)
+            return member.newInstance(boundReceiver, *args, null)
         }
     }
 
@@ -62,8 +82,7 @@ internal sealed class CallerImpl<out M : Member>(
     ) : CallerImpl<ReflectMethod>(
         method,
         method.genericReturnType,
-        if (requiresInstance) method.declaringClass else null,
-        parameterTypes
+        if (requiresInstance) arrayOf(method.declaringClass, *parameterTypes) else parameterTypes
     ) {
         private val isVoidMethod = returnType == Void.TYPE
 
@@ -96,7 +115,23 @@ internal sealed class CallerImpl<out M : Member>(
             }
         }
 
-        class BoundStatic(method: ReflectMethod, private val boundReceiver: Any?) : BoundCaller, Method(
+        /**
+         * @param isCallByToValueClassMangledMethod true if this is a `callBy` caller whose original caller is an instance method that is
+         *  mangled due to value classes in the signature.
+         * ```kotlin
+         * class Bar {
+         *     // original caller calls this method
+         *     fun foo(param1: Foo = ..., param2: Foo = ...): ReturnType = ...
+         *     // generated caller for default parameter call
+         *     // static ReturnType foo$default(Bar, Foo, Foo, Int, Object);
+         * }
+         * ```
+         * If `Foo` is value class or `ReturnType` is inline class, [ValueClassAwareCaller] regards it as a normal static function
+         * rather than a top level extension function/property (see KT-71378).
+         */
+        class BoundStatic(
+            method: ReflectMethod, internal val isCallByToValueClassMangledMethod: Boolean, private val boundReceiver: Any?,
+        ) : BoundCaller, Method(
             method, requiresInstance = false, parameterTypes = method.genericParameterTypes.dropFirst()
         ) {
             override fun call(args: Array<*>): Any? {
@@ -123,16 +158,15 @@ internal sealed class CallerImpl<out M : Member>(
 
     sealed class FieldGetter(
         field: ReflectField,
-        requiresInstance: Boolean
+        private val requiresInstance: Boolean,
     ) : CallerImpl<ReflectField>(
         field,
         field.genericType,
-        if (requiresInstance) field.declaringClass else null,
-        emptyArray()
+        if (requiresInstance) arrayOf(field.declaringClass) else emptyArray()
     ) {
         override fun call(args: Array<*>): Any? {
             checkArguments(args)
-            return member.get(if (instanceClass != null) args.first() else null)
+            return member.get(if (requiresInstance) args.first() else null)
         }
 
         class Static(field: ReflectField) : FieldGetter(field, requiresInstance = false)
@@ -160,12 +194,11 @@ internal sealed class CallerImpl<out M : Member>(
     sealed class FieldSetter(
         field: ReflectField,
         private val notNull: Boolean,
-        requiresInstance: Boolean
+        private val requiresInstance: Boolean,
     ) : CallerImpl<ReflectField>(
         field,
         Void.TYPE,
-        if (requiresInstance) field.declaringClass else null,
-        arrayOf(field.genericType)
+        if (requiresInstance) arrayOf(field.declaringClass, field.genericType) else arrayOf(field.genericType)
     ) {
         override fun checkArguments(args: Array<*>) {
             super.checkArguments(args)
@@ -176,7 +209,7 @@ internal sealed class CallerImpl<out M : Member>(
 
         override fun call(args: Array<*>): Any? {
             checkArguments(args)
-            return member.set(if (instanceClass != null) args.first() else null, args.last())
+            return member.set(if (requiresInstance) args.first() else null, args.last())
         }
 
         class Static(field: ReflectField, notNull: Boolean) : FieldSetter(field, notNull, requiresInstance = false)
@@ -192,7 +225,7 @@ internal sealed class CallerImpl<out M : Member>(
 
         class BoundInstance(field: ReflectField, notNull: Boolean, private val boundReceiver: Any?) : BoundCaller,
             FieldSetter(field, notNull, requiresInstance = false) {
-            override fun call(args: Array<*>): Any? {
+            override fun call(args: Array<*>): Any {
                 checkArguments(args)
                 return member.set(boundReceiver, args.first())
             }
@@ -200,7 +233,7 @@ internal sealed class CallerImpl<out M : Member>(
 
         class BoundJvmStaticInObject(field: ReflectField, notNull: Boolean) : BoundCaller,
             FieldSetter(field, notNull, requiresInstance = false) {
-            override fun call(args: Array<*>): Any? {
+            override fun call(args: Array<*>): Any {
                 checkArguments(args)
                 return member.set(null, args.last())
             }
@@ -211,5 +244,13 @@ internal sealed class CallerImpl<out M : Member>(
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T> Array<out T>.dropFirst(): Array<T> =
             if (size <= 1) emptyArray() else copyOfRange(1, size) as Array<T>
+
+        @Suppress("UNCHECKED_CAST")
+        inline fun <reified T> Array<out T>.dropLast(): Array<T> =
+            if (size <= 1) emptyArray() else copyOfRange(0, size - 1) as Array<T>
+
+        @Suppress("UNCHECKED_CAST")
+        inline fun <reified T> Array<out T>.dropFirstAndLast(): Array<T> =
+            if (size <= 2) emptyArray() else copyOfRange(1, size - 1) as Array<T>
     }
 }

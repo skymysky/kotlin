@@ -1,10 +1,12 @@
-// !USE_EXPERIMENTAL: kotlin.Experimental api.ExperimentalAPI
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.RequiresOptIn api.ExperimentalAPI
 // MODULE: api
 // FILE: api.kt
 
 package api
 
-@Experimental(Experimental.Level.ERROR)
+@RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+@Retention(AnnotationRetention.BINARY)
 annotation class ExperimentalAPI
 
 @ExperimentalAPI
@@ -20,3 +22,5 @@ import api.*
 fun use() {
     function()
 }
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, functionDeclaration, stringLiteral */

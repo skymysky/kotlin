@@ -1,6 +1,6 @@
-// WITH_RUNTIME
-// CHECK_CASES_COUNT: function=foo1 count=2
-// CHECK_IF_COUNT: function=foo1 count=1
+// WITH_STDLIB
+// CHECK_CASES_COUNT: function=foo1 count=5
+// CHECK_IF_COUNT: function=foo1 count=0
 // CHECK_CASES_COUNT: function=foo2 count=4
 // CHECK_IF_COUNT: function=foo2 count=0
 

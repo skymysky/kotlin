@@ -1,5 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER, -EXTENSION_SHADOWED_BY_MEMBER
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER, -EXTENSION_SHADOWED_BY_MEMBER
 
 open class Example {
     fun invoke() = 0
@@ -29,14 +30,14 @@ fun test() {
     var a = Example()
     val b = Example()
 
-    consumeString(<!NI;TYPE_MISMATCH!><!NI;OPERATOR_MODIFIER_REQUIRED!>a<!>()<!>)
-    consumeString(<!NI;OPERATOR_MODIFIER_REQUIRED, NI;TYPE_MISMATCH!>a[1]<!>)
+    consumeString(a())
+    consumeString(a[1])
 
-    val (<!NI;OPERATOR_MODIFIER_REQUIRED!>x<!>, <!NI;OPERATOR_MODIFIER_REQUIRED!>y<!>) = Example()
-    consumeString(<!NI;TYPE_MISMATCH!>x<!>)
-    consumeString(<!NI;TYPE_MISMATCH!>y<!>)
+    val [x, y] = Example()
+    consumeString(x)
+    consumeString(y)
 
-    consumeExample2(<!NI;TYPE_MISMATCH!><!NI;OPERATOR_MODIFIER_REQUIRED!>++<!>a<!>)
+    consumeExample2(++a)
 
     consumeString(a plus b)
 }
@@ -44,3 +45,7 @@ fun test() {
 fun consumeInt(i: Int) {}
 fun consumeString(s: String) {}
 fun consumeExample2(e: Example2) {}
+
+/* GENERATED_FIR_TAGS: assignment, classDeclaration, destructuringDeclaration, funWithExtensionReceiver,
+functionDeclaration, incrementDecrementExpression, infix, integerLiteral, localProperty, operator, propertyDeclaration,
+smartcast, stringLiteral */

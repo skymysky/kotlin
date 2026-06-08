@@ -27,10 +27,12 @@ import org.jetbrains.kotlin.resolve.DataClassDescriptorResolver
 import org.jetbrains.kotlin.resolve.LocalVariableResolver
 import org.jetbrains.kotlin.resolve.TypeResolver
 import org.jetbrains.kotlin.resolve.calls.context.ContextDependency
+import org.jetbrains.kotlin.resolve.checkers.TrailingCommaChecker
 import org.jetbrains.kotlin.resolve.scopes.LexicalScope
 import org.jetbrains.kotlin.resolve.scopes.LexicalWritableScope
 import org.jetbrains.kotlin.resolve.scopes.receivers.ReceiverValue
-import org.jetbrains.kotlin.types.ErrorUtils
+import org.jetbrains.kotlin.types.error.ErrorTypeKind
+import org.jetbrains.kotlin.types.error.ErrorUtils
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
@@ -48,12 +50,18 @@ class DestructuringDeclarationResolver(
         context: ExpressionTypingContext
     ): List<VariableDescriptor> {
         val result = arrayListOf<VariableDescriptor>()
-        for ((componentIndex, entry) in destructuringDeclaration.entries.withIndex()) {
+        for ([componentIndex, entry] in destructuringDeclaration.entries.withIndex()) {
             val componentType = resolveInitializer(entry, receiver, initializer, context, componentIndex)
             val variableDescriptor =
                 localVariableResolver.resolveLocalVariableDescriptorWithType(scope, entry, componentType, context.trace)
 
             result.add(variableDescriptor)
+        }
+
+        TrailingCommaChecker.check(destructuringDeclaration.trailingComma, context.trace, context.languageVersionSettings)
+
+        if (destructuringDeclaration.hasSquareBrackets() || destructuringDeclaration.isFullForm) {
+            context.trace.report(Errors.UNSUPPORTED.on(destructuringDeclaration, "This destructuring syntax is not supported in K1."))
         }
 
         return result
@@ -90,7 +98,7 @@ class DestructuringDeclarationResolver(
         receiver: ReceiverValue?,
         initializer: KtExpression?
     ): KotlinType {
-        fun errorType() = ErrorUtils.createErrorType("$componentName() return type")
+        fun errorType() = ErrorUtils.createErrorType(ErrorTypeKind.ERROR_TYPE_FOR_DESTRUCTURING_COMPONENT, componentName.toString())
 
         if (receiver == null) return errorType()
 

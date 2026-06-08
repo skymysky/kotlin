@@ -16,10 +16,16 @@
 
 package org.jetbrains.kotlin.js.backend
 
+import org.jetbrains.kotlin.js.backend.ast.JsLocationWithSource
+
 object NoOpSourceLocationConsumer : SourceLocationConsumer {
     override fun newLine() {}
 
-    override fun pushSourceInfo(info: Any?) {}
+    override fun pushSourceInfo(info: JsLocationWithSource?) {}
+
+    override fun pushDeclarationInfo(info: JsLocationWithSource?) {}
 
     override fun popSourceInfo() {}
+
+    override fun popDeclarationInfo() {}
 }

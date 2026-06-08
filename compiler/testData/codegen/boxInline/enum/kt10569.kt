@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JS_IR
+// WITH_STDLIB
 // FILE: 1.kt
-// WITH_RUNTIME
 package test
 
 var result = ""
@@ -29,4 +28,3 @@ fun box(): String {
     }
     return result
 }
-

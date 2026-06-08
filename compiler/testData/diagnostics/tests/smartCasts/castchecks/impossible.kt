@@ -1,4 +1,4 @@
-// !LANGUAGE: +SafeCastCheckBoundSmartCasts
+// RUN_PIPELINE_TILL: BACKEND
 // See KT-20752
 
 class Unstable {
@@ -23,3 +23,6 @@ fun foo(list: StringList, arg: Unstable) {
         list.remove(arg.first)
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, elvisExpression, equalityExpression, funWithExtensionReceiver,
+functionDeclaration, getter, ifExpression, localProperty, nullableType, propertyDeclaration, smartcast, stringLiteral */

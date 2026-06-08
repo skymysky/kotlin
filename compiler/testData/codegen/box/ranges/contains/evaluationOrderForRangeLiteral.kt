@@ -1,6 +1,7 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// KJS_WITH_FULL_RUNTIME
+// WITH_STDLIB
 
+// FILE: lib.kt
 var order = StringBuilder()
 
 inline fun expectOrder(at: String, expected: String, body: () -> Unit) {
@@ -8,6 +9,9 @@ inline fun expectOrder(at: String, expected: String, body: () -> Unit) {
     body()
     if (order.toString() != expected) throw AssertionError("$at: expected: $expected, actual: $order")
 }
+
+// FILE: main.kt
+import kotlin.test.*
 
 fun low(i: Int): Int {
     order.append("L")
@@ -25,8 +29,32 @@ fun x(i: Int): Int {
 }
 
 fun box(): String {
-    expectOrder("0 in 1 .. 3", "LHX") { x(0) in low(1) .. high(3) }
-    expectOrder("0 !in 1 .. 3", "LHX") { x(0) !in low(1) .. high(3) }
+    expectOrder("x(0) in low(1) .. high(3)", "LHX") { assertFalse(x(0) in low(1) .. high(3)) }
+    expectOrder("0 in low(1) .. high(3)", "LH") { assertFalse(0 in low(1) .. high(3)) }
+    expectOrder("x(0) in 1 .. high(3)", "HX") { assertFalse(x(0) in 1 .. high(3)) }
+    expectOrder("x(0) in low(1) .. 3", "LX") { assertFalse(x(0) in low(1) .. 3) }
+    expectOrder("x(0) !in low(1) .. high(3)", "LHX") { assertTrue(x(0) !in low(1) .. high(3)) }
+    expectOrder("0 !in low(1) .. high(3)", "LH") { assertTrue(0 !in low(1) .. high(3)) }
+    expectOrder("x(0) !in 1 .. high(3)", "HX") { assertTrue(x(0) !in 1 .. high(3)) }
+    expectOrder("x(0) !in low(1) .. 3", "LX") { assertTrue(x(0) !in low(1) .. 3) }
+
+    expectOrder("x(4) in low(1) .. high(3)", "LHX") { assertFalse(x(4) in low(1) .. high(3)) }
+    expectOrder("4 in low(1) .. high(3)", "LH") { assertFalse(4 in low(1) .. high(3)) }
+    expectOrder("x(4) in 1 .. high(3)", "HX") { assertFalse(x(4) in 1 .. high(3)) }
+    expectOrder("x(4) in low(1) .. 3", "LX") { assertFalse(x(4) in low(1) .. 3) }
+    expectOrder("x(4) !in low(1) .. high(3)", "LHX") { assertTrue(x(4) !in low(1) .. high(3)) }
+    expectOrder("4 !in low(1) .. high(3)", "LH") { assertTrue(4 !in low(1) .. high(3)) }
+    expectOrder("x(4) !in 1 .. high(3)", "HX") { assertTrue(x(4) !in 1 .. high(3)) }
+    expectOrder("x(4) !in low(1) .. 3", "LX") { assertTrue(x(4) !in low(1) .. 3) }
+
+    expectOrder("x(2) in low(1) .. high(3)", "LHX") { assertTrue(x(2) in low(1) .. high(3)) }
+    expectOrder("2 in low(1) .. high(3)", "LH") { assertTrue(2 in low(1) .. high(3)) }
+    expectOrder("x(2) in 1 .. high(3)", "HX") { assertTrue(x(2) in 1 .. high(3)) }
+    expectOrder("x(2) in low(1) .. 3", "LX") { assertTrue(x(2) in low(1) .. 3) }
+    expectOrder("x(2) !in low(1) .. high(3)", "LHX") { assertFalse(x(2) !in low(1) .. high(3)) }
+    expectOrder("2 !in low(1) .. high(3)", "LH") { assertFalse(2 !in low(1) .. high(3)) }
+    expectOrder("x(2) !in 1 .. high(3)", "HX") { assertFalse(x(2) !in 1 .. high(3)) }
+    expectOrder("x(2) !in low(1) .. 3", "LX") { assertFalse(x(2) !in low(1) .. 3) }
 
     return "OK"
 }

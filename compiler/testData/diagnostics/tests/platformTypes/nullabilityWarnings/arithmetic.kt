@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 // FILE: J.java
 
 import org.jetbrains.annotations.*;
@@ -30,26 +30,29 @@ fun test() {
     ++platformJ
 
     platformNN++
-    platformN<!UNSAFE_CALL!>++<!>
+    platformN++
     platformJ++
 
     1 + platformNN
-    1 <!NI;NONE_APPLICABLE!>+<!> <!OI;TYPE_MISMATCH!>platformN<!>
+    1 + platformN
     1 + platformJ
 
     platformNN + 1
-    platformN <!UNSAFE_OPERATOR_CALL!>+<!> 1
+    platformN + 1
     platformJ + 1
 
     1 <!INFIX_MODIFIER_REQUIRED!>plus<!> platformNN
-    1 <!NI;NONE_APPLICABLE, OI;INFIX_MODIFIER_REQUIRED!>plus<!> <!OI;TYPE_MISMATCH!>platformN<!>
+    1 <!INFIX_MODIFIER_REQUIRED!>plus<!> platformN
     1 <!INFIX_MODIFIER_REQUIRED!>plus<!> platformJ
 
     platformNN <!INFIX_MODIFIER_REQUIRED!>plus<!> 1
-    platformN <!UNSAFE_INFIX_CALL, INFIX_MODIFIER_REQUIRED!>plus<!> 1
+    platformN <!INFIX_MODIFIER_REQUIRED!>plus<!> 1
     platformJ <!INFIX_MODIFIER_REQUIRED!>plus<!> 1
 
     platformNN += 1
-    platformN <!UNSAFE_OPERATOR_CALL!>+=<!> 1
+    platformN += 1
     platformJ += 1
 }
+
+/* GENERATED_FIR_TAGS: additiveExpression, assignment, flexibleType, functionDeclaration, incrementDecrementExpression,
+integerLiteral, javaProperty, localProperty, nullableType, propertyDeclaration, smartcast, unaryExpression */

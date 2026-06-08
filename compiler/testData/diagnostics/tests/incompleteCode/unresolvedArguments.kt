@@ -1,5 +1,6 @@
-// !WITH_NEW_INFERENCE
-//!DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// WITH_STDLIB
+// DIAGNOSTICS: -UNUSED_PARAMETER, -DEBUG_INFO_ELEMENT_WITH_ERROR_TYPE, -DEBUG_INFO_MISSING_UNRESOLVED
 
 fun <T> foo(i: Int, t: T) {}
 fun <T> foo(s: String, t: T) {}
@@ -8,6 +9,10 @@ fun bar(i: Int) {}
 fun bar(s: String) {}
 
 fun test() {
-    <!NI;OVERLOAD_RESOLUTION_AMBIGUITY!>foo<!>(<!UNRESOLVED_REFERENCE!>rrr<!>, 1)
-    <!NI;OVERLOAD_RESOLUTION_AMBIGUITY!>bar<!>(<!UNRESOLVED_REFERENCE!>rrr<!>)
+    foo(<!UNRESOLVED_REFERENCE!>rrr<!>, 1)
+    bar(<!UNRESOLVED_REFERENCE!>rrr<!>)
 }
+
+fun bar(x: <!UNRESOLVED_REFERENCE!>Unresolved<!>) = x + 1
+
+/* GENERATED_FIR_TAGS: additiveExpression, functionDeclaration, integerLiteral, nullableType, typeParameter */

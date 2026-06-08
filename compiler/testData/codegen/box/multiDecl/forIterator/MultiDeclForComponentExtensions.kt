@@ -1,4 +1,5 @@
-// IGNORE_BACKEND: JS_IR
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// KJS_WITH_FULL_RUNTIME
 class C(val i: Int) {
 }
 
@@ -7,7 +8,7 @@ operator fun C.component2() = i + 2
 
 fun doTest(l : ArrayList<C>): String {
     var s = ""
-    for ((a, b) in l) {
+    for ([a, b] in l) {
       s += "$a:$b;"
     }
     return s

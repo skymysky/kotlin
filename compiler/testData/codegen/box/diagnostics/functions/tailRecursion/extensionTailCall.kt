@@ -1,7 +1,4 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
-// IGNORE_BACKEND: JS_IR
-
-// DONT_RUN_GENERATED_CODE: JS
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 tailrec fun Int.foo(x: Int) {
     if (x == 0) return

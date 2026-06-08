@@ -1,10 +1,16 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 // WITH_COROUTINES
-// COMMON_COROUTINES_TEST
+// NO_CHECK_LAMBDA_INLINING
+// FILE: lib.kt
+
+inline fun run(block: () -> Unit) {
+    block()
+}
+
+// FILE: main.kt
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     suspend fun suspendHere(v: String): String = suspendCoroutineUninterceptedOrReturn { x ->
@@ -16,10 +22,6 @@ class Controller {
 
 fun builder(c: suspend Controller.() -> Unit) {
     c.startCoroutine(Controller(), EmptyContinuation)
-}
-
-inline fun run(block: () -> Unit) {
-    block()
 }
 
 fun box(): String {

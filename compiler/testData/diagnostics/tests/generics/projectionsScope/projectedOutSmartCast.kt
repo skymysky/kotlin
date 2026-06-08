@@ -1,23 +1,26 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 class Inv<E>
 class C<R> {
     fun bindTo(property: Inv<R>) {}
 }
 
 fun foo(x: Any?, y: C<*>) {
-    y.<!OI;MEMBER_PROJECTED_OUT!>bindTo<!>(<!NI;TYPE_MISMATCH!>""<!>)
+    y.bindTo(<!ARGUMENT_TYPE_MISMATCH!>""<!>)
 
     if (x is C<*>) {
-        <!DEBUG_INFO_SMARTCAST!>x<!>.<!OI;MEMBER_PROJECTED_OUT!>bindTo<!>(<!NI;TYPE_MISMATCH!>""<!>)
-        with(<!DEBUG_INFO_SMARTCAST!>x<!>) {
-            <!OI;MEMBER_PROJECTED_OUT!>bindTo<!>(<!NI;TYPE_MISMATCH!>""<!>)
+        x.bindTo(<!ARGUMENT_TYPE_MISMATCH!>""<!>)
+        with(x) {
+            bindTo(<!ARGUMENT_TYPE_MISMATCH!>""<!>)
         }
     }
 
     with(x) {
         if (this is C<*>) {
-            <!OI;MEMBER_PROJECTED_OUT, DEBUG_INFO_IMPLICIT_RECEIVER_SMARTCAST!>bindTo<!>(<!NI;TYPE_MISMATCH!>""<!>)
+            bindTo(<!ARGUMENT_TYPE_MISMATCH!>""<!>)
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, ifExpression, isExpression, lambdaLiteral, nullableType,
+smartcast, starProjection, stringLiteral, thisExpression, typeParameter */

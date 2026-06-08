@@ -1,6 +1,6 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.descriptors.impl;
@@ -24,7 +24,9 @@ import org.jetbrains.kotlin.storage.NotNullLazyValue;
 import org.jetbrains.kotlin.storage.StorageManager;
 import org.jetbrains.kotlin.types.ClassTypeConstructorImpl;
 import org.jetbrains.kotlin.types.KotlinType;
+import org.jetbrains.kotlin.types.SimpleType;
 import org.jetbrains.kotlin.types.TypeConstructor;
+import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner;
 import org.jetbrains.kotlin.utils.Printer;
 
 import java.util.*;
@@ -76,7 +78,7 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
 
     @NotNull
     @Override
-    public MemberScope getUnsubstitutedMemberScope() {
+    public MemberScope getUnsubstitutedMemberScope(@NotNull KotlinTypeRefiner kotlinTypeRefiner) {
         return scope;
     }
 
@@ -118,8 +120,8 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
 
     @NotNull
     @Override
-    public Visibility getVisibility() {
-        return Visibilities.PUBLIC;
+    public DescriptorVisibility getVisibility() {
+        return DescriptorVisibilities.PUBLIC;
     }
 
     @Override
@@ -134,6 +136,16 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
 
     @Override
     public boolean isInline() {
+        return false;
+    }
+
+    @Override
+    public boolean isValue() {
+        return false;
+    }
+
+    @Override
+    public boolean isFun() {
         return false;
     }
 
@@ -181,22 +193,28 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
         return Collections.emptyList();
     }
 
+    @Nullable
+    @Override
+    public ValueClassRepresentation<SimpleType> getValueClassRepresentation() {
+        return null;
+    }
+
     private class EnumEntryScope extends MemberScopeImpl {
-        private final MemoizedFunctionToNotNull<Name, Collection<SimpleFunctionDescriptor>> functions;
-        private final MemoizedFunctionToNotNull<Name, Collection<PropertyDescriptor>> properties;
+        private final MemoizedFunctionToNotNull<Name, Collection<? extends SimpleFunctionDescriptor>> functions;
+        private final MemoizedFunctionToNotNull<Name, Collection<? extends PropertyDescriptor>> properties;
         private final NotNullLazyValue<Collection<DeclarationDescriptor>> allDescriptors;
 
         public EnumEntryScope(@NotNull StorageManager storageManager) {
-            this.functions = storageManager.createMemoizedFunction(new Function1<Name, Collection<SimpleFunctionDescriptor>>() {
+            this.functions = storageManager.createMemoizedFunction(new Function1<Name, Collection<? extends SimpleFunctionDescriptor>>() {
                 @Override
-                public Collection<SimpleFunctionDescriptor> invoke(Name name) {
+                public Collection<? extends SimpleFunctionDescriptor> invoke(Name name) {
                     return computeFunctions(name);
                 }
             });
 
-            this.properties = storageManager.createMemoizedFunction(new Function1<Name, Collection<PropertyDescriptor>>() {
+            this.properties = storageManager.createMemoizedFunction(new Function1<Name, Collection<? extends PropertyDescriptor>>() {
                 @Override
-                public Collection<PropertyDescriptor> invoke(Name name) {
+                public Collection<? extends PropertyDescriptor> invoke(Name name) {
                     return computeProperties(name);
                 }
             });
@@ -210,32 +228,23 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
 
         @NotNull
         @Override
-        // TODO: Convert to Kotlin or add @JvmWildcard to MemberScope declarations
-        // method is covariantly overridden in Kotlin, but collections in Java are invariant
-        @SuppressWarnings({"unchecked"})
-        public Collection getContributedVariables(@NotNull Name name, @NotNull LookupLocation location) {
+        public Collection<? extends PropertyDescriptor> getContributedVariables(@NotNull Name name, @NotNull LookupLocation location) {
             return properties.invoke(name);
         }
 
         @NotNull
-        // TODO: Convert to Kotlin or add @JvmWildcard to MemberScope declarations
-        // method is covariantly overridden in Kotlin, but collections in Java are invariant
-        @SuppressWarnings({"unchecked"})
-        private Collection<PropertyDescriptor> computeProperties(@NotNull Name name) {
-            return resolveFakeOverrides(name, (Collection) getSupertypeScope().getContributedVariables(name, NoLookupLocation.FOR_NON_TRACKED_SCOPE));
+        private Collection<? extends PropertyDescriptor> computeProperties(@NotNull Name name) {
+            return resolveFakeOverrides(name, getSupertypeScope().getContributedVariables(name, NoLookupLocation.FOR_NON_TRACKED_SCOPE));
         }
 
         @NotNull
         @Override
-        // TODO: Convert to Kotlin or add @JvmWildcard to MemberScope declarations
-        // method is covariantly overridden in Kotlin, but collections in Java are invariant
-        @SuppressWarnings({"unchecked"})
-        public Collection getContributedFunctions(@NotNull Name name, @NotNull LookupLocation location) {
+        public Collection<? extends SimpleFunctionDescriptor> getContributedFunctions(@NotNull Name name, @NotNull LookupLocation location) {
             return functions.invoke(name);
         }
 
         @NotNull
-        private Collection<SimpleFunctionDescriptor> computeFunctions(@NotNull Name name) {
+        private Collection<? extends SimpleFunctionDescriptor> computeFunctions(@NotNull Name name) {
             return resolveFakeOverrides(name, getSupertypeScope().getContributedFunctions(name, NoLookupLocation.FOR_NON_TRACKED_SCOPE));
         }
 
@@ -247,13 +256,13 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
         }
 
         @NotNull
-        private <D extends CallableMemberDescriptor> Collection<D> resolveFakeOverrides(
+        private <D extends CallableMemberDescriptor> Collection<? extends D> resolveFakeOverrides(
                 @NotNull Name name,
-                @NotNull Collection<D> fromSupertypes
+                @NotNull Collection<? extends D> fromSupertypes
         ) {
             final Set<D> result = new LinkedHashSet<D>();
 
-            OverridingUtil.generateOverridesInFunctionGroup(
+            OverridingUtil.DEFAULT.generateOverridesInFunctionGroup(
                     name, fromSupertypes, Collections.<D>emptySet(), EnumEntrySyntheticClassDescriptor.this,
                     new NonReportingOverrideStrategy() {
                         @Override

@@ -1,10 +1,13 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun test(a: Int) {
     run<Int>f@{
-      if (a > 0) return@f <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>""<!>
+      if (a > 0) return@f <!RETURN_TYPE_MISMATCH!>""<!>
       return@f 1
     }
 
-    run<Int>{ <!NI;TYPE_MISMATCH, TYPE_MISMATCH!>""<!> }
+    run<Int>{ <!RETURN_TYPE_MISMATCH!>""<!> }
     run<Int>{ 1 }
 }
+
+/* GENERATED_FIR_TAGS: comparisonExpression, functionDeclaration, ifExpression, integerLiteral, lambdaLiteral,
+stringLiteral */

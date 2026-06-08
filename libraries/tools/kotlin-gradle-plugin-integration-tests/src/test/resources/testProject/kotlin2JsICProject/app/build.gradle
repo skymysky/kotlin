@@ -1,6 +1,28 @@
-apply plugin: 'kotlin2js'
+plugins {
+    id("org.jetbrains.kotlin.multiplatform")
+}
 
-dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-js:$kotlin_version"
-    compile project(":lib")
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+kotlin {
+    sourceSets {
+        jsMain {
+            dependencies {
+                implementation "org.jetbrains.kotlin:kotlin-stdlib-js:$kotlin_version"
+                implementation project(":lib")
+            }
+        }
+    }
+}
+
+kotlin {
+    js {
+        browser {
+
+        }
+        binaries.executable()
+    }
 }

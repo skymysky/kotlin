@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
+// NO_CHECK_LAMBDA_INLINING
 // FILE: 1.kt
 package test
 
@@ -9,8 +9,7 @@ inline fun inlineFun(capturedParam: String, noinline lambda: () -> String = { ca
 fun call(lambda: () -> String ) = lambda()
 
 // FILE: 2.kt
-//NO_CHECK_LAMBDA_INLINING
-// CHECK_CALLED_IN_SCOPE: function=inlineFun$lambda scope=box
+// HAS_NO_CAPTURED_VARS: function=box except=box$lambda;call
 // CHECK_CALLED_IN_SCOPE: function=call scope=box
 import test.*
 

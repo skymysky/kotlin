@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package test.utils
@@ -20,13 +20,13 @@ class KotlinVersionTest {
         val anotherCurrent = KotlinVersion.CURRENT.run { KotlinVersion(major, minor, patch) }
         assertEquals(KotlinVersion.CURRENT, anotherCurrent)
         assertEquals(KotlinVersion.CURRENT.hashCode(), anotherCurrent.hashCode())
-        assertEquals(0, KotlinVersion.CURRENT.compareTo(anotherCurrent))
+        assertEquals(0, KotlinVersion.CURRENT compareTo anotherCurrent)
     }
 
     @Test fun componentValidation() {
         for (component in listOf(Int.MIN_VALUE, -1, 0, KotlinVersion.MAX_COMPONENT_VALUE, KotlinVersion.MAX_COMPONENT_VALUE + 1, Int.MAX_VALUE)) {
             for (place in 0..2) {
-                val (major, minor, patch) = IntArray(3) { index -> if (index == place) component else 0 }
+                val [major, minor, patch] = IntArray(3) { index -> if (index == place) component else 0 }
                 if (component in 0..KotlinVersion.MAX_COMPONENT_VALUE) {
                     KotlinVersion(major, minor, patch)
                 } else {
@@ -49,7 +49,7 @@ class KotlinVersionTest {
         val v2 = KotlinVersion(2, 0, 0)
 
         val sorted = listOf(v100, v107, v110, v114, v115, v120, v122, v2)
-        for ((prev, next) in sorted.zip(sorted.drop(1))) { // use zipWithNext in 1.2
+        for ([prev, next] in sorted.zip(sorted.drop(1))) { // use zipWithNext in 1.2
             val message = "next: $next, prev: $prev"
             assertTrue(next > prev, message)
             assertTrue(next.isAtLeast(prev.major, prev.minor, prev.patch), message)

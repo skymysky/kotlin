@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
@@ -13,7 +13,7 @@ import kotlin.contracts.contract
 /**
  * Throws an [IllegalArgumentException] if the [value] is false.
  *
- * @sample samples.misc.Preconditions.failRequireWithLazyMessage
+ * @sample samples.misc.Preconditions.failRequireWithoutLazyMessage
  */
 @kotlin.internal.InlineOnly
 public inline fun require(value: Boolean): Unit {
@@ -43,6 +43,7 @@ public inline fun require(value: Boolean, lazyMessage: () -> Any): Unit {
  * Throws an [IllegalArgumentException] if the [value] is null. Otherwise returns the not null value.
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T : Any> requireNotNull(value: T?): T {
     contract {
         returns() implies (value != null)
@@ -54,9 +55,10 @@ public inline fun <T : Any> requireNotNull(value: T?): T {
  * Throws an [IllegalArgumentException] with the result of calling [lazyMessage] if the [value] is null. Otherwise
  * returns the not null value.
  *
- * @sample samples.misc.Preconditions.failRequireWithLazyMessage
+ * @sample samples.misc.Preconditions.failRequireNotNullWithLazyMessage
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T : Any> requireNotNull(value: T?, lazyMessage: () -> Any): T {
     contract {
         returns() implies (value != null)
@@ -80,7 +82,9 @@ public inline fun check(value: Boolean): Unit {
     contract {
         returns() implies value
     }
-    check(value) { "Check failed." }
+    if (!value) {
+        throw IllegalStateException("Check failed.")
+    }
 }
 
 /**
@@ -106,6 +110,7 @@ public inline fun check(value: Boolean, lazyMessage: () -> Any): Unit {
  * @sample samples.misc.Preconditions.failCheckWithLazyMessage
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T : Any> checkNotNull(value: T?): T {
     contract {
         returns() implies (value != null)
@@ -120,6 +125,7 @@ public inline fun <T : Any> checkNotNull(value: T?): T {
  * @sample samples.misc.Preconditions.failCheckWithLazyMessage
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T : Any> checkNotNull(value: T?, lazyMessage: () -> Any): T {
     contract {
         returns() implies (value != null)

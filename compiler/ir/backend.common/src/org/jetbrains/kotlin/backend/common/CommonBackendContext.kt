@@ -1,109 +1,81 @@
+/*
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
 package org.jetbrains.kotlin.backend.common
 
-import org.jetbrains.kotlin.backend.common.ir.Ir
-import org.jetbrains.kotlin.builtins.KOTLIN_REFLECT_FQ_NAME
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.KotlinTypeFactory
-import org.jetbrains.kotlin.types.TypeProjection
-import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
-import org.jetbrains.kotlin.utils.addIfNotNull
-import java.util.*
-import kotlin.reflect.KProperty
+import org.jetbrains.kotlin.backend.common.ir.BackendSymbols
+import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
+import org.jetbrains.kotlin.backend.common.phaser.BackendContextHolder
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSupportForLowerings
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
+import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
+import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
+/**
+ * A context that is used to pass data to the second stage compiler lowerings
+ * (those that are executed after deserializing IR from KLIBs, or any lowering in the JVM backend).
+ */
+interface CommonBackendContext : LoweringContext, BackendContextHolder {
+    abstract override val symbols: BackendSymbols
+    val typeSystem: IrTypeSystemContext
 
-interface CommonBackendContext : BackendContext {
+    override val heldBackendContext: CommonBackendContext
+        get() = this
 
-    override val ir: Ir<CommonBackendContext>
+    val preferJavaLikeCounterLoop: Boolean
+        get() = false
 
-    //TODO move to builtins
-    fun getInternalClass(name: String): ClassDescriptor
+    val doWhileCounterLoopOrigin: IrStatementOrigin?
+        get() = null
 
-    fun getClass(fqName: FqName): ClassDescriptor
+    val inductionVariableOrigin: IrDeclarationOrigin
+        get() = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE
 
-    //TODO move to builtins
-    fun getInternalFunctions(name: String): List<FunctionDescriptor>
+    val optimizeLoopsOverUnsignedArrays: Boolean
+        get() = false
 
-    val reflectionTypes: ReflectionTypes
+    val optimizeNullChecksUsingKotlinNullability: Boolean
+        get() = true
 
-    fun log(message: () -> String)
+    /**
+     * See [InlineClassesUtils].
+     */
+    val inlineClassesUtils: InlineClassesUtils
 
-    fun report(element: IrElement?, irFile: IrFile?, message: String, isError: Boolean)
+    val partialLinkageSupport: PartialLinkageSupportForLowerings
+        get() = PartialLinkageSupportForLowerings.DISABLED
+
+    val innerClassesSupport: InnerClassesSupport
+
+    val shouldGenerateHandlerParameterForDefaultBodyFun
+        get() = false
 }
 
-class ReflectionTypes(module: ModuleDescriptor, internalPackage: FqName) {
+/**
+ * Provides means for determining if a class should be treated as an inline/value class.
+ *
+ * In certain cases (for compatibility reasons) we don't want to mark a class as `inline`, but still want to treat it as one.
+ *
+ * See [org.jetbrains.kotlin.ir.backend.js.utils.JsInlineClassesUtils].
+ */
+interface InlineClassesUtils {
+    /**
+     * Should this class be treated as inline class?
+     */
+    fun isClassInlineLike(klass: IrClass): Boolean
 
-    private val kotlinReflectScope: MemberScope by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        module.getPackage(KOTLIN_REFLECT_FQ_NAME).memberScope
-    }
-
-    private val internalScope: MemberScope by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        module.getPackage(internalPackage).memberScope
-    }
-
-    private fun find(memberScope: MemberScope, className: String): ClassDescriptor {
-        val name = Name.identifier(className)
-        return memberScope.getContributedClassifier(name, NoLookupLocation.FROM_REFLECTION) as ClassDescriptor
-    }
-
-    private class ClassLookup(val memberScope: MemberScope) {
-        operator fun getValue(types: ReflectionTypes, property: KProperty<*>): ClassDescriptor {
-            return types.find(memberScope, property.name.capitalize())
-        }
-    }
-
-    private fun getFunctionTypeArgumentProjections(
-            receiverType: KotlinType?,
-            parameterTypes: List<KotlinType>,
-            returnType: KotlinType
-    ): List<TypeProjection> {
-        val arguments = ArrayList<TypeProjection>(parameterTypes.size + (if (receiverType != null) 1 else 0) + 1)
-
-        arguments.addIfNotNull(receiverType?.asTypeProjection())
-
-        parameterTypes.mapTo(arguments, KotlinType::asTypeProjection)
-
-        arguments.add(returnType.asTypeProjection())
-
-        return arguments
-    }
-
-    fun getKFunction(n: Int): ClassDescriptor = find(kotlinReflectScope, "KFunction$n")
-
-    val kClass: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kProperty0: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kProperty1: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kProperty2: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kMutableProperty0: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kMutableProperty1: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kMutableProperty2: ClassDescriptor by ClassLookup(kotlinReflectScope)
-    val kFunctionImpl: ClassDescriptor by ClassLookup(internalScope)
-    val kProperty0Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kProperty1Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kProperty2Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kMutableProperty0Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kMutableProperty1Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kMutableProperty2Impl: ClassDescriptor by ClassLookup(internalScope)
-    val kLocalDelegatedPropertyImpl: ClassDescriptor by ClassLookup(internalScope)
-    val kLocalDelegatedMutablePropertyImpl: ClassDescriptor by ClassLookup(internalScope)
-
-    fun getKFunctionType(
-            annotations: Annotations,
-            receiverType: KotlinType?,
-            parameterTypes: List<KotlinType>,
-            returnType: KotlinType
-    ): KotlinType {
-        val arguments = getFunctionTypeArgumentProjections(receiverType, parameterTypes, returnType)
-        val classDescriptor = getKFunction(arguments.size - 1 /* return type */)
-        return KotlinTypeFactory.simpleNotNullType(annotations, classDescriptor, arguments)
-    }
+    /**
+     * Unlike [org.jetbrains.kotlin.ir.util.getInlineClassUnderlyingType], doesn't use [IrClass.valueClassRepresentation] because
+     * for some reason it can be called for classes which are not inline, e.g. `kotlin.Double`.
+     */
+    fun getInlineClassUnderlyingType(irClass: IrClass): IrType =
+        irClass.declarations.firstIsInstanceOrNull<IrConstructor>()?.takeIf { it.isPrimary }?.parameters[0]?.type
+            ?: error("Class has no primary constructor: ${irClass.fqNameWhenAvailable}")
 }

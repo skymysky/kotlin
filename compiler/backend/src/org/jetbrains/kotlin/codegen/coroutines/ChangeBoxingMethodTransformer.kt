@@ -1,12 +1,13 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.codegen.coroutines
 
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.codegen.asSequence
 import org.jetbrains.kotlin.codegen.optimization.boxing.isPrimitiveBoxing
-import org.jetbrains.kotlin.codegen.optimization.common.asSequence
 import org.jetbrains.kotlin.codegen.optimization.transformer.MethodTransformer
 import org.jetbrains.kotlin.codegen.topLevelClassInternalName
 import org.jetbrains.kotlin.name.Name
@@ -17,16 +18,16 @@ import org.jetbrains.org.objectweb.asm.tree.MethodInsnNode
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 
 private val BOXING_CLASS_INTERNAL_NAME =
-    RELEASE_COROUTINES_VERSION_SETTINGS.coroutinesJvmInternalPackageFqName().child(Name.identifier("Boxing")).topLevelClassInternalName()
+    StandardNames.COROUTINES_JVM_INTERNAL_PACKAGE_FQ_NAME.child(Name.identifier("Boxing")).topLevelClassInternalName()
 
 object ChangeBoxingMethodTransformer : MethodTransformer() {
     private val wrapperToInternalBoxing: Map<String, String>
 
     init {
         val map = hashMapOf<String, String>()
-        for (primitiveType in JvmPrimitiveType.values()) {
+        for (primitiveType in JvmPrimitiveType.entries) {
             val name = primitiveType.wrapperFqName.topLevelClassInternalName()
-            map[name] = "box${primitiveType.javaKeywordName.capitalize()}"
+            map[name] = "box${primitiveType.javaKeywordName.replaceFirstChar(Char::uppercaseChar)}"
         }
         wrapperToInternalBoxing = map
     }

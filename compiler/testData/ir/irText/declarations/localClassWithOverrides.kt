@@ -1,3 +1,4 @@
+
 fun outer() {
     abstract class ALocal {
         abstract fun afun()

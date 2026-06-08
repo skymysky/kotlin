@@ -1,29 +1,30 @@
-// !LANGUAGE: +MultiPlatformProjects
+// IGNORE_FIR_DIAGNOSTICS
+// RUN_PIPELINE_TILL: FIR2IR
 // MODULE: m1-common
 // FILE: common.kt
 
 expect class B {
     class N {
-        <!EXPECTED_DECLARATION_WITH_BODY, JVM:EXPECTED_DECLARATION_WITH_BODY!>fun body()<!> {}
-        <!WRONG_MODIFIER_TARGET, JVM:WRONG_MODIFIER_TARGET!>expect<!> fun extraHeader()
+        <!EXPECTED_DECLARATION_WITH_BODY!>fun body()<!> {}
+        <!WRONG_MODIFIER_TARGET!>expect<!> fun extraHeader()
     }
 }
 
 expect class C {
-    <!WRONG_MODIFIER_TARGET, JVM:WRONG_MODIFIER_TARGET!>expect<!> class N
-    <!WRONG_MODIFIER_TARGET, JVM:WRONG_MODIFIER_TARGET!>expect<!> enum class E
-    <!WRONG_MODIFIER_TARGET, JVM:WRONG_MODIFIER_TARGET!>expect<!> inner class I
+    <!WRONG_MODIFIER_TARGET!>expect<!> class N
+    <!WRONG_MODIFIER_TARGET!>expect<!> enum class E
+    <!WRONG_MODIFIER_TARGET!>expect<!> inner class I
 }
 
-expect class D {
-    class N
+<!EXPECT_ACTUAL_IR_INCOMPATIBILITY{JVM}!>expect<!> class D {
+    class <!NO_ACTUAL_FOR_EXPECT{JVM}!>N<!>
 }
 
 expect class E {
     class N
 }
 
-// MODULE: m1-jvm(m1-common)
+// MODULE: m1-jvm()()(m1-common)
 // FILE: jvm.kt
 
 actual class B {
@@ -44,3 +45,5 @@ actual class <!NO_ACTUAL_CLASS_MEMBER_FOR_EXPECTED_CLASS!>D<!>
 actual class E {
     class <!ACTUAL_MISSING!>N<!>
 }
+
+/* GENERATED_FIR_TAGS: actual, classDeclaration, enumDeclaration, expect, functionDeclaration, inner, nestedClass */

@@ -1,66 +1,126 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.utils
 
-import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
+import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrFileEntry
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.getJsCode
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.getSourceLocation
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrLoop
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.ir.expressions.IrReturnableBlock
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.util.irError
+import org.jetbrains.kotlin.js.backend.ast.JsLocation
+import org.jetbrains.kotlin.js.backend.ast.JsName
+import org.jetbrains.kotlin.js.backend.ast.JsScope
+import org.jetbrains.kotlin.js.common.makeValidES5Identifier
 
-class JsGenerationContext {
-    fun newDeclaration(scope: JsScope, func: IrFunction? = null): JsGenerationContext {
-        return JsGenerationContext(this, if (func != null) JsBlock() else JsGlobalBlock(), scope, func)
+val emptyScope: JsScope = object : JsScope("nil") {
+    override fun doCreateName(ident: String): JsName {
+        error("Trying to create name in empty scope")
     }
 
-    val currentBlock: JsBlock
-    val currentScope: JsScope
-    val currentFunction: IrFunction?
-    val parent: JsGenerationContext?
-    val staticContext: JsStaticContext
-    private val program: JsProgram
+    override fun copyOwnNames(other: JsScope?) {
+        error("Trying to copy names to empty scope")
+    }
+}
 
-    constructor(rootScope: JsRootScope, backendContext: JsIrBackendContext) {
+class JsGenerationContext(
+    val currentFileEntry: IrFileEntry,
+    val currentFunction: IrFunction?,
+    val currentInlineFunction: IrFunction?,
+    val staticContext: JsStaticContext,
+    val localNames: LocalNameGenerator? = null,
+    private val nameCache: MutableMap<IrElement, JsName> = hashMapOf(),
+    private val useBareParameterNames: Boolean = false,
+) : IrNamer by staticContext {
+    private val startLocationCache = hashMapOf<Int, JsLocation>()
+    private val endLocationCache = hashMapOf<Int, JsLocation>()
 
-        this.parent = null
-        this.program = rootScope.program
-        this.staticContext = JsStaticContext(rootScope, program.globalBlock, SimpleNameGenerator(), backendContext)
-        this.currentScope = rootScope
-        this.currentBlock = program.globalBlock
-        this.currentFunction = null
+    fun newInlineFunction(
+        fileEntry: IrFileEntry,
+        inlineFun: IrFunction?,
+    ): JsGenerationContext {
+        return JsGenerationContext(
+            currentFileEntry = fileEntry,
+            currentFunction = currentFunction,
+            currentInlineFunction = inlineFun,
+            staticContext = staticContext,
+            localNames = localNames,
+            nameCache = nameCache,
+            useBareParameterNames = useBareParameterNames,
+        )
     }
 
-    constructor(parent: JsGenerationContext, block: JsBlock, scope: JsScope, func: IrFunction?) {
-        this.parent = parent
-        this.program = parent.program
-        this.staticContext = parent.staticContext
-        this.currentBlock = block
-        this.currentScope = scope
-        this.currentFunction = func
+    fun newDeclaration(func: IrFunction? = null, localNames: LocalNameGenerator? = null, fileEntry: IrFileEntry = currentFileEntry): JsGenerationContext {
+        return JsGenerationContext(
+            currentFileEntry = fileEntry,
+            currentFunction = func,
+            currentInlineFunction = currentInlineFunction,
+            staticContext = staticContext,
+            localNames = localNames,
+            nameCache = nameCache,
+            useBareParameterNames = useBareParameterNames,
+        )
     }
 
-    fun getNameForSymbol(symbol: IrSymbol): JsName = staticContext.getNameForSymbol(symbol, this)
-    fun getNameForType(type: IrType): JsName = staticContext.getNameForType(type, this)
-    fun getNameForLoop(loop: IrLoop): JsName? = staticContext.getNameForLoop(loop, this)
-
-    val continuation
-        get() = if (isCoroutineDoResume()) {
-            JsThisRef()
-        } else {
-            if (currentFunction!!.descriptor.isSuspend) {
-                JsNameRef(currentScope.declareName(Namer.CONTINUATION))
+    fun getNameForValueDeclaration(declaration: IrDeclarationWithName): JsName {
+        return nameCache.getOrPut(declaration) {
+            if (useBareParameterNames) {
+                JsName(makeValidES5Identifier(declaration.name.asString()), true)
             } else {
-                getNameForSymbol(currentFunction.valueParameters.last().symbol).makeRef()
+                val name = localNames!!.variableNames[declaration]
+                    ?: irError("Variable name is not found") {
+                        withIrEntry("declaration", declaration)
+                    }
+                JsName(name, true)
             }
         }
+    }
 
-    private fun isCoroutineDoResume(): Boolean {
-        val overriddenSymbols = (currentFunction as? IrSimpleFunction)?.overriddenSymbols ?: return false
-        return staticContext.doResumeFunctionSymbol in overriddenSymbols
+    fun getNameForLoop(loop: IrLoop): JsName? {
+        return nameCache.getOrPut(loop) {
+            val name = localNames!!.localLoopNames[loop] ?: return null
+            JsName(name, true)
+        }
+    }
+
+    fun getNameForReturnableBlock(block: IrReturnableBlock): JsName? {
+        return nameCache.getOrPut(block) {
+            val name = localNames!!.localReturnableBlockNames[block] ?: return null
+            JsName(name, true)
+        }
+    }
+
+    fun checkIfJsCode(symbol: IrFunctionSymbol): Boolean = symbol == staticContext.backendContext.symbols.jsCode
+
+    fun checkIfHasAssociatedJsCode(symbol: IrFunctionSymbol): Boolean {
+        return with(staticContext.backendContext) { symbol.owner.getJsCode() != null }
+    }
+
+    fun getStartLocationForIrElement(irElement: IrElement, originalName: String? = null) =
+        getLocationForIrElement(irElement, originalName, startLocationCache) { startOffset }
+
+    fun getEndLocationForIrElement(irElement: IrElement, originalName: String? = null) =
+        getLocationForIrElement(irElement, originalName, endLocationCache) { endOffset }
+
+    private inline fun getLocationForIrElement(
+        irElement: IrElement,
+        originalName: String?,
+        cache: MutableMap<Int, JsLocation>,
+        offsetSelector: IrElement.() -> Int,
+    ): JsLocation? {
+        return cache.getOrPut(irElement.offsetSelector()) {
+            when (val location = irElement.getSourceLocation(currentFileEntry, offsetSelector)) {
+                JsLocation.IGNORED -> return JsLocation.IGNORED
+                null -> return null
+                else -> location.copy(name = originalName)
+            }
+        }
     }
 }

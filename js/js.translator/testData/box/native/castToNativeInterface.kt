@@ -1,5 +1,3 @@
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1282
 // FILE: castToNativeInterface.kt
 external interface I {
     fun foo(): String

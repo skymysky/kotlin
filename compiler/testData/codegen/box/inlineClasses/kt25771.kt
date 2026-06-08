@@ -1,7 +1,10 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Result<out T>(val value: Any?) {
+// FILE: lib.kt
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Result<out T>(val value: Any?) {
     val isFailure: Boolean get() = value is Failure
 
     public companion object {
@@ -17,6 +20,12 @@ inline class Result<out T>(val value: Any?) {
     )
 }
 
+public inline fun <T> Result.Companion.success(value: T): Result<T> =
+    Result(value)
+
+public inline fun <T> Result.Companion.failure(exception: Throwable): Result<T> =
+    Result(Result.Failure(exception))
+
 inline fun <R> runCatching(block: () -> R): Result<R> {
     return try {
         Result.success(block())
@@ -25,12 +34,12 @@ inline fun <R> runCatching(block: () -> R): Result<R> {
     }
 }
 
+// FILE: main.kt
 class Box<T>(val x: T)
 
 fun box(): String {
     val r = runCatching { TODO() }
     val b = Box(r)
     if (r.isFailure != b.x.isFailure || !r.isFailure) return "Fail: r=${r.isFailure};  b.x=${b.x.isFailure}"
-
     return "OK"
 }

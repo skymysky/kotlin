@@ -1,6 +1,6 @@
-// !LANGUAGE: +ReleaseCoroutines
-// !API_VERSION: 1.3
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// LANGUAGE: -ParseLambdaWithSuspendModifier
+
 import kotlin.suspend as suspendLambda
 
 fun bar() {
@@ -26,5 +26,8 @@ fun bar() {
         println()
     }
 
-    val <!UNUSED_VARIABLE!>w<!>: (suspend () -> Int) -> Any? = ::<!NON_MODIFIER_FORM_FOR_BUILT_IN_SUSPEND!>suspendLambda<!>
+    val w: (suspend () -> Int) -> Any? = ::<!NON_MODIFIER_FORM_FOR_BUILT_IN_SUSPEND!>suspendLambda<!>
 }
+
+/* GENERATED_FIR_TAGS: callableReference, functionDeclaration, functionalType, lambdaLiteral, localProperty,
+nullableType, propertyDeclaration, suspend */

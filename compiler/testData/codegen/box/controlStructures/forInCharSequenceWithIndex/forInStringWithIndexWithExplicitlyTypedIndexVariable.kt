@@ -1,5 +1,6 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
+// WITH_STDLIB
+// KT-55458
 
 val xs = "abcd"
 
@@ -8,7 +9,7 @@ fun useAny(x: Any) {}
 fun box(): String {
     val s = StringBuilder()
 
-    for ((index: Any, x) in xs.withIndex()) {
+    for ([index: Any, x] in xs.withIndex()) {
         useAny(index)
         s.append("$index:$x;")
     }

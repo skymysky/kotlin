@@ -13,13 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+@file:Suppress("DEPRECATION") // TODO: needs an intensive rework for new Char API
 package org.jetbrains.kotlin.js.parser.sourcemaps
 
-import java.io.Reader
-import java.io.StringReader
-import java.io.StringWriter
-import java.io.Writer
+import java.io.*
 
 sealed class JsonNode {
     abstract fun write(writer: Writer)
@@ -54,7 +51,7 @@ data class JsonObject(val properties: MutableMap<String, JsonNode>) : JsonNode()
     override fun write(writer: Writer) {
         writer.append('{')
         var first = true
-        for ((key, value) in properties) {
+        for ([key, value] in properties) {
             if (!first) {
                 writer.append(',')
             }
@@ -120,8 +117,7 @@ data class JsonNumber(val value: Double) : JsonNode() {
     override fun write(writer: Writer) {
         if (value.toLong().toDouble() == value) {
             writer.append(value.toLong().toString())
-        }
-        else {
+        } else {
             writer.append(value.toString())
         }
     }
@@ -130,14 +126,13 @@ data class JsonNumber(val value: Double) : JsonNode() {
 }
 
 class JsonSyntaxException(val offset: Int, val line: Int, val column: Int, val text: String) :
-        RuntimeException("JSON syntax error at ${line + 1}, ${column + 1}: $text")
+    RuntimeException("JSON syntax error at ${line + 1}, ${column + 1}: $text")
 
-fun parseJson(reader: Reader): JsonNode = JsonParser(reader).parse()
+fun parseJson(text: String): JsonNode = JsonParser(text).parse()
 
-fun parseJson(text: String): JsonNode = parseJson(StringReader(text))
-
-private class JsonParser(val reader: Reader) {
-    private var charCode = reader.read()
+private class JsonParser(val content: String) {
+    private var index = -1
+    private var charCode = content.getOrNull(++index)?.toInt() ?: -1
     private var offset = 0
     private var line = 0
     private var col = 0
@@ -146,7 +141,7 @@ private class JsonParser(val reader: Reader) {
     fun parse(): JsonNode {
         val result = parseNode()
         skipSpaces()
-        if (charCode != -1) throw error("End of input expected")
+        if (charCode != -1) error("End of input expected")
         return result
     }
 
@@ -165,13 +160,27 @@ private class JsonParser(val reader: Reader) {
             '['.toInt() -> parseArray()
             '{'.toInt() -> parseObject()
             '"'.toInt() -> JsonString(parseString())
-            'n'.toInt() -> { expectString("null"); JsonNull }
-            'f'.toInt() -> { expectString("false"); JsonBoolean.FALSE }
-            't'.toInt() -> { expectString("true"); JsonBoolean.TRUE }
-            in '0'.toInt()..'9'.toInt() -> JsonNumber(parseNumber())
-            '-'.toInt() -> { advance(); JsonNumber(-parseNumber())
+            'n'.toInt() -> {
+                expectString("null")
+                JsonNull
             }
-            else -> error("Unexpected char")
+            'f'.toInt() -> {
+                expectString("false")
+                JsonBoolean.FALSE
+            }
+            't'.toInt() -> {
+                expectString("true")
+                JsonBoolean.TRUE
+            }
+            '-'.toInt() -> {
+                advance()
+                JsonNumber(-parseNumber())
+            }
+            else -> if (charCode in '0'.toInt()..'9'.toInt()) {
+                JsonNumber(parseNumber())
+            } else {
+                error("Unexpected char")
+            }
         }
     }
 
@@ -183,8 +192,7 @@ private class JsonParser(val reader: Reader) {
             if (charCode == ']'.toInt()) {
                 advance()
                 break
-            }
-            else {
+            } else {
                 if (result.elements.isNotEmpty()) {
                     expectCharAndAdvance(',')
                 }
@@ -202,8 +210,7 @@ private class JsonParser(val reader: Reader) {
             if (charCode == '}'.toInt()) {
                 advance()
                 break
-            }
-            else {
+            } else {
                 if (result.properties.isNotEmpty()) {
                     expectCharAndAdvance(',')
                 }
@@ -227,21 +234,30 @@ private class JsonParser(val reader: Reader) {
         expectCharAndAdvance('"')
 
         val sb = StringBuilder()
-        while (true) {
+
+        var leftIndex = index
+        while (index < content.length) {
+            charCode = content[index].toInt()
+
+            if (charCode < ' '.toInt()) {
+                error("Invalid character in string literal")
+            }
+
             when (charCode) {
-                '"'.toInt() -> { advance(); return sb.toString() }
-                '\\'.toInt() -> sb.append(parseEscapeSequence())
-                else -> {
-                    if (charCode >= ' '.toInt()) {
-                        sb.append(charCode.toChar())
-                        advance()
-                    }
-                    else {
-                        error("Invalid character in string literal")
-                    }
+                '"'.toInt() -> {
+                    sb.append(content, leftIndex, index)
+                    advance()
+                    return sb.toString()
                 }
+                '\\'.toInt() -> {
+                    sb.append(content, leftIndex, index)
+                    sb.append(parseEscapeSequence())
+                    leftIndex = index
+                }
+                else -> ++index
             }
         }
+        error("Unexpected end of file")
     }
 
     private fun parseEscapeSequence(): Char {
@@ -356,7 +372,7 @@ private class JsonParser(val reader: Reader) {
                 wasCR = false
             }
         }
-        charCode = reader.read()
+        charCode = content.getOrNull(++index)?.toInt() ?: -1
         offset++
     }
 

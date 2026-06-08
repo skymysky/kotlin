@@ -1,6 +1,4 @@
-// LANGUAGE_VERSION: 1.3
-// IGNORE_BACKEND: JS_IR
-// EXPECTED_REACHABLE_NODES: 1566
+// KJS_WITH_FULL_RUNTIME
 package foo
 
 fun testSize(expectedSize: Int, vararg i: UInt): Boolean {

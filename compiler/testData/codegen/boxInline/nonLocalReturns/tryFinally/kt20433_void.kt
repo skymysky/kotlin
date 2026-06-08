@@ -1,6 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
 // FILE: 1.kt
-//WITH_RUNTIME
 package test
 
 public inline fun <T, R> T.mylet(block: (T) -> R): R {

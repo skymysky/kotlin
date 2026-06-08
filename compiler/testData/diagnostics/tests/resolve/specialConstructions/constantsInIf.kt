@@ -1,14 +1,16 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -USELESS_ELVIS
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -USELESS_ELVIS
 
 fun test() {
-    bar(<!NI;TYPE_MISMATCH!>if (true) {
-        <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>1<!>
+    bar(<!ARGUMENT_TYPE_MISMATCH!>if (true) {
+        1
     } else {
-        <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>2<!>
+        2
     }<!>)
 
-    bar(<!NI;TYPE_MISMATCH!><!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>1<!> ?: <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>2<!><!>)
+    bar(<!ARGUMENT_TYPE_MISMATCH!>1 ?: 2<!>)
 }
 
 fun bar(s: String) = s
+
+/* GENERATED_FIR_TAGS: elvisExpression, functionDeclaration, ifExpression, integerLiteral */

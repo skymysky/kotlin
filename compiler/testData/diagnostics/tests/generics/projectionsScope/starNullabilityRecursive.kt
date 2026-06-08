@@ -1,9 +1,13 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
-// !CHECK_TYPE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
+// CHECK_TYPE
 interface A<T : A<T?>?> {
     fun foo(): T?
 }
 fun testA(a: A<*>) {
-    a.foo() checkType { <!NI;DEBUG_INFO_UNRESOLVED_WITH_TARGET, NI;UNRESOLVED_REFERENCE_WRONG_RECEIVER!>_<!><A<*>?>() }
+    a.foo() checkType { _<A<*>?>() }
 }
+
+/* GENERATED_FIR_TAGS: capturedType, classDeclaration, funWithExtensionReceiver, functionDeclaration, functionalType,
+infix, interfaceDeclaration, lambdaLiteral, nullableType, starProjection, typeConstraint, typeParameter,
+typeWithExtension */

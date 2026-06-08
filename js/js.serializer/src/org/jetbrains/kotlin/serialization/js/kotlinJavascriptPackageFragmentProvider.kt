@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.metadata.js.JsProtoBuf
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.parentOrNull
+import org.jetbrains.kotlin.resolve.sam.SamConversionResolverImpl
 import org.jetbrains.kotlin.serialization.deserialization.*
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.utils.JsMetadataVersion
@@ -63,6 +64,10 @@ fun createKotlinJavascriptPackageFragmentProvider(
 
     val notFoundClasses = NotFoundClasses(storageManager, module)
 
+    val enumEntriesDeserializationSupport = object : EnumEntriesDeserializationSupport {
+        override fun canSynthesizeEnumEntries(): Boolean = false
+    }
+
     val components = DeserializationComponents(
         storageManager,
         module,
@@ -76,9 +81,11 @@ fun createKotlinJavascriptPackageFragmentProvider(
         DynamicTypeDeserializer,
         emptyList(),
         notFoundClasses,
-        ContractDeserializerImpl(configuration),
+        ContractDeserializerImpl(configuration, storageManager),
         platformDependentDeclarationFilter = PlatformDependentDeclarationFilter.NoPlatformDependent,
-        extensionRegistryLite = JsSerializerProtocol.extensionRegistry
+        extensionRegistryLite = JsSerializerProtocol.extensionRegistry,
+        samConversionResolver = SamConversionResolverImpl(storageManager, samWithReceiverResolvers = emptyList()),
+        enumEntriesDeserializationSupport = enumEntriesDeserializationSupport,
     )
 
     for (packageFragment in packageFragments.filterIsInstance<KotlinJavascriptPackageFragment>()) {

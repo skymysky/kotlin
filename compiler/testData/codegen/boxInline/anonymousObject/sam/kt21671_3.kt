@@ -1,12 +1,12 @@
-// IGNORE_BACKEND: JVM_IR
-// FILE: 1.kt
 // FULL_JDK
+// TARGET_BACKEND: JVM
+// FILE: 1.kt
 
 package test
 import java.util.concurrent.Executors
 
 inline fun doWork(noinline job: ()-> Unit) {
-    { Executors.callable(job).call() } ()
+    { Executors.callable(job).call() }.let { it() }
     Executors.callable(job).call()
 }
 

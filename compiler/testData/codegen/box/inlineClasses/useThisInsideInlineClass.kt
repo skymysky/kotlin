@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class UInt(val a: Int) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class UInt(val a: Int) {
     fun test() {
         takeNullable(this)
         takeAnyInside(this)

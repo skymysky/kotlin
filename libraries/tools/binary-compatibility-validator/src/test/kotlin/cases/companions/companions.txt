@@ -27,7 +27,6 @@ protected final class cases/companions/PublicClasses$AbstractProtectedCompanion$
 }
 
 public final class cases/companions/PublicClasses$InternalCompanion {
-	public static final field Companion Lcases/companions/PublicClasses$InternalCompanion$Companion;
 	public fun <init> ()V
 }
 

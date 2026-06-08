@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: p/Super.java
 package p;
 
@@ -28,3 +29,5 @@ class C: Util() {
 fun foo(sub: Sub) {
     C().foo("", sub)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, javaFunction, javaType, override, stringLiteral */

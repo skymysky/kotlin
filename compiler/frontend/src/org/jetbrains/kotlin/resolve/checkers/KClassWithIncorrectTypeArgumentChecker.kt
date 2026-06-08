@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
 
 object KClassWithIncorrectTypeArgumentChecker : DeclarationChecker {
     override fun check(declaration: KtDeclaration, descriptor: DeclarationDescriptor, context: DeclarationCheckerContext) {
-        if (descriptor !is CallableMemberDescriptor || descriptor.visibility == Visibilities.LOCAL) return
+        if (descriptor !is CallableMemberDescriptor || descriptor.visibility == DescriptorVisibilities.LOCAL) return
 
         if (declaration !is KtCallableDeclaration || declaration.typeReference != null) return
 
@@ -52,7 +52,7 @@ object KClassWithIncorrectTypeArgumentChecker : DeclarationChecker {
 
         if (typeParameterWithoutNotNullableUpperBound != null) {
             context.trace.report(
-                Errors.KCLASS_WITH_NULLABLE_TYPE_PARAMETER_IN_SIGNATURE.on(declaration, typeParameterWithoutNotNullableUpperBound!!)
+                Errors.KCLASS_WITH_NULLABLE_TYPE_PARAMETER_IN_SIGNATURE.on(declaration, typeParameterWithoutNotNullableUpperBound)
             )
         }
     }

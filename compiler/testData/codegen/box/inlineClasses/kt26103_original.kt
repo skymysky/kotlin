@@ -1,8 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// WITH_RUNTIME
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo<T>(val x: Int)
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo<T>(val x: Int)
 
 class Bar(val y: Foo<Any>)
 

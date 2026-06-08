@@ -1,15 +1,13 @@
-// IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JVM_IR
+// IGNORE_BACKEND: JS_IR, JS_IR_ES6
+// WASM_IGNORE_FOR: mode=multi-module
 // WITH_COROUTINES
-// WITH_RUNTIME
-// COMMON_COROUTINES_TEST
-
-// MODULE: lib(support)
+// WITH_STDLIB
+// MODULE: lib
 // FILE: lib.kt
 
 import helpers.*
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 var continuation: () -> Unit = { }
 var log = ""
@@ -45,8 +43,8 @@ fun C.builder(c: suspend C.() -> Unit) {
 // MODULE: main(lib)
 // FILE: main.kt
 
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 suspend fun C.baz() {
     v = "A"

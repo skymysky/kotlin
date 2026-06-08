@@ -3,11 +3,15 @@
 -target 1.6
 -dontoptimize
 -dontobfuscate
+-dontprocesskotlinmetadata
+-keep class kotlin.Metadata
 # -dontshrink
 
 -keep public class kotlin.reflect.* { *; }
 -keep public class kotlin.reflect.jvm.* { *; }
 -keep public class kotlin.reflect.full.* { *; }
+
+-keep public class kotlin.reflect.jvm.internal.impl.km.jvm.internal.JvmMetadataExtensions { *; }
 
 -keepattributes SourceFile,LineNumberTable,InnerClasses,Signature,Deprecated,*Annotation*,EnclosingMethod
 
@@ -23,13 +27,6 @@
 
 -keepclassmembers class * {
     ** toString();
-}
-
-# For tests on HashPMap, see compiler/testData/codegen/box/hashPMap
--keepclassmembers class kotlin.reflect.jvm.internal.pcollections.HashPMap {
-    public int size();
-    public boolean containsKey(java.lang.Object);
-    public kotlin.reflect.jvm.internal.pcollections.HashPMap minus(java.lang.Object);
 }
 
 # This is needed because otherwise ProGuard strips generic signature of this class (even though we pass `-keepattributes Signature` above)

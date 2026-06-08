@@ -1,4 +1,5 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 import kotlin.reflect.KProperty
 
@@ -27,3 +28,7 @@ fun <T> lazy(initializer: () -> T): Lazy<T> = TODO()
 interface Lazy<out T> {
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T = TODO()
 }
+
+/* GENERATED_FIR_TAGS: anonymousObjectExpression, classDeclaration, functionDeclaration, functionalType,
+interfaceDeclaration, lambdaLiteral, nullableType, operator, out, propertyDeclaration, propertyDelegate, starProjection,
+typeParameter */

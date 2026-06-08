@@ -1,12 +1,13 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:JvmName("CloseableKt")
 package kotlin.io
 
 import java.io.Closeable
+import kotlin.contracts.*
 import kotlin.internal.*
 
 /**
@@ -17,8 +18,11 @@ import kotlin.internal.*
  * @return the result of [block] function invoked on this resource.
  */
 @InlineOnly
-@RequireKotlin("1.2", versionKind = RequireKotlinVersionKind.COMPILER_VERSION, message = "Requires newer compiler version to be inlined correctly.")
+@IgnorableReturnValue
 public inline fun <T : Closeable?, R> T.use(block: (T) -> R): R {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
     var exception: Throwable? = null
     try {
         return block(this)
@@ -26,17 +30,7 @@ public inline fun <T : Closeable?, R> T.use(block: (T) -> R): R {
         exception = e
         throw e
     } finally {
-        when {
-            apiVersionIsAtLeast(1, 1, 0) -> this.closeFinally(exception)
-            this == null -> {}
-            exception == null -> close()
-            else ->
-                try {
-                    close()
-                } catch (closeException: Throwable) {
-                    // cause.addSuppressed(closeException) // ignored here
-                }
-        }
+        this.closeFinally(exception)
     }
 }
 
@@ -48,7 +42,7 @@ public inline fun <T : Closeable?, R> T.use(block: (T) -> R): R {
  */
 @SinceKotlin("1.1")
 @PublishedApi
-internal fun Closeable?.closeFinally(cause: Throwable?) = when {
+internal fun Closeable?.closeFinally(cause: Throwable?): Unit = when {
     this == null -> {}
     cause == null -> close()
     else ->

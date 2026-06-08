@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 abstract class Table<T>(
         val content: Array<Array<T>>
 )

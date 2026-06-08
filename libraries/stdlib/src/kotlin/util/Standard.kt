@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 @file:kotlin.jvm.JvmMultifileClass
@@ -33,8 +33,11 @@ public inline fun TODO(reason: String): Nothing = throw NotImplementedError("An 
 
 /**
  * Calls the specified function [block] and returns its result.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#run).
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <R> run(block: () -> R): R {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -44,8 +47,11 @@ public inline fun <R> run(block: () -> R): R {
 
 /**
  * Calls the specified function [block] with `this` value as its receiver and returns its result.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#run).
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T, R> T.run(block: T.() -> R): R {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -55,8 +61,11 @@ public inline fun <T, R> T.run(block: T.() -> R): R {
 
 /**
  * Calls the specified function [block] with the given [receiver] as its receiver and returns its result.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#with).
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T, R> with(receiver: T, block: T.() -> R): R {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -66,8 +75,11 @@ public inline fun <T, R> with(receiver: T, block: T.() -> R): R {
 
 /**
  * Calls the specified function [block] with `this` value as its receiver and returns `this` value.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#apply).
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T> T.apply(block: T.() -> Unit): T {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -78,9 +90,12 @@ public inline fun <T> T.apply(block: T.() -> Unit): T {
 
 /**
  * Calls the specified function [block] with `this` value as its argument and returns `this` value.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#also).
  */
 @kotlin.internal.InlineOnly
 @SinceKotlin("1.1")
+@IgnorableReturnValue
 public inline fun <T> T.also(block: (T) -> Unit): T {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -91,8 +106,11 @@ public inline fun <T> T.also(block: (T) -> Unit): T {
 
 /**
  * Calls the specified function [block] with `this` value as its argument and returns its result.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#let).
  */
 @kotlin.internal.InlineOnly
+@IgnorableReturnValue
 public inline fun <T, R> T.let(block: (T) -> R): R {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -102,6 +120,8 @@ public inline fun <T, R> T.let(block: (T) -> R): R {
 
 /**
  * Returns `this` value if it satisfies the given [predicate] or `null`, if it doesn't.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#takeif-and-takeunless).
  */
 @kotlin.internal.InlineOnly
 @SinceKotlin("1.1")
@@ -114,6 +134,8 @@ public inline fun <T> T.takeIf(predicate: (T) -> Boolean): T? {
 
 /**
  * Returns `this` value if it _does not_ satisfy the given [predicate] or `null`, if it does.
+ *
+ * For detailed usage information see the documentation for [scope functions](https://kotlinlang.org/docs/reference/scope-functions.html#takeif-and-takeunless).
  */
 @kotlin.internal.InlineOnly
 @SinceKotlin("1.1")
@@ -127,7 +149,11 @@ public inline fun <T> T.takeUnless(predicate: (T) -> Boolean): T? {
 /**
  * Executes the given function [action] specified number of [times].
  *
- * A zero-based index of current iteration is passed as a parameter to [action].
+ * A zero-based index of current iteration is passed as a parameter to the [action] function.
+ *
+ * If the [times] parameter is negative or equal to zero, the [action] function is not invoked.
+ *
+ * @sample samples.misc.ControlFlow.repeat
  */
 @kotlin.internal.InlineOnly
 public inline fun repeat(times: Int, action: (Int) -> Unit) {

@@ -1,6 +1,6 @@
-// !WITH_NEW_INFERENCE
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 import kotlin.reflect.*
 
@@ -15,5 +15,8 @@ fun take(f: () -> Unit) {}
 fun test() {
     B::foo checkType { _<KFunction1<B, Unit>>() }
 
-    <!NI;OVERLOAD_RESOLUTION_AMBIGUITY, OI;NONE_APPLICABLE!>take<!>(B::<!NI;DEBUG_INFO_MISSING_UNRESOLVED!>foo<!>)
+    take(B::<!INAPPLICABLE_CANDIDATE!>foo<!>)
 }
+
+/* GENERATED_FIR_TAGS: callableReference, classDeclaration, funWithExtensionReceiver, functionDeclaration,
+functionalType, infix, interfaceDeclaration, lambdaLiteral, nullableType, typeParameter, typeWithExtension */

@@ -1,13 +1,12 @@
-// COMMON_COROUTINES_TEST
-// SKIP_TXT
-@COROUTINES_PACKAGE.RestrictsSuspension
+// RUN_PIPELINE_TILL: FRONTEND
+@kotlin.coroutines.RestrictsSuspension
 class RestrictedController {
     suspend fun yield() {}
 }
 
-fun generate(<!UNUSED_PARAMETER!>c<!>: suspend RestrictedController.() -> Unit) {}
+fun generate(c: suspend RestrictedController.() -> Unit) {}
 
-fun runBlocking(<!UNUSED_PARAMETER!>x<!>: suspend () -> Unit) {}
+fun runBlocking(x: suspend () -> Unit) {}
 
 fun test() {
     generate {
@@ -16,3 +15,5 @@ fun test() {
         }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, functionalType, lambdaLiteral, suspend, typeWithExtension */

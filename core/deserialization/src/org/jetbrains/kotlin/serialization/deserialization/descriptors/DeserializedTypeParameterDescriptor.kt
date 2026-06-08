@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.serialization.deserialization.descriptors
 
 import org.jetbrains.kotlin.descriptors.SourceElement
 import org.jetbrains.kotlin.descriptors.SupertypeLoopChecker
+import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.AbstractLazyTypeParameterDescriptor
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.upperBounds
@@ -29,11 +30,14 @@ import org.jetbrains.kotlin.types.KotlinType
 
 class DeserializedTypeParameterDescriptor(
     private val c: DeserializationContext,
-    private val proto: ProtoBuf.TypeParameter,
+    val proto: ProtoBuf.TypeParameter,
     index: Int
 ) : AbstractLazyTypeParameterDescriptor(
-    c.storageManager, c.containingDeclaration, c.nameResolver.getName(proto.name),
-    ProtoEnumFlags.variance(proto.variance), proto.reified, index, SourceElement.NO_SOURCE, SupertypeLoopChecker.EMPTY
+    c.storageManager, c.containingDeclaration,
+    /*TODO: support deserialized type annotations: now they are unused, even not accessible via reflection (KT-46932)*/
+    Annotations.EMPTY,
+    c.nameResolver.getName(proto.name),
+    ProtoEnumFlags.variance(proto.variance), proto.reified, index, SourceElement.NO_SOURCE, SupertypeLoopChecker.EMPTY,
 ) {
     override val annotations = DeserializedAnnotations(c.storageManager) {
         c.components.annotationAndConstantLoader.loadTypeParameterAnnotations(proto, c.nameResolver).toList()

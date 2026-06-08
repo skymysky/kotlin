@@ -16,40 +16,51 @@
 
 package org.jetbrains.kotlin.resolve.calls.results
 
-import gnu.trove.THashSet
-import gnu.trove.TObjectHashingStrategy
+import it.unimi.dsi.fastutil.Hash
+import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.UnsignedTypes
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.synthetic.SyntheticMemberDescriptor
 import org.jetbrains.kotlin.resolve.DescriptorEquivalenceForOverrides
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.calls.context.CheckArgumentTypesMode
+import org.jetbrains.kotlin.resolve.descriptorUtil.isTypeRefinementEnabled
 import org.jetbrains.kotlin.resolve.descriptorUtil.varargParameterPosition
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner
+import org.jetbrains.kotlin.types.model.KotlinTypeMarker
+import org.jetbrains.kotlin.types.model.requireOrDescribe
+import org.jetbrains.kotlin.util.CancellationChecker
 import java.util.*
 
 open class OverloadingConflictResolver<C : Any>(
     private val builtIns: KotlinBuiltIns,
     private val module: ModuleDescriptor,
     private val specificityComparator: TypeSpecificityComparator,
+    private val platformOverloadsSpecificityComparator: PlatformOverloadsSpecificityComparator,
+    private val cancellationChecker: CancellationChecker,
     private val getResultingDescriptor: (C) -> CallableDescriptor,
     private val createEmptyConstraintSystem: () -> SimpleConstraintSystem,
     private val createFlatSignature: (C) -> FlatSignature<C>,
     private val getVariableCandidates: (C) -> C?, // for variable WithInvoke
-    private val isFromSources: (CallableDescriptor) -> Boolean
+    private val isFromSources: (CallableDescriptor) -> Boolean,
+    private val hasSAMConversion: ((C) -> Boolean)?,
+    private val kotlinTypeRefiner: KotlinTypeRefiner,
 ) {
 
-    private val resolvedCallHashingStrategy = object : TObjectHashingStrategy<C> {
+    private val isTypeRefinementEnabled by lazy { module.isTypeRefinementEnabled() }
+
+    private val resolvedCallHashingStrategy = object : Hash.Strategy<C> {
         override fun equals(call1: C?, call2: C?): Boolean =
             if (call1 != null && call2 != null)
                 call1.resultingDescriptor == call2.resultingDescriptor
             else
                 call1 == call2
 
-        override fun computeHashCode(call: C?): Int =
-            call?.resultingDescriptor?.hashCode() ?: 0
+        override fun hashCode(call: C?): Int = call?.resultingDescriptor?.hashCode() ?: 0
     }
 
     private val C.resultingDescriptor: CallableDescriptor get() = getResultingDescriptor(this)
@@ -58,19 +69,22 @@ open class OverloadingConflictResolver<C : Any>(
     fun chooseMaximallySpecificCandidates(
         candidates: Collection<C>,
         checkArgumentsMode: CheckArgumentTypesMode,
-        discriminateGenerics: Boolean,
-        isDebuggerContext: Boolean
+        discriminateGenerics: Boolean
     ): Set<C> {
         candidates.setIfOneOrEmpty()?.let { return it }
 
         val fixedCandidates = if (getVariableCandidates(candidates.first()) != null) {
-            findMaximallySpecificVariableAsFunctionCalls(candidates, isDebuggerContext) ?: return LinkedHashSet(candidates)
+            findMaximallySpecificVariableAsFunctionCalls(candidates) ?: return LinkedHashSet(candidates)
         } else {
             candidates
         }
 
         val noEquivalentCalls = filterOutEquivalentCalls(fixedCandidates)
-        val noOverrides = OverridingUtil.filterOverrides(noEquivalentCalls) { a, b ->
+        val noOverrides = OverridingUtil.filterOverrides(
+            noEquivalentCalls,
+            isTypeRefinementEnabled,
+            cancellationChecker::check
+        ) { a, b ->
             val aDescriptor = a.resultingDescriptor
             val bDescriptor = b.resultingDescriptor
             // Here we'd like to handle situation when we have two synthetic descriptors as in syntheticSAMExtensions.kt
@@ -90,13 +104,13 @@ open class OverloadingConflictResolver<C : Any>(
             return noOverrides
         }
 
-        val maximallySpecific = findMaximallySpecific(noOverrides, checkArgumentsMode, false, isDebuggerContext)
+        val maximallySpecific = findMaximallySpecific(noOverrides, checkArgumentsMode, false)
         if (maximallySpecific != null) {
             return setOf(maximallySpecific)
         }
 
         if (discriminateGenerics) {
-            val maximallySpecificGenericsDiscriminated = findMaximallySpecific(noOverrides, checkArgumentsMode, true, isDebuggerContext)
+            val maximallySpecificGenericsDiscriminated = findMaximallySpecific(noOverrides, checkArgumentsMode, true)
             if (maximallySpecificGenericsDiscriminated != null) {
                 return setOf(maximallySpecificGenericsDiscriminated)
             }
@@ -115,11 +129,19 @@ open class OverloadingConflictResolver<C : Any>(
 
         val result = LinkedHashSet<C>()
         outerLoop@ for (meD in fromSourcesGoesFirst) {
+            cancellationChecker.check()
             for (otherD in result) {
-                val me = meD.resultingDescriptor
-                val other = otherD.resultingDescriptor
+                val me = meD.resultingDescriptor.originalIfTypeRefinementEnabled
+                val other = otherD.resultingDescriptor.originalIfTypeRefinementEnabled
                 val ignoreReturnType = isFromSources(me) != isFromSources(other)
-                if (DescriptorEquivalenceForOverrides.areCallableDescriptorsEquivalent(me, other, ignoreReturnType)) {
+                if (DescriptorEquivalenceForOverrides.areCallableDescriptorsEquivalent(
+                        me,
+                        other,
+                        allowCopiesFromTheSameDeclaration = isTypeRefinementEnabled,
+                        ignoreReturnType = ignoreReturnType,
+                        kotlinTypeRefiner = kotlinTypeRefiner
+                    )
+                ) {
                     continue@outerLoop
                 }
             }
@@ -128,6 +150,8 @@ open class OverloadingConflictResolver<C : Any>(
 
         return result
     }
+
+    private val CallableDescriptor.originalIfTypeRefinementEnabled get() = if (isTypeRefinementEnabled) original else this
 
     private fun Collection<C>.setIfOneOrEmpty() = when (size) {
         0 -> emptySet()
@@ -138,8 +162,7 @@ open class OverloadingConflictResolver<C : Any>(
     private fun findMaximallySpecific(
         candidates: Set<C>,
         checkArgumentsMode: CheckArgumentTypesMode,
-        discriminateGenerics: Boolean,
-        isDebuggerContext: Boolean
+        discriminateGenerics: Boolean
     ): C? =
         if (candidates.size <= 1)
             candidates.firstOrNull()
@@ -147,27 +170,46 @@ open class OverloadingConflictResolver<C : Any>(
             CheckArgumentTypesMode.CHECK_CALLABLE_TYPE ->
                 uniquifyCandidatesSet(candidates).singleOrNull {
                     isDefinitelyMostSpecific(it, candidates) { call1, call2 ->
-                        isNotLessSpecificCallableReference(call1.resultingDescriptor, call2.resultingDescriptor)
+                        isEquallyOrMoreSpecificCallableReference(call1.resultingDescriptor, call2.resultingDescriptor)
                     }
                 }
 
             CheckArgumentTypesMode.CHECK_VALUE_ARGUMENTS ->
-                findMaximallySpecificCall(candidates, discriminateGenerics, isDebuggerContext)
-                        ?: findMaximallySpecificCall(
-                            candidates.filterNotTo(mutableSetOf()) { createFlatSignature(it).isSyntheticMember },
-                            discriminateGenerics, isDebuggerContext
+                // Attempt 1: general disambiguation
+                findMaximallySpecificCall(candidates, discriminateGenerics)
+
+                // Attempt 2: disambiguation excluding SAM converted candidates
+                    ?: hasSAMConversion?.let { hasConversion ->
+                        findMaximallySpecificCall(
+                            candidates.filterNotTo(mutableSetOf(), hasConversion),
+                            discriminateGenerics
                         )
+                    }
+
+                    // Attempt 3: disambiguation excluding synthetic candidates
+                    ?: findMaximallySpecificCall(
+                        candidates.filterNotTo(mutableSetOf()) { createFlatSignature(it).isSyntheticMember },
+                        discriminateGenerics
+                    )
+
+                    // Attempt 4: disambiguation on original SAM-types
+                    ?: hasSAMConversion?.let { hasConversion ->
+                        findMaximallySpecificCall(
+                            candidates.filterTo(mutableSetOf(), hasConversion),
+                            discriminateGenerics, useOriginalSamTypes = true
+                        )
+                    }
         }
 
     // null means ambiguity between variables
-    private fun findMaximallySpecificVariableAsFunctionCalls(candidates: Collection<C>, isDebuggerContext: Boolean): Set<C>? {
+    private fun findMaximallySpecificVariableAsFunctionCalls(candidates: Collection<C>): Set<C>? {
         val variableCalls = candidates.mapTo(newResolvedCallSet(candidates.size)) {
             getVariableCandidates(it) ?: throw AssertionError("Regular call among variable-as-function calls: $it")
         }
 
         val maxSpecificVariableCalls = chooseMaximallySpecificCandidates(
             variableCalls, CheckArgumentTypesMode.CHECK_VALUE_ARGUMENTS,
-            isDebuggerContext = isDebuggerContext, discriminateGenerics = false
+            discriminateGenerics = false
         )
 
         val maxSpecificVariableCall = maxSpecificVariableCalls.singleOrNull() ?: return null
@@ -176,11 +218,7 @@ open class OverloadingConflictResolver<C : Any>(
         }
     }
 
-    private fun findMaximallySpecificCall(
-        candidates: Set<C>,
-        discriminateGenerics: Boolean,
-        isDebuggerContext: Boolean
-    ): C? {
+    private fun findMaximallySpecificCall(candidates: Set<C>, discriminateGenerics: Boolean, useOriginalSamTypes: Boolean = false): C? {
         val filteredCandidates = uniquifyCandidatesSet(candidates)
 
         if (filteredCandidates.size <= 1) return filteredCandidates.singleOrNull()
@@ -189,15 +227,15 @@ open class OverloadingConflictResolver<C : Any>(
             createFlatSignature(candidateCall)
         }
 
+        // This list may be empty, and this is expected.
         val bestCandidatesByParameterTypes = conflictingCandidates.filter { candidate ->
+            cancellationChecker.check()
             isMostSpecific(candidate, conflictingCandidates) { call1, call2 ->
-                isNotLessSpecificCallWithArgumentMapping(call1, call2, discriminateGenerics)
+                isEquallyOrMoreSpecificCallWithArgumentMapping(call1, call2, discriminateGenerics, useOriginalSamTypes)
             }
         }
 
-        return bestCandidatesByParameterTypes.exactMaxWith { call1, call2 ->
-            isOfNotLessSpecificShape(call1, call2) && isOfNotLessSpecificVisibilityForDebugger(call1, call2, isDebuggerContext)
-        }?.origin
+        return bestCandidatesByParameterTypes.exactMaxWith { call1, call2 -> isOfEquallyOrMoreSpecificShape(call1, call2) }?.origin
     }
 
     private inline fun <C : Any> Collection<C>.exactMaxWith(isNotWorse: (C, C) -> Boolean): C? {
@@ -208,40 +246,42 @@ open class OverloadingConflictResolver<C : Any>(
             }
         }
         if (result == null) return null
-        if (any { it != result && isNotWorse(it, result!!) }) {
+        if (any { it != result && isNotWorse(it, result) }) {
             return null
         }
         return result
     }
 
-    private inline fun <C> isMostSpecific(candidate: C, candidates: Collection<C>, isNotLessSpecific: (C, C) -> Boolean): Boolean =
+    private inline fun <C> isMostSpecific(candidate: C, candidates: Collection<C>, isEquallyOrMoreSpecific: (C, C) -> Boolean): Boolean =
         candidates.all { other ->
             candidate === other ||
-                    isNotLessSpecific(candidate, other)
+                    isEquallyOrMoreSpecific(candidate, other)
         }
 
     private inline fun <C> isDefinitelyMostSpecific(
         candidate: C,
         candidates: Collection<C>,
-        isNotLessSpecific: (C, C) -> Boolean
+        isEquallyOrMoreSpecific: (C, C) -> Boolean
     ): Boolean =
         candidates.all { other ->
             candidate === other ||
-                    isNotLessSpecific(candidate, other) && !isNotLessSpecific(other, candidate)
+                    isEquallyOrMoreSpecific(candidate, other) && !isEquallyOrMoreSpecific(other, candidate)
         }
 
     /**
      * `call1` is not less specific than `call2`
      */
-    private fun isNotLessSpecificCallWithArgumentMapping(
+    private fun isEquallyOrMoreSpecificCallWithArgumentMapping(
         call1: FlatSignature<C>,
         call2: FlatSignature<C>,
-        discriminateGenerics: Boolean
+        discriminateGenerics: Boolean,
+        useOriginalSamTypes: Boolean
     ): Boolean {
         return tryCompareDescriptorsFromScripts(call1.candidateDescriptor(), call2.candidateDescriptor()) ?: compareCallsByUsedArguments(
             call1,
             call2,
-            discriminateGenerics
+            discriminateGenerics,
+            useOriginalSamTypes
         )
     }
 
@@ -252,7 +292,8 @@ open class OverloadingConflictResolver<C : Any>(
     private fun compareCallsByUsedArguments(
         call1: FlatSignature<C>,
         call2: FlatSignature<C>,
-        discriminateGenerics: Boolean
+        discriminateGenerics: Boolean,
+        useOriginalSamTypes: Boolean
     ): Boolean {
         if (discriminateGenerics) {
             val isGeneric1 = call1.isGeneric
@@ -267,16 +308,23 @@ open class OverloadingConflictResolver<C : Any>(
         if (!call1.isExpect && call2.isExpect) return true
         if (call1.isExpect && !call2.isExpect) return false
 
-        return createEmptyConstraintSystem().isSignatureNotLessSpecific(
+        if (call1.contextReceiverCount > call2.contextReceiverCount) return true
+        if (call1.contextReceiverCount < call2.contextReceiverCount) return false
+
+        return createEmptyConstraintSystem().isSignatureEquallyOrMoreSpecific(
             call1,
             call2,
             SpecificityComparisonWithNumerics,
-            specificityComparator
+            specificityComparator,
+            useOriginalSamTypes
         )
     }
 
     private val SpecificityComparisonWithNumerics = object : SpecificityComparisonCallbacks {
-        override fun isNonSubtypeNotLessSpecific(specific: KotlinType, general: KotlinType): Boolean {
+        override fun isNonSubtypeEquallyOrMoreSpecific(specific: KotlinTypeMarker, general: KotlinTypeMarker): Boolean {
+            requireOrDescribe(specific is KotlinType, specific)
+            requireOrDescribe(general is KotlinType, general)
+
             val _double = builtIns.doubleType
             val _float = builtIns.floatType
 
@@ -284,12 +332,12 @@ open class OverloadingConflictResolver<C : Any>(
             val isGeneralUnsigned = UnsignedTypes.isUnsignedType(general)
             return when {
                 isSpecificUnsigned && isGeneralUnsigned -> {
-                    val uLong = module.findClassAcrossModuleDependencies(KotlinBuiltIns.FQ_NAMES.uLong)?.defaultType ?: return false
-                    val uInt = module.findClassAcrossModuleDependencies(KotlinBuiltIns.FQ_NAMES.uInt)?.defaultType ?: return false
-                    val uByte = module.findClassAcrossModuleDependencies(KotlinBuiltIns.FQ_NAMES.uByte)?.defaultType ?: return false
-                    val uShort = module.findClassAcrossModuleDependencies(KotlinBuiltIns.FQ_NAMES.uShort)?.defaultType ?: return false
+                    val uLong = module.findClassAcrossModuleDependencies(StandardNames.FqNames.uLong)?.defaultType ?: return false
+                    val uInt = module.findClassAcrossModuleDependencies(StandardNames.FqNames.uInt)?.defaultType ?: return false
+                    val uByte = module.findClassAcrossModuleDependencies(StandardNames.FqNames.uByte)?.defaultType ?: return false
+                    val uShort = module.findClassAcrossModuleDependencies(StandardNames.FqNames.uShort)?.defaultType ?: return false
 
-                    isNonSubtypeNotLessSpecific(specific, general, _double, _float, uLong, uInt, uByte, uShort)
+                    isNonSubtypeEquallyOrMoreSpecific(specific, general, _double, _float, uLong, uInt, uByte, uShort)
                 }
 
                 !isSpecificUnsigned && isGeneralUnsigned -> true
@@ -300,13 +348,14 @@ open class OverloadingConflictResolver<C : Any>(
                     val _byte = builtIns.byteType
                     val _short = builtIns.shortType
 
-                    isNonSubtypeNotLessSpecific(specific, general, _double, _float, _long, _int, _byte, _short)
+                    isNonSubtypeEquallyOrMoreSpecific(specific, general, _double, _float, _long, _int, _byte, _short)
                 }
             }
 
         }
 
-        private fun isNonSubtypeNotLessSpecific(
+        // It's expected that this function returns `false` for unrelated types like `Int` and `IntArray`.
+        private fun isNonSubtypeEquallyOrMoreSpecific(
             specific: KotlinType,
             general: KotlinType,
             _double: KotlinType,
@@ -332,7 +381,7 @@ open class OverloadingConflictResolver<C : Any>(
         }
     }
 
-    private fun isOfNotLessSpecificShape(
+    private fun isOfEquallyOrMoreSpecificShape(
         call1: FlatSignature<C>,
         call2: FlatSignature<C>
     ): Boolean {
@@ -345,17 +394,8 @@ open class OverloadingConflictResolver<C : Any>(
             return false
         }
 
-        return true
-    }
-
-    private fun isOfNotLessSpecificVisibilityForDebugger(
-        call1: FlatSignature<C>,
-        call2: FlatSignature<C>,
-        isDebuggerContext: Boolean
-    ): Boolean {
-        if (isDebuggerContext) {
-            val isMoreVisible1 = Visibilities.compare(call1.descriptorVisibility(), call2.descriptorVisibility())
-            if (isMoreVisible1 != null && isMoreVisible1 < 0) return false
+        if (platformOverloadsSpecificityComparator.isMoreSpecificShape(call2.candidateDescriptor(), call1.candidateDescriptor())) {
+            return false
         }
 
         return true
@@ -384,18 +424,19 @@ open class OverloadingConflictResolver<C : Any>(
      * `false` if `f` is definitely less specific than `g`,
      * `null` if undecided.
      */
-    private fun isNotLessSpecificCallableReferenceDescriptor(f: CallableDescriptor, g: CallableDescriptor): Boolean {
+    private fun isEquallyOrMoreSpecificCallableReferenceDescriptor(f: CallableDescriptor, g: CallableDescriptor): Boolean {
         if (f.valueParameters.size != g.valueParameters.size) return false
         if (f.varargParameterPosition() != g.varargParameterPosition()) return false
 
         val fSignature = FlatSignature.createFromCallableDescriptor(f)
         val gSignature = FlatSignature.createFromCallableDescriptor(g)
-        if (!createEmptyConstraintSystem().isSignatureNotLessSpecific(
+        if (!createEmptyConstraintSystem().isSignatureEquallyOrMoreSpecific(
                 fSignature,
                 gSignature,
                 SpecificityComparisonWithNumerics,
                 specificityComparator
-            )) {
+            )
+        ) {
             return false
         }
 
@@ -404,19 +445,23 @@ open class OverloadingConflictResolver<C : Any>(
             if (f.isExpect && !g.isExpect) return false
         }
 
+        if (platformOverloadsSpecificityComparator.isMoreSpecificShape(g, f)) {
+            return false
+        }
+
         return true
     }
 
-    private fun isNotLessSpecificCallableReference(f: CallableDescriptor, g: CallableDescriptor): Boolean =
+    private fun isEquallyOrMoreSpecificCallableReference(f: CallableDescriptor, g: CallableDescriptor): Boolean =
     // TODO should we "discriminate generic descriptors" for callable references?
-        tryCompareDescriptorsFromScripts(f, g) ?: isNotLessSpecificCallableReferenceDescriptor(f, g)
+        tryCompareDescriptorsFromScripts(f, g) ?: isEquallyOrMoreSpecificCallableReferenceDescriptor(f, g)
 
     // Different smart casts may lead to the same candidate descriptor wrapped into different ResolvedCallImpl objects
     private fun uniquifyCandidatesSet(candidates: Collection<C>): Set<C> =
-        THashSet(candidates.size, resolvedCallHashingStrategy).apply { addAll(candidates) }
+        ObjectOpenCustomHashSet(candidates.size, resolvedCallHashingStrategy).apply { addAll(candidates) }
 
     private fun newResolvedCallSet(expectedSize: Int): MutableSet<C> =
-        THashSet(expectedSize, resolvedCallHashingStrategy)
+        ObjectOpenCustomHashSet(expectedSize, resolvedCallHashingStrategy)
 
     private fun FlatSignature<C>.candidateDescriptor() =
         origin.resultingDescriptor.original

@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 
 package test
@@ -7,7 +6,7 @@ internal class A {
     inline fun doSomething(s: String): String  {
         return {
             s
-        }()
+        }.let { it() }
     }
 }
 

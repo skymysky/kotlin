@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 interface Foo<T>
 
 class Bar {
@@ -14,7 +15,10 @@ fun test(bar: Bar, a: A) {
     // no elements with error types
     fooInt((bar()))
     fooInt(if (true) bar() else bar())
-    fooInt(<!REDUNDANT_LABEL_WARNING!>label@<!> bar())
+    fooInt(label@ bar())
     fooInt(a.bar())
-    fooInt(((<!REDUNDANT_LABEL_WARNING!>label@<!> if (true) (a.bar()) else bar())))
+    fooInt(((label@ if (true) (a.bar()) else bar())))
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, ifExpression, interfaceDeclaration, nullableType, operator,
+propertyDeclaration, typeParameter */

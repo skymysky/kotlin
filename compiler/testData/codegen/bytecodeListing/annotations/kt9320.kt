@@ -1,3 +1,4 @@
+// LANGUAGE: +JvmIndyAllowLambdasWithAnnotations
 annotation class Ann
 
 @Ann open class My

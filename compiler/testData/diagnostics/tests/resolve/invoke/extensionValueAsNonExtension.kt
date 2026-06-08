@@ -1,5 +1,5 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: BACKEND
+// DIAGNOSTICS: -UNUSED_EXPRESSION -UNUSED_PARAMETER -UNUSED_VARIABLE
 class A
 
 fun test(foo: A.() -> Int, a: A) {
@@ -19,5 +19,8 @@ fun foo(): A.() -> Int {
     val b: Int = foo()(A())
     val c: Int = (foo())(A())
 
-    <!OI;UNREACHABLE_CODE!>return<!> null!!
+    return null!!
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, classDeclaration, functionDeclaration, functionalType, init, localProperty,
+propertyDeclaration, typeWithExtension */

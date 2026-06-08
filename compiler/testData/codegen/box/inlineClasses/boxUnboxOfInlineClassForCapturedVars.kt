@@ -1,7 +1,13 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class UInt(private val value: Int) {
+// FILE: lib.kt
+inline fun <T> T.myLet(f: (T) -> Unit) = f(this)
+
+// FILE: main.kt
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class UInt(private val value: Int) {
     operator fun plus(other: UInt): UInt = UInt(value + other.asValue())
 
     fun asValue(): Int = value
@@ -52,7 +58,6 @@ fun takeNullableUInt(y: UInt?) {
     }
 }
 
-inline fun <T> T.myLet(f: (T) -> Unit) = f(this)
 fun <T> T.nonInlineLet(f: (T) -> Unit) = f(this)
 
 fun box(): String {

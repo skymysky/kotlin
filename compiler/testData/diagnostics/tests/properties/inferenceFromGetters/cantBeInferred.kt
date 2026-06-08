@@ -1,7 +1,8 @@
-// !WITH_NEW_INFERENCE
-// NI_EXPECTED_FILE
-val <!NI;IMPLICIT_NOTHING_PROPERTY_TYPE!>x<!> get() = <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>foo<!>()
-val y get() = <!OI;TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER!>bar<!>()
+// RUN_PIPELINE_TILL: FRONTEND
+val x get() = <!CANNOT_INFER_PARAMETER_TYPE!>foo<!>()
+val y get() = <!CANNOT_INFER_PARAMETER_TYPE!>bar<!>()
 
 fun <E> foo(): E = null!!
 fun <E> bar(): List<E> = null!!
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, functionDeclaration, getter, nullableType, propertyDeclaration, typeParameter */

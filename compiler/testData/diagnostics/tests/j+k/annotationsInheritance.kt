@@ -1,3 +1,5 @@
+// DISABLE_JAVA_FACADE
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: MyAnnotation.java
 public @interface MyAnnotation {
 }
@@ -17,3 +19,5 @@ fun foo(x: MyAnnoClass) {
 fun bar(y: MyAnnotation) {
     y.hashCode()
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaFunction, javaType, propertyDeclaration */

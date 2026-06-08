@@ -1,17 +1,15 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !WITH_CONTRACT_FUNCTIONS
-// SKIP_TXT
+// OPT_IN: kotlin.contracts.ExperimentalContracts
 
 /*
- KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
-
- SECTION: contracts
- CATEGORY: analysis, controlFlow, initialization
- NUMBER: 2
- DESCRIPTION: val/var reassignment and/or uninitialized variable usages based on nested CallsInPlace effects with wrong invocation kind
+ * KOTLIN DIAGNOSTICS NOT LINKED SPEC TEST (NEGATIVE)
+ *
+ * SECTIONS: contracts, analysis, controlFlow, initialization
+ * NUMBER: 2
+ * DESCRIPTION: val/var reassignment and/or uninitialized variable usages based on nested CallsInPlace effects with wrong invocation kind
+ * HELPERS: contractFunctions
  */
 
+// TESTCASE NUMBER: 1
 fun case_1() {
     val value_1: Int
     funWithAtLeastOnceCallsInPlace {
@@ -24,11 +22,12 @@ fun case_1() {
         funWithExactlyOnceCallsInPlace {
             <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
-        value_1.inc()
+        <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
     }
-    value_1.inc()
+    <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
+// TESTCASE NUMBER: 2
 fun case_2() {
     val value_1: Int
     funWithAtMostOnceCallsInPlace {
@@ -39,13 +38,14 @@ fun case_2() {
             <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
         funWithUnknownCallsInPlace {
-            value_1.inc()
+            <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
-        value_1.inc()
+        <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
     }
-    value_1.inc()
+    <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
+// TESTCASE NUMBER: 3
 fun case_3() {
     var value_1: Int
     funWithAtLeastOnceCallsInPlace {
@@ -58,11 +58,12 @@ fun case_3() {
         funWithExactlyOnceCallsInPlace {
             <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
-        value_1.inc()
+        <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
     }
-    value_1.inc()
+    <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }
 
+// TESTCASE NUMBER: 4
 fun case_4() {
     var value_1: Int
     funWithAtLeastOnceCallsInPlace {
@@ -73,12 +74,12 @@ fun case_4() {
             <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
         funWithUnknownCallsInPlace {
-            value_1.inc()
+            <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
         funWithExactlyOnceCallsInPlace {
-            value_1.inc()
+            <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
         }
-        value_1.inc()
+        <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
     }
-    value_1.inc()
+    <!UNINITIALIZED_VARIABLE!>value_1<!>.inc()
 }

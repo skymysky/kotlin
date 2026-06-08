@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: FRONTEND
 // See KT-10325: private setters are allowed for overridden properties in final class
 
 interface A {
@@ -62,9 +63,12 @@ interface E : A {
     override var a: Int
         get() = 0
         // Errors here and below
-        <!PRIVATE_SETTER_FOR_OPEN_PROPERTY!>private<!> set(<!UNUSED_PARAMETER!>arg<!>) {}
+        <!PRIVATE_SETTER_FOR_OPEN_PROPERTY!>private<!> set(arg) {}
 
     override var b: Int
         get() = 0
-        <!CANNOT_WEAKEN_ACCESS_PRIVILEGE, PRIVATE_SETTER_FOR_OPEN_PROPERTY!>private<!> set(<!UNUSED_PARAMETER!>arg<!>) {}
+        <!CANNOT_WEAKEN_ACCESS_PRIVILEGE, PRIVATE_SETTER_FOR_OPEN_PROPERTY!>private<!> set(arg) {}
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, getter, integerLiteral, interfaceDeclaration, override, propertyDeclaration,
+setter */

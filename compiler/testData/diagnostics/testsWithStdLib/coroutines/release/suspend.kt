@@ -1,7 +1,7 @@
-// !API_VERSION: 1.3
-// !LANGUAGE: +ReleaseCoroutines
-// SKIP_TXT
+// RUN_PIPELINE_TILL: BACKEND
 
 suspend fun test() {
     suspend {}
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, lambdaLiteral, suspend */

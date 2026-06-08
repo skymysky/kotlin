@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 fun concatNonNulls(strings: List<String?>): String {
     var result = ""

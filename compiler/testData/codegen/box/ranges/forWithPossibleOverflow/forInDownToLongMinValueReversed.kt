@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JVM_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 const val M = Long.MIN_VALUE
 

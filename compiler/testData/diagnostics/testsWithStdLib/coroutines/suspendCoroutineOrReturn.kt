@@ -1,8 +1,7 @@
-// !API_VERSION: 1.3
-// !DIAGNOSTICS: -UNUSED_PARAMETER
-// !CHECK_TYPE
-// LANGUAGE_VERSION: 1.3
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_PARAMETER
+// CHECK_TYPE
+
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 
@@ -19,7 +18,7 @@ class Controller {
     suspend fun yieldString(value: String) = suspendCoroutineUninterceptedOrReturn<Int> {
         it.resume(1)
         it checkType { _<Continuation<Int>>() }
-        it.<!TYPE_INFERENCE_CONFLICTING_SUBSTITUTIONS!>resume<!>("")
+        it.resume(<!ARGUMENT_TYPE_MISMATCH!>""<!>)
 
         // We can return anything here, 'suspendCoroutineUninterceptedOrReturn' is not very type-safe
         // Also we can call resume and then return the value too, but it's still just our problem
@@ -35,3 +34,7 @@ fun test() {
         yieldString("abc") checkType { _<Int>() }
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, equalityExpression, funWithExtensionReceiver, functionDeclaration,
+functionalType, ifExpression, infix, integerLiteral, lambdaLiteral, multiplicativeExpression, nullableType,
+stringLiteral, suspend, typeParameter, typeWithExtension */

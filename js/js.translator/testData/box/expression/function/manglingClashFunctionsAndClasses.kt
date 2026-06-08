@@ -1,6 +1,5 @@
 // IGNORE_BACKEND: JS_IR
-// SKIP_MINIFICATION
-// This test uses eval, so DCE becomes impossible
+// IGNORE_BACKEND: JS_IR_ES6
 // MODULE: lib
 // FILE: lib.kt
 package foo

@@ -1,6 +1,4 @@
-// !LANGUAGE: +NewInference
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 class Foo
 

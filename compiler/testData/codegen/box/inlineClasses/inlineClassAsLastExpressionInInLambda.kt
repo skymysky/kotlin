@@ -1,13 +1,21 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
+// NO_CHECK_LAMBDA_INLINING
 
-inline class Name(private val value: String) {
+// FILE: lib.kt
+inline fun <R> inlinedRun(block: () -> R): R = block()
+
+// FILE: main.kt
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Name(private val value: String) {
     fun asValue(): String = value
 }
 
 fun concat(a: Name, b: Name) = a.asValue() + b.asValue()
 
-inline class UInt(private val value: Int) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class UInt(private val value: Int) {
     fun asValue(): Int = value
 }
 
@@ -39,5 +47,4 @@ fun box(): String {
     return "OK"
 }
 
-inline fun <R> inlinedRun(block: () -> R): R = block()
 fun <R> notInlinedRun(block: () -> R): R = block()

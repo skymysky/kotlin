@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -28,7 +28,7 @@ fun valueReassignment() {
 
 fun shadowing() {
     val x: Int
-    runTwice { val <!NAME_SHADOWING!>x<!>: Int; x = 42; x.inc() }
+    runTwice { val x: Int; x = 42; x.inc() }
     <!UNINITIALIZED_VARIABLE!>x<!>.inc()
 }
 
@@ -61,7 +61,7 @@ fun repeatingFlow(n: Int) {
         runTwice { <!VAL_REASSIGNMENT!>x<!> = 42 }
     }
 
-    x.inc()
+    <!UNINITIALIZED_VARIABLE!>x<!>.inc()
 }
 
 fun repeatingFlow2(n: Int) {
@@ -73,3 +73,7 @@ fun repeatingFlow2(n: Int) {
 
     <!UNINITIALIZED_VARIABLE!>x<!>.inc()
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, forLoop, functionDeclaration, functionalType,
+ifExpression, integerLiteral, isExpression, lambdaLiteral, localProperty, nullableType, propertyDeclaration,
+rangeExpression, typeParameter */

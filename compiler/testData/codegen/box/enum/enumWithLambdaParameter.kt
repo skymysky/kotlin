@@ -1,5 +1,5 @@
-// IGNORE_BACKEND: JVM_IR
 // KT-4423 Enum with function not compiled
+// SKIP_MANGLE_VERIFICATION
 
 enum class Sign(val str: String, val func: (x: Int, y: Int) -> Int){
     plus("+", { x, y -> x + y }),

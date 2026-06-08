@@ -1,5 +1,4 @@
-// !LANGUAGE: -BooleanElvisBoundSmartCasts
-
+// RUN_PIPELINE_TILL: BACKEND
 interface Order {
     val expired: Boolean?
 
@@ -11,13 +10,13 @@ interface Order {
 fun foo(o: Any) {
     val order = o as? Order
     if (order?.expired ?: false) {
-        order<!UNSAFE_CALL!>.<!>doSomething()
+        order.doSomething()
     }
     else {
 
     }
     if (order?.notExpired() ?: false) {
-        order<!UNSAFE_CALL!>.<!>doSomething()
+        order.doSomething()
     }
 }
 
@@ -27,24 +26,27 @@ fun bar(o: Any) {
 
     }
     else {
-        order!!.doSomething()
+        order<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>.doSomething()
     }
     if (order?.notExpired() ?: true) {
 
     }
     else {
-        order!!.doSomething()
+        order<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>.doSomething()
     }
 }
 
 fun baz(o: Boolean?) {
     if (o ?: false) {
-        o<!UNSAFE_CALL!>.<!>hashCode()
+        o.hashCode()
     }
     if (o ?: true) {
 
     }
     else {
-        o<!UNSAFE_CALL!>.<!>hashCode()
+        o.hashCode()
     }
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, elvisExpression, functionDeclaration, ifExpression, interfaceDeclaration,
+localProperty, nullableType, propertyDeclaration, safeCall, smartcast */

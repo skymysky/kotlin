@@ -1,10 +1,10 @@
-// !WITH_NEW_INFERENCE
-// !DIAGNOSTICS: -UNUSED_VARIABLE
+// RUN_PIPELINE_TILL: FRONTEND
+// DIAGNOSTICS: -UNUSED_VARIABLE
 // AssertionError in ConstraintSystem(The constraint shouldn't contain different type variables on both sides: Y <: X)
 
 class A<X, Y : X>
 
-class B<X, Y : X>(<!UNUSED_PARAMETER!>foo<!>: A<X, Y>) {
+class B<X, Y : X>(foo: A<X, Y>) {
     fun test1(a: A<X, Y>) {
         B(a)
         val b: B<X, Y> = B(a)
@@ -14,8 +14,11 @@ class B<X, Y : X>(<!UNUSED_PARAMETER!>foo<!>: A<X, Y>) {
 
 class C<X, Z, Y : X>
 
-class D<X, Z, Y : X>(<!UNUSED_PARAMETER!>foo<!>: C<X, Z, Y>) {
+class D<X, Z, Y : X>(foo: C<X, Z, Y>) {
     fun test(a: C<Y, Y, Y>) {
-        val d: D<X, Y, Y> = <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, OI;TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH!>D(a)<!>
+        val d: D<X, Y, Y> <!INITIALIZER_TYPE_MISMATCH!>=<!> D(a)
     }
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, localProperty, nullableType, primaryConstructor,
+propertyDeclaration, typeConstraint, typeParameter */

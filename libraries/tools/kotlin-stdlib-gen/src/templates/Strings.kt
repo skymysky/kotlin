@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package templates
@@ -17,10 +17,15 @@ object StringJoinOps : TemplateGroupBase() {
             """
             Appends the string from all the elements separated using [separator] and using the given [prefix] and [postfix] if supplied.
 
-            If the collection could be huge, you can specify a non-negative value of [limit], in which case only the first [limit]
+            If the collection has no elements, the function appends only [prefix] followed by [postfix] to [buffer] (both are empty by default).
+
+            If the collection is huge, you can specify a non-negative value of [limit], in which case only the first [limit]
             elements will be appended, followed by the [truncated] string (which defaults to "...").
+            
+            @return the [buffer] argument with appended elements.
             """
         }
+        annotation("@IgnorableReturnValue")
         sample("samples.collections.Collections.Transformations.joinTo")
         sequenceClassification(terminal)
         typeParam("A : Appendable")
@@ -67,7 +72,9 @@ object StringJoinOps : TemplateGroupBase() {
             """
             Creates a string from all the elements separated using [separator] and using the given [prefix] and [postfix] if supplied.
 
-            If the collection could be huge, you can specify a non-negative value of [limit], in which case only the first [limit]
+            If the collection has no elements, the result consists of only [prefix] followed by [postfix] (both are empty by default).
+
+            If the collection is huge, you can specify a non-negative value of [limit], in which case only the first [limit]
             elements will be appended, followed by the [truncated] string (which defaults to "...").
             """
         }

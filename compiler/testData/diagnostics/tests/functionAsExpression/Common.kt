@@ -1,5 +1,6 @@
-// !CHECK_TYPE
-// !DIAGNOSTICS: -UNUSED_PARAMETER
+// RUN_PIPELINE_TILL: FRONTEND
+// CHECK_TYPE
+// DIAGNOSTICS: -UNUSED_PARAMETER
 
 annotation class ann(val name: String)
 const val ok = "OK"
@@ -17,3 +18,7 @@ val funfun = fun() = fun() = 5
 val parentesized = (fun () {})
 val parentesizedWithType = checkSubtype<() -> Unit>((fun () {}))
 val withType = checkSubtype<() -> Unit>((fun () {}))
+
+/* GENERATED_FIR_TAGS: annotationDeclaration, anonymousFunction, classDeclaration, const, funWithExtensionReceiver,
+functionDeclaration, functionalType, infix, integerLiteral, nullableType, primaryConstructor, propertyDeclaration,
+stringLiteral, typeParameter, typeWithExtension */

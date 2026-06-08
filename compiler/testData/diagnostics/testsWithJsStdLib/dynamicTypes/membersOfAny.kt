@@ -1,4 +1,6 @@
-// !MARK_DYNAMIC_CALLS
+// RUN_PIPELINE_TILL: BACKEND
+// MARK_DYNAMIC_CALLS
+// DUMP_CFG
 
 fun test(d: dynamic) {
     d == 1

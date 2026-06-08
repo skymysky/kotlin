@@ -1,6 +1,5 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +ReadDeserializedContracts
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE", "IMPOSSIBLE_IS_CHECK_ERROR")
 
 package test
 

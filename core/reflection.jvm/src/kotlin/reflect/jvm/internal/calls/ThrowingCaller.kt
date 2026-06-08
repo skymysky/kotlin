@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package kotlin.reflect.jvm.internal.calls
@@ -15,9 +15,12 @@ internal object ThrowingCaller : Caller<Nothing?> {
         get() = emptyList()
 
     override val returnType: Type
-        get() = Void.TYPE
+        get() = throwUnsupported()
 
-    override fun call(args: Array<*>): Any? {
+    override fun call(args: Array<*>): Any =
+        throwUnsupported()
+
+    private fun throwUnsupported(): Nothing {
         throw UnsupportedOperationException("call/callBy are not supported for this declaration.")
     }
 }

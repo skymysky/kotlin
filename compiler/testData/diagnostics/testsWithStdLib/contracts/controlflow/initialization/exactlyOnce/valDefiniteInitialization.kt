@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -23,7 +23,7 @@ fun initialization() {
 fun shadowing() {
     val x = 42
     myRun {
-        val <!NAME_SHADOWING!>x<!> = 43
+        val x = 43
         x.inc()
     }
     x.inc()
@@ -86,7 +86,23 @@ class DefiniteInitializationInInitSection {
     <!MUST_BE_INITIALIZED_OR_BE_ABSTRACT!>val y: Int<!>
 
     init {
-        myRun { x = 42 }
+        myRun { <!NON_INLINE_MEMBER_VAL_INITIALIZATION!>x<!> = 42 }
         unknownRun { <!CAPTURED_MEMBER_VAL_INITIALIZATION!>y<!> = 239 }
     }
 }
+
+class DefiniteInitializationAfterThrow {
+    fun test() {
+        val a: Int
+        myRun {
+            if (bar()) throw RuntimeException()
+            a = 42
+        }
+        a.hashCode()
+    }
+    fun bar() = false
+}
+
+/* GENERATED_FIR_TAGS: assignment, classDeclaration, contractCallsEffect, contracts, functionDeclaration, functionalType,
+ifExpression, init, integerLiteral, isExpression, lambdaLiteral, localProperty, nullableType, propertyDeclaration,
+stringLiteral, typeParameter */

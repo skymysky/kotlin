@@ -1,4 +1,4 @@
-// !LANGUAGE: +NewInference
+// RUN_PIPELINE_TILL: BACKEND
 // FILE: J.java
 public interface J<T> {
     public void foo(T r1, T r2);
@@ -12,7 +12,9 @@ public interface Runnable {
 // FILE: 1.kt
 fun test(j: J<Runnable>, r: Runnable) {
     j.foo(r, r)
-    j.foo(r, <!TYPE_MISMATCH!>{}<!>)
-    j.foo(<!TYPE_MISMATCH!>{}<!>, r)
-    j.foo(<!TYPE_MISMATCH!>{}<!>, <!TYPE_MISMATCH!>{}<!>)
+    j.foo(r, {})
+    j.foo({}, r)
+    j.foo({}, {})
 }
+
+/* GENERATED_FIR_TAGS: functionDeclaration, javaType, lambdaLiteral, samConversion */

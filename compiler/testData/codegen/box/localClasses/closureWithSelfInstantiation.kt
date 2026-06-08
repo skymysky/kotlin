@@ -1,7 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
-// Enable for JVM backend when KT-8120 gets fixed
-// IGNORE_BACKEND: JVM
-
 fun box(): String {
     val capturedInConstructor = 1
     val capturedInBody = 10

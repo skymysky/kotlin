@@ -1,12 +1,14 @@
-// !WITH_NEW_INFERENCE
+// RUN_PIPELINE_TILL: FRONTEND
 fun foo(n: Number) = n
 
 fun test() {
-    foo(<!CONSTANT_EXPECTED_TYPE_MISMATCH!>'a'<!>)
-    
+    foo(<!ARGUMENT_TYPE_MISMATCH!>'a'<!>)
+
     val c = 'c'
-    foo(<!TYPE_MISMATCH!>c<!>)
+    foo(<!ARGUMENT_TYPE_MISMATCH!>c<!>)
 
     val d: Char? = 'd'
-    foo(<!NI;TYPE_MISMATCH!><!OI;TYPE_MISMATCH!>d<!>!!<!>)
+    foo(<!ARGUMENT_TYPE_MISMATCH!>d!!<!>)
 }
+
+/* GENERATED_FIR_TAGS: checkNotNullCall, functionDeclaration, localProperty, nullableType, propertyDeclaration */

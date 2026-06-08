@@ -1,7 +1,6 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
-// CHECK_CASES_COUNT: function=foo count=4
-// CHECK_IF_COUNT: function=foo count=1
+// WITH_STDLIB
+// CHECK_CASES_COUNT: function=foo count=0
+// CHECK_IF_COUNT: function=foo count=0
 
 var log = ""
 

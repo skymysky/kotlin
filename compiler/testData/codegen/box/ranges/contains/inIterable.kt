@@ -1,5 +1,4 @@
-// IGNORE_BACKEND: JS_IR
-// WITH_RUNTIME
+// WITH_STDLIB
 
 val iterable: Iterable<Int> = listOf(1, 2, 3)
 

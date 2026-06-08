@@ -16,18 +16,19 @@
 
 package org.jetbrains.kotlin.psi2ir.intermediate
 
-import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 
-fun IrVariable.defaultLoad(): IrExpression =
+internal fun IrVariable.loadAt(startOffset: Int, endOffset: Int): IrExpression =
     IrGetValueImpl(startOffset, endOffset, type, symbol)
 
-fun CallReceiver.adjustForCallee(callee: CallableMemberDescriptor): CallReceiver =
+internal fun CallReceiver.adjustForCallee(callee: CallableMemberDescriptor): CallReceiver =
     object : CallReceiver {
-        override fun call(withDispatchAndExtensionReceivers: (IntermediateValue?, IntermediateValue?) -> IrExpression): IrExpression =
-            this@adjustForCallee.call { dispatchReceiverValue, extensionReceiverValue ->
+        override fun call(builder: CallExpressionBuilder): IrExpression =
+            this@adjustForCallee.call { dispatchReceiverValue, extensionReceiverValue, contextReceiverValues ->
                 val numReceiversPresent = listOfNotNull(dispatchReceiverValue, extensionReceiverValue).size
                 val numReceiversExpected = listOfNotNull(callee.dispatchReceiverParameter, callee.extensionReceiverParameter).size
                 if (numReceiversPresent != numReceiversExpected)
@@ -45,6 +46,52 @@ fun CallReceiver.adjustForCallee(callee: CallableMemberDescriptor): CallReceiver
                         dispatchReceiverValue != null && callee.dispatchReceiverParameter == null -> dispatchReceiverValue
                         else -> extensionReceiverValue
                     }
-                withDispatchAndExtensionReceivers(newDispatchReceiverValue, newExtensionReceiverValue)
+                builder.withReceivers(newDispatchReceiverValue, newExtensionReceiverValue, contextReceiverValues)
             }
+    }
+
+
+internal fun computeSubstitutedSyntheticAccessor(
+    propertyDescriptor: PropertyDescriptor,
+    accessorFunctionDescriptor: FunctionDescriptor,
+    substitutedExtensionAccessorDescriptor: PropertyAccessorDescriptor
+): FunctionDescriptor {
+    if (propertyDescriptor.original == propertyDescriptor) return accessorFunctionDescriptor
+
+    // Compute substituted accessor descriptor in case of Synthetic Java property `Java: getFoo() -> Kotlin: foo`
+    if (propertyDescriptor !is SyntheticPropertyDescriptor) return accessorFunctionDescriptor
+
+    if (propertyDescriptor.extensionReceiverParameter == null || propertyDescriptor.dispatchReceiverParameter != null) {
+        return accessorFunctionDescriptor
+    }
+
+    if (accessorFunctionDescriptor !is SimpleFunctionDescriptor) return accessorFunctionDescriptor
+
+    return copyTypesFromExtensionAccessor(accessorFunctionDescriptor, substitutedExtensionAccessorDescriptor)
+}
+
+// When computing substituted descriptor for a synthetic accessor of a synthesized property,
+// the property descriptor's accessor field almost has the right type,
+// except with extension receiver instead of dispatch receiver. Need to patch it up.
+private fun copyTypesFromExtensionAccessor(
+    accessorFunctionDescriptor: SimpleFunctionDescriptor,
+    extensionAccessorDescriptor: PropertyAccessorDescriptor
+): FunctionDescriptor =
+    SimpleFunctionDescriptorImpl.create(
+        accessorFunctionDescriptor.containingDeclaration,
+        accessorFunctionDescriptor.annotations,
+        accessorFunctionDescriptor.name,
+        accessorFunctionDescriptor.kind,
+        accessorFunctionDescriptor.source
+    ).apply {
+        initialize(
+            null,
+            extensionAccessorDescriptor.extensionReceiverParameter?.copy(this),
+            emptyList(),
+            emptyList(),
+            extensionAccessorDescriptor.valueParameters.map { it.copy(this, it.name, it.index) },
+            extensionAccessorDescriptor.returnType,
+            accessorFunctionDescriptor.modality,
+            accessorFunctionDescriptor.visibility
+        )
     }

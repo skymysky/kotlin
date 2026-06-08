@@ -16,5 +16,5 @@ fun infiniteLoop() {
     while(true) {}
 }
 
-// 2 GOTO L7
-// 1 GOTO L1
+// 2 GOTO L6
+// 1 GOTO L0

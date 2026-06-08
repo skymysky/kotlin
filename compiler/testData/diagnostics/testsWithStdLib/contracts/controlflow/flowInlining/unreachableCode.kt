@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: BACKEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -12,6 +12,9 @@ inline fun <T> myRun(block: () -> T): T {
 }
 
 fun throwInLambda(): Int {
-    <!UNREACHABLE_CODE!>val <!UNUSED_VARIABLE!>x<!> =<!> myRun { throw java.lang.IllegalArgumentException(); <!UNREACHABLE_CODE!>42<!> }
-    <!UNREACHABLE_CODE!>return x<!>
+    val x = myRun { throw java.lang.IllegalArgumentException(); 42 }
+    return x
 }
+
+/* GENERATED_FIR_TAGS: contractCallsEffect, contracts, functionDeclaration, functionalType, inline, integerLiteral,
+javaFunction, lambdaLiteral, localProperty, nullableType, propertyDeclaration, typeParameter */

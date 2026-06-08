@@ -1,9 +1,12 @@
-// !LANGUAGE: +ProhibitDataClassesOverridingCopy
+// RUN_PIPELINE_TILL: FRONTEND
 
 interface WithCopy<T> {
     fun copy(str: T): WithCopy<T>
 }
 
-<!DATA_CLASS_OVERRIDE_DEFAULT_VALUES_ERROR!>data<!> class <!CONFLICTING_JVM_DECLARATIONS, CONFLICTING_JVM_DECLARATIONS!>Test(val str: String)<!> : WithCopy<String> {
-    <!CONFLICTING_OVERLOADS!>override fun copy(str: String)<!> = Test(str)
+<!DATA_CLASS_OVERRIDE_DEFAULT_VALUES!>data<!> class <!CONFLICTING_OVERLOADS!>Test(val str: String)<!> : WithCopy<String> {
+    override <!CONFLICTING_OVERLOADS!>fun copy(str: String)<!> = Test(str)
 }
+
+/* GENERATED_FIR_TAGS: classDeclaration, data, functionDeclaration, interfaceDeclaration, nullableType, override,
+primaryConstructor, propertyDeclaration, typeParameter */

@@ -1,4 +1,4 @@
-// IGNORE_BACKEND: JS_IR
+// LANGUAGE: +NameBasedDestructuring +DeprecateNameMismatchInShortDestructuringWithParentheses +EnableNameBasedDestructuringShortForm
 class C(val i: Int) {
 }
 
@@ -9,7 +9,7 @@ class M {
 
 fun M.doTest(l : Array<C>): String {
     var s = ""
-    for ((a, b) in l) {
+    for ([a, b] in l) {
       s += "$a:$b;"
     }
     return s

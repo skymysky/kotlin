@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: JVM_IR
 // FILE: 1.kt
 inline fun cycle(p: String): String {
     var z = p
@@ -15,7 +14,7 @@ inline fun test(crossinline foo: String.() -> String): String {
 
     {
         cycle.foo()
-    }()
+    }.let { it() }
 
 
     return cycle.foo()

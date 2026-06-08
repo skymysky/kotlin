@@ -1,3 +1,4 @@
+// RUN_PIPELINE_TILL: BACKEND
 import kotlin.reflect.KProperty
 
 class MyMetadata<in T, R>(val default: R) {
@@ -8,3 +9,7 @@ class MyMetadata<in T, R>(val default: R) {
 interface Something
 class MyReceiver
 var MyReceiver.something: Something? by MyMetadata(default = null)
+
+/* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, in, interfaceDeclaration, nullableType, operator,
+primaryConstructor, propertyDeclaration, propertyDelegate, propertyWithExtensionReceiver, setter, starProjection,
+typeParameter */

@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class IC(val x: String) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class IC(val x: String) {
     private fun privateFun() = x
     override fun toString() = privateFun()
 }

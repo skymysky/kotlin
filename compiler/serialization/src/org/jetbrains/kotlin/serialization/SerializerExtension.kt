@@ -1,6 +1,6 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.serialization
@@ -18,7 +18,9 @@ abstract class SerializerExtension {
 
     abstract val metadataVersion: BinaryVersion
 
-    val annotationSerializer by lazy { AnnotationSerializer(stringTable) }
+    val annotationSerializer by lazy { createAnnotationSerializer() }
+
+    protected open fun createAnnotationSerializer(): AnnotationSerializer = AnnotationSerializer(stringTable)
 
     open fun shouldUseTypeTable(): Boolean = false
     open fun shouldUseNormalizedVisibility(): Boolean = false
@@ -34,23 +36,34 @@ abstract class SerializerExtension {
     open fun serializeClass(
         descriptor: ClassDescriptor,
         proto: ProtoBuf.Class.Builder,
-        versionRequirementTable: MutableVersionRequirementTable
+        versionRequirementTable: MutableVersionRequirementTable,
+        childSerializer: DescriptorSerializer
     ) {
     }
 
     open fun serializePackage(packageFqName: FqName, proto: ProtoBuf.Package.Builder) {
     }
 
-    open fun serializeConstructor(descriptor: ConstructorDescriptor, proto: ProtoBuf.Constructor.Builder) {
+    open fun serializeConstructor(
+        descriptor: ConstructorDescriptor,
+        proto: ProtoBuf.Constructor.Builder,
+        childSerializer: DescriptorSerializer
+    ) {
     }
 
-    open fun serializeFunction(descriptor: FunctionDescriptor, proto: ProtoBuf.Function.Builder) {
+    open fun serializeFunction(
+        descriptor: FunctionDescriptor,
+        proto: ProtoBuf.Function.Builder,
+        versionRequirementTable: MutableVersionRequirementTable?,
+        childSerializer: DescriptorSerializer
+    ) {
     }
 
     open fun serializeProperty(
         descriptor: PropertyDescriptor,
         proto: ProtoBuf.Property.Builder,
-        versionRequirementTable: MutableVersionRequirementTable
+        versionRequirementTable: MutableVersionRequirementTable?,
+        childSerializer: DescriptorSerializer
     ) {
     }
 
@@ -69,9 +82,10 @@ abstract class SerializerExtension {
     open fun serializeTypeParameter(typeParameter: TypeParameterDescriptor, proto: ProtoBuf.TypeParameter.Builder) {
     }
 
+    open fun serializeTypeAlias(typeAlias: TypeAliasDescriptor, proto: ProtoBuf.TypeAlias.Builder) {
+    }
+
     open fun serializeErrorType(type: KotlinType, builder: ProtoBuf.Type.Builder) {
         throw IllegalStateException("Cannot serialize error type: $type")
     }
-
-    open fun releaseCoroutines(): Boolean = false
 }

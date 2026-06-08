@@ -1,6 +1,6 @@
-// !LANGUAGE: +AllowContractsForCustomFunctions +UseCallsInPlaceEffect
-// !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
+// RUN_PIPELINE_TILL: FRONTEND
+// OPT_IN: kotlin.contracts.ExperimentalContracts
+// DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 import kotlin.contracts.*
 
@@ -18,7 +18,7 @@ fun withLabeledReturn() {
 
     val x = myRun outer@ {
         myRun { return@outer Unit }
-        <!UNREACHABLE_CODE!>y = 42<!>
+        y = 42
     }
 
     println(<!UNINITIALIZED_VARIABLE!>y<!>)
@@ -28,7 +28,10 @@ fun withLabeledReturn() {
 fun withLabeledReturn2(y: Int) {
     myRun outer@ {
         myRun { return@outer Unit }
-        <!UNREACHABLE_CODE!>println(y)<!>
+        println(y)
     }
     println(y)
 }
+
+/* GENERATED_FIR_TAGS: assignment, contractCallsEffect, contracts, functionDeclaration, functionalType, inline,
+integerLiteral, lambdaLiteral, localProperty, propertyDeclaration */

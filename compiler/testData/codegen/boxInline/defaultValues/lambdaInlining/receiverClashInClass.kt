@@ -1,7 +1,6 @@
-// IGNORE_BACKEND: JVM_IR
-// FILE: 1.kt
-// LANGUAGE_VERSION: 1.2
 // SKIP_INLINE_CHECK_IN: inlineFun$default
+// WITH_STDLIB
+// FILE: 1.kt
 package test
 
 class A(val value: String) {
@@ -9,14 +8,11 @@ class A(val value: String) {
     inline fun String.inlineFun(crossinline lambda: () -> String = { this }): String {
         return {
             "$value ${this} ${lambda()}"
-        }()
+        }.let { it() }
     }
 }
 
 // FILE: 2.kt
-//WITH_RUNTIME
-// CHECK_CALLED_IN_SCOPE: function=A$inlineFun$lambda scope=box
-// CHECK_CALLED_IN_SCOPE: function=A$inlineFun$lambda_0 scope=box
 import test.*
 
 fun box(): String {

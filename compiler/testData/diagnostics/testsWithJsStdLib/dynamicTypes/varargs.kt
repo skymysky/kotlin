@@ -1,4 +1,5 @@
-// !MARK_DYNAMIC_CALLS
+// RUN_PIPELINE_TILL: BACKEND
+// MARK_DYNAMIC_CALLS
 
 fun test() {
     v()

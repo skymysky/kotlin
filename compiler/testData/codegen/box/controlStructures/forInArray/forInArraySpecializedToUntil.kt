@@ -1,6 +1,6 @@
 // IGNORE_BACKEND: JS_IR
-// IGNORE_BACKEND: JS
-// WITH_RUNTIME
+// IGNORE_BACKEND: JS_IR_ES6
+// WITH_STDLIB
 
 fun checkByteArray(): Boolean {
     val byteArray = byteArrayOf(1, 2, 3)

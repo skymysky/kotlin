@@ -1,0 +1,20 @@
+plugins {
+    kotlin("jvm")
+    id("java-test-fixtures")
+}
+
+description = "Infrastructure for running Swift Export Standalone integration tests"
+
+dependencies {
+    compileOnly(kotlinStdlib())
+
+    testFixturesApi(project(":native:swift:swift-export-standalone"))
+    testFixturesImplementation(project(":native:external-projects-test-utils"))
+    testFixturesApi(testFixtures(project(":native:native.tests")))
+    testFixturesCompileOnly(testFederationRuntime)
+}
+
+sourceSets {
+    "main" { none() }
+    "testFixtures" { projectDefault() }
+}

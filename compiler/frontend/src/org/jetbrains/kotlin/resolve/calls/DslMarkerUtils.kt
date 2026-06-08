@@ -1,6 +1,6 @@
 /*
- * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the license/LICENSE.txt file.
+ * Copyright 2000-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.resolve.calls
@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.resolve.scopes.receivers.ExtensionReceiver
 import org.jetbrains.kotlin.resolve.scopes.receivers.ReceiverValue
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.getAbbreviation
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 object DslMarkerUtils {
 
@@ -33,13 +32,12 @@ object DslMarkerUtils {
     fun extractDslMarkerFqNames(receiver: ReceiverValue): DslMarkersFromReceiver {
         val errorLevel = extractDslMarkerFqNames(receiver.type)
 
-        val deprecationLevel =
-            receiver.safeAs<ExtensionReceiver>()
-                ?.declarationDescriptor
-                ?.safeAs<FunctionDescriptor>()
-                ?.getUserData(FunctionTypeAnnotationsKey)
-                ?.let(Annotations::extractDslMarkerFqNames)
-                ?.toSet() ?: emptySet()
+        val functionDescriptor = (receiver as? ExtensionReceiver)?.declarationDescriptor as? FunctionDescriptor
+        val deprecationLevel = functionDescriptor
+            ?.getUserData(FunctionTypeAnnotationsKey)
+            ?.let(Annotations::extractDslMarkerFqNames)
+            ?.toSet()
+            ?: emptySet()
 
         return DslMarkersFromReceiver(errorLevel, deprecationLevel)
     }
@@ -51,7 +49,7 @@ object DslMarkerUtils {
 
         kotlinType.getAbbreviation()?.constructor?.declarationDescriptor?.run {
             result.addAll(annotations.extractDslMarkerFqNames())
-            safeAs<TypeAliasDescriptor>()?.run {
+            (this as? TypeAliasDescriptor)?.run {
                 result.addAll(extractDslMarkerFqNames(this.underlyingType))
             }
         }
@@ -67,7 +65,7 @@ object DslMarkerUtils {
 
 
 private fun Annotations.extractDslMarkerFqNames() =
-    filter(AnnotationDescriptor::isDslMarker).map { it.fqName!! }
+    filter(AnnotationDescriptor::isDslMarker).mapNotNull { it.fqName }
 
 private fun AnnotationDescriptor.isDslMarker(): Boolean {
     val classDescriptor = annotationClass ?: return false

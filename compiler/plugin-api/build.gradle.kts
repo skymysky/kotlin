@@ -1,18 +1,17 @@
-
 plugins {
     kotlin("jvm")
-    id("jps-compatible")
+    id("gradle-plugin-compiler-dependency-configuration")
 }
 
-jvmTarget = "1.6"
-
 dependencies {
-    compile(project(":compiler:util"))
-    compile(project(":compiler:frontend"))
-    compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
+    api(project(":compiler:util"))
+    api(project(":compiler:config"))
+    compileOnly(intellijCore())
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
+
+optInToExperimentalCompilerApi()

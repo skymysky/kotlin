@@ -1,7 +1,9 @@
-// !LANGUAGE: +InlineClasses
-// IGNORE_BACKEND: JVM_IR
+// WITH_STDLIB
+// WORKS_WHEN_VALUE_CLASS
+// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
-inline class Foo(val c: Char) {
+OPTIONAL_JVM_INLINE_ANNOTATION
+value class Foo(val c: Char) {
     companion object {
         val prop = "O"
         const val constVal = 1
